@@ -1,11 +1,11 @@
 using HomeManagement.Application.Workflows;
 using HomeManagement.Components.Dialogs;
-using HomeManagement.Infrastructure;
-using HomeManagement.Shared;
+using HomeManagement.Infrastructure.Database;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using System.Linq.Expressions;
+using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Components.Pages;
 
@@ -170,7 +170,7 @@ public partial class Workflows(
         try
         {
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Workflows.FirstOrDefaultAsync(x => x.Name == workflow.Name);
+            var existing = await dbContext.Workflows.FirstOrDefaultAsync(x => x.Id == workflow.Id);
             if (existing is null)
             {
                 snackbar.Add("Workflow not found.", Severity.Error);
@@ -202,7 +202,7 @@ public partial class Workflows(
             var result = await workflowRunner.RunAsync(workflow);
 
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Workflows.FirstOrDefaultAsync(x => x.Name == workflow.Name);
+            var existing = await dbContext.Workflows.FirstOrDefaultAsync(x => x.Id == workflow.Id);
             if (existing is not null)
             {
                 existing.LastTriggeredAtUtc = DateTimeOffset.UtcNow;
@@ -239,7 +239,7 @@ public partial class Workflows(
         try
         {
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Workflows.FirstOrDefaultAsync(x => x.Name == workflow.Name);
+            var existing = await dbContext.Workflows.FirstOrDefaultAsync(x => x.Id == workflow.Id);
             if (existing is null)
             {
                 snackbar.Add("Workflow not found in DB.", Severity.Warning);

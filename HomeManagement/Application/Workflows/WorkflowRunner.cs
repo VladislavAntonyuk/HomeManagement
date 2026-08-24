@@ -1,9 +1,8 @@
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.WebHooks;
-using HomeManagement.Infrastructure;
-using HomeManagement.Shared;
+using HomeManagement.Infrastructure.Database;
+using HomeManagement.Infrastructure.Database.Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace HomeManagement.Application.Workflows;
 
@@ -90,7 +89,7 @@ public class WorkflowRunner(
                         }
 
                         var result = await deviceActionExecutor.ExecuteAsync(device, deviceAction, token);
-                        dynamicValues["LastStep.Type"] = WorkflowStepType.DeviceAction.ToString();
+                        dynamicValues["LastStep.Type"] = nameof(WorkflowStepType.DeviceAction);
                         dynamicValues["LastStep.Success"] = result.IsSuccess.ToString();
                         dynamicValues["LastStep.Message"] = result.Message;
                         dynamicValues["LastStep.Device"] = step.DeviceName;
@@ -116,7 +115,7 @@ public class WorkflowRunner(
                         }
 
                         await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token);
-                        dynamicValues["LastStep.Type"] = WorkflowStepType.Delay.ToString();
+                        dynamicValues["LastStep.Type"] = nameof(WorkflowStepType.Delay);
                         dynamicValues["LastStep.Success"] = true.ToString();
                         dynamicValues["LastStep.DelaySeconds"] = delaySeconds.ToString();
                         executedActions++;
@@ -142,7 +141,7 @@ public class WorkflowRunner(
 
                         foreach (var sender in senders)
                         {
-                            var request = senderRequestFactory.Create(new WebHookModel { Message = payload }, sender);
+                            var request = senderRequestFactory.Create(payload, sender);
                             if (request is null)
                             {
                                 continue;
@@ -155,7 +154,7 @@ public class WorkflowRunner(
                             }
                         }
 
-                        dynamicValues["LastStep.Type"] = WorkflowStepType.Notify.ToString();
+                        dynamicValues["LastStep.Type"] = nameof(WorkflowStepType.Notify);
                         dynamicValues["LastStep.Message"] = payload;
                         dynamicValues["LastStep.Success"] = (senderErrors.Count == 0).ToString();
 

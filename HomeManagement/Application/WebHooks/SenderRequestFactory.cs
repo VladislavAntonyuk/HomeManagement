@@ -1,24 +1,23 @@
 using HomeManagement.Application.WebHooks.Email;
 using HomeManagement.Application.WebHooks.Telegram;
-using HomeManagement.Shared;
 
 namespace HomeManagement.Application.WebHooks;
 
 public class SenderRequestFactory
 {
-    private static readonly Dictionary<Type, Func<WebHookModel, ISenderContent>> ContentFactoryBySenderType = new()
+    private static readonly Dictionary<Type, Func<string, ISenderContent>> ContentFactoryBySenderType = new()
     {
-        [typeof(TelegramSender)] = model => new TelegramSenderContent
+        [typeof(TelegramSender)] = message => new TelegramSenderContent
         {
-            Message = model.Message
+            Message = message
         },
-        [typeof(EmailSender)] = model => new EmailSenderContent
+        [typeof(EmailSender)] = message => new EmailSenderContent
         {
-            Message = model.Message
+            Message = message
         }
     };
 
-    public SenderRequest? Create(WebHookModel model, ISender service)
+    public SenderRequest? Create(string message, ISender service)
     {
         if (!ContentFactoryBySenderType.TryGetValue(service.GetType(), out var createContent))
         {
@@ -27,7 +26,7 @@ public class SenderRequestFactory
 
         return new SenderRequest
         {
-            Content = createContent(model)
+            Content = createContent(message)
         };
     }
 }

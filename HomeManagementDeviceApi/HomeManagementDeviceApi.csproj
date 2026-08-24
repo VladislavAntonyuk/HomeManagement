@@ -11,10 +11,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="Coravel" Version="6.0.2" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<ProjectReference Include="..\HomeManagement.Shared\HomeManagement.Shared.csproj" />
 		<Content Update="appsettings.*.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

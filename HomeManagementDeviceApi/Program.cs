@@ -1,4 +1,3 @@
-using Coravel;
 using HomeManagement.Shared;
 using HomeManagementDeviceApi;
 using Microsoft.Extensions.Options;
@@ -6,28 +5,18 @@ using System.Diagnostics;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddScheduler();
 
-builder.Services.AddHttpClient<MonitorInvocable>();
-builder.Services.AddTransient<MonitorInvocable>();
 builder.Services.Configure<CommandsSettings>(builder.Configuration.GetSection("CommandsSettings"));
 
 var app = builder.Build();
 
 app.UseHttpsRedirection();
 
-app.Services.UseScheduler(scheduler =>
-{
-    scheduler.Schedule<MonitorInvocable>()
-        .EveryFiveMinutes()
-        .RunOnceAtStart()
-        .PreventOverlapping("Monitor");
-});
-
 app.MapGet("/info", (IConfiguration configuration, IOptions<CommandsSettings> commandsOptions) =>
 {
     var actions = new List<DeviceAction>()
     {
+        new ("INFO", CommandType.Get, "info"),
         new ("SHUTDOWN", CommandType.Post, "shutdown"),
         new ("RESTART", CommandType.Post, "restart")
     };
@@ -36,7 +25,7 @@ app.MapGet("/info", (IConfiguration configuration, IOptions<CommandsSettings> co
 
     return new NetworkDevice
     {
-        Name = configuration["DeviceName"],
+        Name = configuration.GetValue("DeviceName", string.Empty),
         Address = NetworkManager.GetLocalIp(),
         Actions = actions,
         UptimeSeconds = DeviceManager.GetUptime(),

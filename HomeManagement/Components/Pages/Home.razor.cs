@@ -1,11 +1,13 @@
 ﻿using HomeManagement.Application.Router;
-using HomeManagement.Infrastructure;
+using HomeManagement.Infrastructure.Database;
 using HomeManagement.Shared;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using System.Diagnostics;
+using HomeManagement.Infrastructure;
+using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Components.Pages;
 

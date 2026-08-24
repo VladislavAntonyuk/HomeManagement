@@ -1,4 +1,4 @@
-using HomeManagement.Shared;
+using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Components.Dialogs;
 

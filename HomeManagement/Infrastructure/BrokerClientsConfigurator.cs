@@ -1,4 +1,5 @@
 using System.Text.Json;
+using HomeManagement.Infrastructure.IpCameras;
 using MQTTnet.Formatter;
 using Silverback.Messaging.Configuration;
 
@@ -27,20 +28,4 @@ public class BrokerClientsConfigurator : IBrokerClientsConfigurator
                                     .WithExactlyOnceQoS()
                                     .OnError(policy => policy.Skip()))));
     }
-}
-
-
-public class FrigateEventMessage
-{
-    public After? After { get; set; }
-    public string? Type { get; set; }
-}
-
-public class After
-{
-    public string Id { get; set; }
-    public string Camera { get; set; }
-    public string Label { get; set; }
-    public float TopScore { get; set; }
-    public bool HasSnapshot { get; set; }
 }

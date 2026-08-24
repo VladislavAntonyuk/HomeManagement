@@ -5,29 +5,19 @@ namespace HomeManagement.Shared;
 
 public class NetworkManager
 {
-    public static string? GetLocalSubnet()
+    public static string GetLocalSubnet()
     {
         var subnetBytes = GetSubnets();
-        if (subnetBytes is null)
-        {
-            return null;
-        }
-
         return $"{subnetBytes[0]}.{subnetBytes[1]}.{subnetBytes[2]}.";
     }
 
-    public static string? GetLocalIp()
+    public static string GetLocalIp()
     {
         var subnetBytes = GetSubnets();
-        if (subnetBytes is null)
-        {
-            return null;
-        }
-
         return $"{subnetBytes[0]}.{subnetBytes[1]}.{subnetBytes[2]}.{subnetBytes[3]}";
     }
 
-    public static byte[]? GetSubnets()
+    private static byte[] GetSubnets()
     {
         foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
         {
@@ -52,6 +42,6 @@ public class NetworkManager
             }
         }
 
-        return null;
+        return [0, 0, 0, 0];
     }
 }

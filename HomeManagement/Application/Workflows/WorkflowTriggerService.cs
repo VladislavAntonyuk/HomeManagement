@@ -1,11 +1,11 @@
 using HomeManagement.Application.DeviceManagement;
-using HomeManagement.Infrastructure;
-using HomeManagement.Shared;
+using HomeManagement.Infrastructure.Database;
 using Innovative.SolarCalculator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Globalization;
 using System.Text.Json;
+using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Application.Workflows;
 

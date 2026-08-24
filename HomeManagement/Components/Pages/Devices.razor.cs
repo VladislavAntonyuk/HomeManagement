@@ -1,13 +1,16 @@
 ﻿using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Components.Dialogs;
-using HomeManagement.Infrastructure;
-using HomeManagement.Shared;
+using HomeManagement.Infrastructure.Database;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using System.Linq.Expressions;
 using System.Net;
 using System.Net.NetworkInformation;
+using HomeManagement.Infrastructure.Database.Entities;
+using HomeManagement.Shared;
+using Device = HomeManagement.Infrastructure.Database.Entities.Device;
+using DeviceAction = HomeManagement.Infrastructure.Database.Entities.DeviceAction;
 using NetworkManager = HomeManagement.Application.DeviceManagement.NetworkManager;
 
 namespace HomeManagement.Components.Pages;
@@ -29,7 +32,10 @@ public partial class Devices(
     private async Task<TableData<Device>> ServerReload(TableState state, CancellationToken token)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
-        var query = dbContext.Devices.AsNoTracking().Include(d => d.Actions).AsQueryable();
+        var query = dbContext.Devices.AsNoTracking()
+            .Include(d => d.Actions)
+            .Include(d => d.Configurations)
+            .AsQueryable();
 
         var totalItems = await query.CountAsync(token);
         query = ApplySorting(query, state.SortLabel, state.SortDirection);
@@ -227,7 +233,19 @@ public partial class Devices(
                     device.Address = "http://" + device.Address;
                 }
 
-                dbContext.Devices.Add(device);
+                dbContext.Devices.Add(new Device
+                {
+                    Name = device.Name,
+                    Address = device.Address,
+                    Description = device.Description,
+                    Actions = device.Actions.Select(a => new DeviceAction
+                    {
+                        Action = a.Action,
+                        Command = a.Command,
+                        CommandArgs = a.CommandArgs,
+                        CommandType = a.CommandType
+                    }).ToList()
+                });
             }
 
             await dbContext.SaveChangesAsync();
@@ -249,7 +267,7 @@ public partial class Devices(
             return;
         }
 
-        var device = (Device)result.Data!;
+        var device = (Shared.Device)result.Data!;
         try
         {
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
@@ -258,7 +276,19 @@ public partial class Devices(
                 device.Address = "http://" + device.Address;
             }
 
-            dbContext.Devices.Add(device);
+            dbContext.Devices.Add(new Device()
+            {
+                Name = device.Name,
+                Address = device.Address,
+                Description = device.Description,
+                Actions = device.Actions.Select(a => new DeviceAction
+                {
+                    Action = a.Action,
+                    Command = a.Command,
+                    CommandArgs = a.CommandArgs,
+                    CommandType = a.CommandType
+                }).ToList()
+            });
             await dbContext.SaveChangesAsync();
 
             snackbar.Add($"Device '{device.Name}' added.", Severity.Success);
@@ -276,6 +306,7 @@ public partial class Devices(
         {
             ["Model"] = new DeviceEditModel
             {
+                Id = device.Id,
                 Name = device.Name,
                 Address = device.Address,
                 Description = device.Description,
@@ -311,25 +342,35 @@ public partial class Devices(
         try
         {
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Devices.FirstOrDefaultAsync(d => d.Name == device.Name);
+            var existing = await dbContext.Devices.AsTracking()
+                .Include(x => x.Actions)
+                .Include(x => x.Configurations)
+                .FirstOrDefaultAsync(d => d.Id == device.Id);
             if (existing is null)
             {
                 snackbar.Add("Device not found.", Severity.Error);
                 return;
             }
 
-            dbContext.Devices.Remove(existing);
-            var replacement = new Device()
+            existing.Id = model.Id;
+            existing.Name = model.Name;
+            existing.Address = model.Address;
+            existing.Description = model.Description;
+            existing.Actions = model.Actions.Select(a => new DeviceAction
             {
-                Name = model.Name,
-                Address = model.Address,
-                Description = model.Description,
-                Actions = model.Actions.Select(a => new DeviceAction(a.Action, a.CommandType, a.Command, a.CommandArgs))
-                    .ToList(),
-                Configurations = model.Configurations.Select(c => new DeviceConfiguration(c.Name, c.Value))
-                    .ToList()
-            };
-            dbContext.Devices.Add(replacement);
+                Action = a.Action,
+                Command = a.Command,
+                CommandArgs = a.CommandArgs,
+                CommandType = a.CommandType
+            })
+                .ToList();
+            existing.Configurations = model.Configurations.Select(c => new DeviceConfiguration
+            {
+                Name = c.Name,
+                Value = c.Value
+            })
+                .ToList()
+        ;
             await dbContext.SaveChangesAsync();
 
             snackbar.Add("Device updated.", Severity.Success);
@@ -351,7 +392,7 @@ public partial class Devices(
         try
         {
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Devices.FirstOrDefaultAsync(d => d.Name == device.Name);
+            var existing = await dbContext.Devices.AsTracking().FirstOrDefaultAsync(d => d.Id == device.Id);
             if (existing is null)
             {
                 snackbar.Add("Device not found in DB.", Severity.Warning);

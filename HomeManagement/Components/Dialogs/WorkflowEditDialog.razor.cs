@@ -1,8 +1,8 @@
 using HomeManagement.Application.Workflows;
-using HomeManagement.Shared;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using System.Globalization;
+using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Components.Dialogs;
 
@@ -115,8 +115,7 @@ public partial class WorkflowEditDialog
                     _saving = false;
                     return;
                 }
-
-                }
+            }
         }
 
         DialogReference.Close(DialogResult.Ok(Model));

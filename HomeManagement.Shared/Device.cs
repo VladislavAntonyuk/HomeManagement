@@ -9,5 +9,4 @@ public class Device
     public string? Description { get; set; }
 
     public IList<DeviceAction> Actions { get; init; } = [];
-    public IList<DeviceConfiguration> Configurations { get; init; } = [];
 }

@@ -15,18 +15,14 @@ public partial class ScanDevicesDialog(ISnackbar snackbar) : ComponentBase
         try
         {
             var baseIp = Shared.NetworkManager.GetLocalSubnet();
-            if (baseIp is null)
-            {
-                snackbar.Add("No active IPv4 network interface found.", Severity.Error);
-                return;
-            }
 
             var networkDevices = await NetworkManager.ScanNetworkAsync(baseIp, 100, CancellationToken.None);
 
             _devices = networkDevices.Select(d => new SelectableDevice { Device = d }).ToList();
         }
-        catch
+        catch (Exception e)
         {
+            snackbar.Add(e.Message, Severity.Error);
         }
         finally
         {

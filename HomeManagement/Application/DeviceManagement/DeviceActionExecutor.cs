@@ -1,7 +1,9 @@
-using HomeManagement.Shared;
 using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Text;
+using HomeManagement.Shared;
+using Device = HomeManagement.Infrastructure.Database.Entities.Device;
+using DeviceAction = HomeManagement.Infrastructure.Database.Entities.DeviceAction;
 
 namespace HomeManagement.Application.DeviceManagement;
 

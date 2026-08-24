@@ -1,4 +1,4 @@
-sudo /home/vladislav/.dotnet/dotnet HomeManagement.dll --urls http://+:80
+sudo /home/orangepi/.dotnet/dotnet HomeManagement.dll --urls http://+:80
 
 sudo nano /lib/systemd/system/home-management.service
 
@@ -32,11 +32,11 @@ sudo systemctl status home-management.service
 
 
 
-ssh vladislav@raspberrypi-5.local
+ssh orangepi@home-management.local
 rm -r Projects/HomeManagement
 
 
-scp -r "./" vladislav@raspberrypi-5.local:/home/vladislav/Projects/HomeManagement
+scp -r "./" orangepi@home-management.local:/home/orangepi/Projects/HomeManagement
 
 
 

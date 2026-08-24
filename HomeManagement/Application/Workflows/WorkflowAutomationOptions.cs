@@ -2,15 +2,15 @@ namespace HomeManagement.Application.Workflows;
 
 public class WorkflowAutomationOptions
 {
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get; set; }
 
-    public int CheckIntervalSeconds { get; set; } = 30;
+    public int CheckIntervalSeconds { get; set; }
 
-    public double Latitude { get; set; } = 48.4647;
+    public double Latitude { get; set; }
 
-    public double Longitude { get; set; } = 35.0462;
+    public double Longitude { get; set; }
 
-    public string TimeZoneId { get; set; } = "Europe/Kyiv";
+    public string TimeZoneId { get; set; }
 
     public int SunriseAdjustmentMinutes { get; set; }
 

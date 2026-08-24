@@ -2,7 +2,6 @@
 using HomeManagement.Shared;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
-using NetworkManager = HomeManagement.Application.DeviceManagement.NetworkManager;
 
 namespace HomeManagement.Components.Dialogs;
 
@@ -36,7 +35,7 @@ public partial class AddressDialog
         }
         else
         {
-            device = await NetworkManager.GetDeviceInfoAsync(address, CancellationToken.None);
+            device = await Application.DeviceManagement.NetworkManager.GetDeviceInfoAsync(address, CancellationToken.None);
             _isBusy = false;
             if (device is null)
             {

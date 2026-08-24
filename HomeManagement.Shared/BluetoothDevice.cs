@@ -1,6 +1,3 @@
 namespace HomeManagement.Shared;
 
-public class BluetoothDevice : Device
-{
-    
-}
+public class BluetoothDevice : Device;

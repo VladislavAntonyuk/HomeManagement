@@ -1,8 +1,8 @@
 using HomeManagement.Application.DeviceManagement;
-using HomeManagement.Infrastructure;
-using HomeManagement.Shared;
+using HomeManagement.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Application.Workflows;
 
