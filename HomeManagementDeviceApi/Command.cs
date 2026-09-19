@@ -1,3 +1,6 @@
 namespace HomeManagementDeviceApi;
 
-public record Command(string FileName, IEnumerable<string> Arguments);
+public record Command(string FileName)
+{
+    public IEnumerable<string> Arguments { get; init; } = [];
+}

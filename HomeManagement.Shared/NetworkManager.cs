@@ -3,7 +3,7 @@ using System.Net.Sockets;
 
 namespace HomeManagement.Shared;
 
-public class NetworkManager
+public static class NetworkManager
 {
     public static string GetLocalSubnet()
     {
@@ -15,6 +15,11 @@ public class NetworkManager
     {
         var subnetBytes = GetSubnets();
         return $"{subnetBytes[0]}.{subnetBytes[1]}.{subnetBytes[2]}.{subnetBytes[3]}";
+    }
+
+    public static string GetAddress()
+    {
+        return $"http://{GetLocalIp()}";
     }
 
     private static byte[] GetSubnets()

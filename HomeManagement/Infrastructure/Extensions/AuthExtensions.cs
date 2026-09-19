@@ -1,6 +1,7 @@
 ﻿using HomeManagement.Application.Login;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.Extensions.Options;
 
 namespace HomeManagement.Infrastructure.Extensions;
 
@@ -31,6 +32,7 @@ public static class AuthExtensions
 #endif
                 o.Cookie.HttpOnly = true;
                 o.Cookie.SameSite = SameSiteMode.Lax;
+                o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 
                 o.Events.OnRedirectToLogin = context =>
                 {

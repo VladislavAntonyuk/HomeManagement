@@ -18,7 +18,6 @@
 		<MudTh><MudTableSortLabel T="Device">Address</MudTableSortLabel></MudTh>
 		<MudTh><MudTableSortLabel T="Device">Name</MudTableSortLabel></MudTh>
 		<MudTh>Status</MudTh>
-		<MudTh>Info</MudTh>
 		<MudTh>Actions</MudTh>
 		<MudTh></MudTh>
 	</HeaderContent>
@@ -38,19 +37,6 @@
 				{
 					<MudChip T="string" Color="@(deviceStatus.Online ? Color.Success : Color.Error)" Variant="Variant.Filled">@(deviceStatus.Online ? "Online" : "Offline")</MudChip>
 				}
-			}
-		</MudTd>
-		<MudTd DataLabel="Info">
-			@if (deviceStatus is null || deviceStatus.Loading)
-			{
-				<MudProgressCircular Indeterminate="true" Size="Size.Small" />
-			}
-			else
-			{
-				<MudStack>
-					<MudText>Uptime: @FormatDuration(deviceStatus.UptimeSeconds)</MudText>
-					<MudText>Temperature: @deviceStatus.Temperature °C</MudText>
-				</MudStack>
 			}
 		</MudTd>
 		<MudTd DataLabel="Actions">

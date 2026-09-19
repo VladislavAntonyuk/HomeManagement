@@ -1,17 +1,14 @@
 ﻿using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Components.Dialogs;
+using HomeManagement.Infrastructure;
 using HomeManagement.Infrastructure.Database;
+using HomeManagement.Infrastructure.Database.Entities;
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using System.Linq.Expressions;
 using System.Net;
 using System.Net.NetworkInformation;
-using HomeManagement.Infrastructure.Database.Entities;
-using HomeManagement.Shared;
-using Device = HomeManagement.Infrastructure.Database.Entities.Device;
-using DeviceAction = HomeManagement.Infrastructure.Database.Entities.DeviceAction;
-using NetworkManager = HomeManagement.Application.DeviceManagement.NetworkManager;
 
 namespace HomeManagement.Components.Pages;
 
@@ -86,12 +83,10 @@ public partial class Devices(
     {
         try
         {
-            var info = await NetworkManager.GetDeviceInfoAsync(device.Address, token);
+            var info = await NetworkManager.GetDeviceConfigAsync(device.Address, token);
             if (info is not null)
             {
                 status.Online = true;
-                status.UptimeSeconds = info.UptimeSeconds;
-                status.Temperature = info.Temperature;
             }
             else
             {
@@ -106,20 +101,16 @@ public partial class Devices(
                     using var ping = new Ping();
                     var reply = await ping.SendPingAsync(address is null ? device.Address : address.Host, 100);
                     status.Online = reply.Status == IPStatus.Success;
-                    status.UptimeSeconds = 0;
-                    status.Temperature = 0;
                 }
                 else
                 {
                     status.Online = false;
-                    status.UptimeSeconds = 0;
                 }
             }
         }
         catch
         {
             status.Online = false;
-            status.UptimeSeconds = 0;
         }
         finally
         {
@@ -170,7 +161,8 @@ public partial class Devices(
         try
         {
             var result = await deviceActionExecutor.ExecuteAsync(device, action);
-            snackbar.Add(result.Message,
+            var message = FormatMessage(result.Message);
+            snackbar.Add(new MarkupString(message),
                 result.IsSuccess ? Severity.Success : Severity.Error,
                 options => options.RequireInteraction = true);
         }
@@ -180,32 +172,18 @@ public partial class Devices(
         }
     }
 
-    private static string FormatDuration(int? seconds)
+    private string FormatMessage(string resultMessage)
     {
-        if (seconds is null)
+        var message = resultMessage;
+        try
         {
-            return string.Empty;
+            message = JsonFlattener.FlattenToString(resultMessage);
         }
-
-        var ts = TimeSpan.FromSeconds(seconds.Value);
-        var parts = new List<string>();
-        if (ts.Days > 0)
+        catch
         {
-            parts.Add($"{ts.Days}d");
+            // Ignore any exceptions and use the original message
         }
-
-        if (ts.Hours > 0 || parts.Count > 0)
-        {
-            parts.Add($"{ts.Hours}h");
-        }
-
-        if (ts.Minutes > 0 || parts.Count > 0)
-        {
-            parts.Add($"{ts.Minutes}m");
-        }
-
-        parts.Add($"{ts.Seconds}s");
-        return string.Join(" ", parts);
+        return message.ReplaceLineEndings("<br>");
     }
 
     private async Task ScanNetworkDevices()
@@ -217,7 +195,7 @@ public partial class Devices(
             return;
         }
 
-        var devices = (List<NetworkDevice>)result.Data!;
+        var devices = (List<Shared.DeviceConfig>)result.Data!;
         if (devices.Count == 0)
         {
             return;
@@ -228,16 +206,10 @@ public partial class Devices(
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
             foreach (var device in devices)
             {
-                if (!device.Address.StartsWith("http"))
-                {
-                    device.Address = "http://" + device.Address;
-                }
-
                 dbContext.Devices.Add(new Device
                 {
                     Name = device.Name,
                     Address = device.Address,
-                    Description = device.Description,
                     Actions = device.Actions.Select(a => new DeviceAction
                     {
                         Action = a.Action,
@@ -267,20 +239,14 @@ public partial class Devices(
             return;
         }
 
-        var device = (Shared.Device)result.Data!;
+        var device = (Shared.DeviceConfig)result.Data!;
         try
         {
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            if (device is NetworkDevice && !device.Address.StartsWith("http"))
-            {
-                device.Address = "http://" + device.Address;
-            }
-
-            dbContext.Devices.Add(new Device()
+            dbContext.Devices.Add(new Device
             {
                 Name = device.Name,
                 Address = device.Address,
-                Description = device.Description,
                 Actions = device.Actions.Select(a => new DeviceAction
                 {
                     Action = a.Action,
@@ -436,8 +402,6 @@ public partial class Devices(
     private class DeviceStatus
     {
         public bool Online { get; set; }
-        public int UptimeSeconds { get; set; }
-        public double Temperature { get; set; }
         public bool Loading { get; set; } = true;
     }
 }

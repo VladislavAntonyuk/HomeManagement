@@ -21,10 +21,10 @@ public partial class AddressDialog
 
         _isBusy = true;
         var address = Address.Trim();
-        Device? device;
+        DeviceConfig? device;
         if (PhysicalAddress.TryParse(address, out _))
         {
-            device = new BluetoothDevice()
+            device = new DeviceConfig
             {
                 Name = "AP300",
                 Address = address,
@@ -35,7 +35,7 @@ public partial class AddressDialog
         }
         else
         {
-            device = await Application.DeviceManagement.NetworkManager.GetDeviceInfoAsync(address, CancellationToken.None);
+            device = await Application.DeviceManagement.NetworkManager.GetDeviceConfigAsync(address, CancellationToken.None);
             _isBusy = false;
             if (device is null)
             {
@@ -57,7 +57,7 @@ public partial class AddressDialog
         }
 
         var deviceName = Address.Trim();
-        var device = new NetworkDevice
+        var device = new DeviceConfig
         {
             Name = deviceName,
             Address = deviceName

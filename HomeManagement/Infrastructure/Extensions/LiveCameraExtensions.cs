@@ -1,8 +1,8 @@
-﻿using HomeManagement.Infrastructure.IpCameras;
+﻿using System.Net;
+using System.Threading.Channels;
+using HomeManagement.Infrastructure.IpCameras;
 using LiveStreamingServerNet;
 using LiveStreamingServerNet.Flv.Installer;
-using System.Net;
-using System.Threading.Channels;
 
 namespace HomeManagement.Infrastructure.Extensions;
 
@@ -18,15 +18,18 @@ public static class LiveCameraExtensions
 
         builder.Services.AddLiveStreamingServer(
             new IPEndPoint(IPAddress.Any, 1935),
-            options => FlvInstaller.AddFlv(options
-                    .AddAuthorizationHandler<StreamAuthorizationHandler>())
+            options => options
+                .AddAuthorizationHandler<StreamAuthorizationHandler>().AddFlv()
         );
 
-        builder.Services.AddSingleton<FrigateEventsSubscriber>();
+        builder.Services.AddScoped<FrigateEventsSubscriber>();
+        builder.Services.AddHostedService<FrigateAlertsWorker>();
 
-        builder.Services.AddSingleton(_ => Channel.CreateBounded<string>(new BoundedChannelOptions(100)
+        builder.Services.AddSingleton(Channel.CreateBounded<string>(new BoundedChannelOptions(capacity: 100)
         {
-            FullMode = BoundedChannelFullMode.Wait
+            SingleReader = true,
+            SingleWriter = false,
+            FullMode = BoundedChannelFullMode.DropOldest
         }));
     }
 }

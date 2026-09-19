@@ -1,20 +1,18 @@
 using HomeManagement.Infrastructure.Database;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Concurrent;
 using System.Threading.Channels;
 using HomeManagement.Infrastructure.Database.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace HomeManagement.Infrastructure.IpCameras;
 
 public sealed class FrigateEventsSubscriber(
     Channel<string> channel,
     ILogger<FrigateEventsSubscriber> logger,
-    IDbContextFactory<HomeManagementDbContext> dbContextFactory)
+    HomeManagementDbContext dbContext)
 {
-    private readonly ConcurrentDictionary<string, DateTime> _seenEvents = new();
-
     public async Task OnFrigateEventAsync(FrigateEventMessage message)
     {
+        logger.LogInformation("Received Frigate event: {EventType} {EventLabel}", message.Type, message.After?.Label);
         if (message.Type is not "new")
         {
             return;
@@ -26,7 +24,6 @@ public sealed class FrigateEventsSubscriber(
             return;
         }
 
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         var awayModeSetting = await dbContext.AppSettings
             .AsNoTracking()
             .Select(x => new AppSetting
@@ -45,24 +42,13 @@ public sealed class FrigateEventsSubscriber(
             return;
         }
 
-        if (!_seenEvents.TryAdd(after.Id, DateTime.UtcNow))
-        {
-            return;
-        }
-
-        var expiry = DateTime.UtcNow.AddMinutes(-10);
-        foreach (var (key, time) in _seenEvents)
-        {
-            if (time < expiry)
-            {
-                _seenEvents.TryRemove(key, out _);
-            }
-        }
-
         var snapshotUrl = after.HasSnapshot
             ? $"http://cameras.home-management.local/api/events/{after.Id}/snapshot.jpg?bbox=1"
             : $"http://cameras.home-management.local/api/{after.Camera}/latest.jpg";
 
-        await channel.Writer.WriteAsync($"Person detected on camera '{after.Camera}' (Score: {after.TopScore:P0}, Event ID: {after.Id}), Snapshot URL: {snapshotUrl}");
+        var alertMessage = $"Person detected on camera '{after.Camera}' (Score: {after.TopScore:P0}, Event ID: {after.Id}), Snapshot URL: {snapshotUrl}";
+
+        await channel.Writer.WriteAsync(alertMessage);
+        logger.LogInformation("Successfully dispatched alert to Channel: {Alert}", alertMessage);
     }
 }

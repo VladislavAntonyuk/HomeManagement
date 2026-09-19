@@ -1,9 +1,7 @@
 using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Text;
-using HomeManagement.Shared;
-using Device = HomeManagement.Infrastructure.Database.Entities.Device;
-using DeviceAction = HomeManagement.Infrastructure.Database.Entities.DeviceAction;
+using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Application.DeviceManagement;
 
@@ -47,8 +45,8 @@ public class DeviceActionExecutor(IHttpClientFactory httpClientFactory) : IDevic
 
             var result = action.CommandType switch
             {
-                CommandType.Get => await httpClient.GetAsync(string.IsNullOrWhiteSpace(action.CommandArgs) ? action.Command : $"{action.Command}?{action.CommandArgs}", token),
-                CommandType.Post => await httpClient.PostAsync(action.Command,
+                Shared.CommandType.Get => await httpClient.GetAsync(string.IsNullOrWhiteSpace(action.CommandArgs) ? action.Command : $"{action.Command}?{action.CommandArgs}", token),
+                Shared.CommandType.Post => await httpClient.PostAsync(action.Command,
                     string.IsNullOrWhiteSpace(action.CommandArgs) ? null : new StringContent(action.CommandArgs, Encoding.Default, "application/json"),
                     token),
                 _ => throw new ArgumentOutOfRangeException(nameof(action.CommandType), action.CommandType, null)

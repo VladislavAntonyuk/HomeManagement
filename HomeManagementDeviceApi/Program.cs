@@ -2,6 +2,7 @@ using HomeManagement.Shared;
 using HomeManagementDeviceApi;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,7 +13,17 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 
-app.MapGet("/info", (IConfiguration configuration, IOptions<CommandsSettings> commandsOptions) =>
+app.MapGet("/info", (IConfiguration configuration) => new DeviceInfo
+{
+    Name = configuration.GetValue("DeviceName", string.Empty),
+    Address = NetworkManager.GetAddress(),
+    Metrics = new Dictionary<string, string>
+    {
+        { "UptimeSeconds", DeviceManager.GetUptime().ToString() },
+        { "Temperature", DeviceManager.GetTemperature().ToString(CultureInfo.InvariantCulture) }
+    }
+});
+app.MapGet("/config", (IConfiguration configuration, IOptions<CommandsSettings> commandsOptions) =>
 {
     var actions = new List<DeviceAction>()
     {
@@ -23,13 +34,11 @@ app.MapGet("/info", (IConfiguration configuration, IOptions<CommandsSettings> co
     actions.AddRange(commandsOptions.Value.Commands.Select(x => new DeviceAction($"Start {x.Name}", CommandType.Post, "command", JsonSerializer.Serialize(x.StartCommand))));
     actions.AddRange(commandsOptions.Value.Commands.Select(x => new DeviceAction($"Stop {x.Name}", CommandType.Post, "command", JsonSerializer.Serialize(x.StopCommand))));
 
-    return new NetworkDevice
+    return new DeviceConfig
     {
         Name = configuration.GetValue("DeviceName", string.Empty),
-        Address = NetworkManager.GetLocalIp(),
-        Actions = actions,
-        UptimeSeconds = DeviceManager.GetUptime(),
-        Temperature = DeviceManager.GetTemperature()
+        Address = NetworkManager.GetAddress(),
+        Actions = actions
     };
 });
 app.MapPost("/command", async (Command command, CancellationToken token) =>

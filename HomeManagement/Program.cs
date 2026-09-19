@@ -63,9 +63,9 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
-app.MapStaticAssets();
-
 app.UseHttpFlv();
+app.MapStaticAssets();
+app.MapLogin();
 
 app.MapMcp("/mcp").RequireAuthorization(McpApiKeyAuthenticationDefaults.PolicyName);
 app.MapRazorComponents<App>()
@@ -78,7 +78,7 @@ app.MapRazorComponents<App>()
 #if DEBUG
         "localhost:5140"
 #else
-        "home-management.local"
+        "home-management.local", "100.87.210.52"
 #endif
         );
 

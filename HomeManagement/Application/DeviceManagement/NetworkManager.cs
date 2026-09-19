@@ -12,9 +12,9 @@ public class NetworkManager
         Converters = { new JsonStringEnumConverter() }
     };
 
-    public static async Task<List<NetworkDevice>> ScanNetworkAsync(string baseIp, int timeout, CancellationToken token)
+    public static async Task<List<DeviceConfig>> ScanNetworkAsync(string baseIp, int timeout, CancellationToken token)
     {
-        var tasks = new List<Task<NetworkDevice?>>();
+        var tasks = new List<Task<DeviceConfig?>>();
 
         for (var i = 1; i <= 254; i++)
         {
@@ -23,10 +23,10 @@ public class NetworkManager
         }
 
         var results = await Task.WhenAll(tasks);
-        return results.OfType<NetworkDevice>().ToList();
+        return results.OfType<DeviceConfig>().ToList();
     }
 
-    private static async Task<NetworkDevice?> PingAndResolveAsync(string ip, int timeout, CancellationToken token)
+    private static async Task<DeviceConfig?> PingAndResolveAsync(string ip, int timeout, CancellationToken token)
     {
         using Ping ping = new();
         try
@@ -34,7 +34,7 @@ public class NetworkManager
             var reply = await ping.SendPingAsync(ip, TimeSpan.FromMilliseconds(timeout), cancellationToken: token);
             if (reply.Status == IPStatus.Success)
             {
-                return await GetDeviceInfoAsync(ip, token);
+                return await GetDeviceConfigAsync($"http://{ip}", token);
             }
         }
         catch
@@ -45,12 +45,12 @@ public class NetworkManager
         return null;
     }
 
-    public static async Task<NetworkDevice?> GetDeviceInfoAsync(string address, CancellationToken token)
+    public static async Task<DeviceConfig?> GetDeviceConfigAsync(string address, CancellationToken token)
     {
         try
         {
             using var httpClient = new HttpClient();
-            return await httpClient.GetFromJsonAsync<NetworkDevice>($"{address}/info", JsonSerializerOptions, token);
+            return await httpClient.GetFromJsonAsync<DeviceConfig>($"{address}/config", JsonSerializerOptions, token);
         }
         catch (Exception)
         {

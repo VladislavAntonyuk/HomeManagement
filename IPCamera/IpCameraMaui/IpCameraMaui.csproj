@@ -66,9 +66,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="CommunityToolkit.Maui" Version="15.0.0" />
+		<PackageReference Include="CommunityToolkit.Maui" Version="15.0.1" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-		<PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0-preview.7.26406.9" />
+		<PackageReference Include="Microsoft.Maui.Controls" Version="11.0.0-rc.1.26451.6" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'net11.0-android'">

@@ -10,7 +10,7 @@ public class WorkflowAutomationOptions
 
     public double Longitude { get; set; }
 
-    public string TimeZoneId { get; set; }
+    public required string TimeZoneId { get; set; }
 
     public int SunriseAdjustmentMinutes { get; set; }
 
