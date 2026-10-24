@@ -24,6 +24,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable home-management-device-api.service
 sudo systemctl start home-management-device-api.service
 sudo systemctl status home-management-device-api.service
+sudo systemctl stop home-management-device-api.service
 
 
 

@@ -365,3 +365,6 @@ FodyWeavers.xsd
 
 home_management.db*
 /HomeManagement/appsettings.Development.json
+
+# ESP8266 sketch secrets (WiFi credentials, etc.) - keep Config.h.example tracked instead
+ESP8266/**/Config.h

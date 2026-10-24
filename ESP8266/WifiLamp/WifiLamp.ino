@@ -2,11 +2,12 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
+#include "Config.h"
+#include <WifiHelper.h>
+#include <DeviceApi.h>
 
 #pragma region Variables
 const char* name = "second-floor-door-lamp";
-const char* ssid = "YOUR SSID";
-const char* password = "YOUR_PASSWORD";
 
 ESP8266WebServer server(80);
 
@@ -15,14 +16,8 @@ struct PinMap {
   int gpio;     // e.g., D1
 };
 
-struct Action {
-  const char* action;
-  const char* commandType;
-  const char* command;
-  const char* commandArgs = "";
-};
-
-Action actions[] = {
+DeviceAction actions[] = {
+  { "INFO", "GET", "info", "" },
   { "ON", "POST", "pins", "{\"pin\":\"D1\",\"action\":\"on\"}" },
   { "OFF", "POST", "pins", "{\"pin\":\"D1\",\"action\":\"off\"}" },
   { "STATUS", "GET", "pins", "pin=D1" },
@@ -47,10 +42,11 @@ void setup() {
   bootMillis = millis();
 
   resetPins();
-  connectToWifi();
+  connectToWifi(ssid, password);
 
-  MDNS.begin(name);  // Access via http://second.local/
+  startMDNS(name);  // Access via http://second.local/
 
+  server.on("/config", HTTP_GET, handleGetConfig);
   server.on("/info", HTTP_GET, handleGetInfo);
   server.on("/pins", HTTP_GET, handleGetPinStatus);
   server.on("/pins", HTTP_POST, handlePostPinStatus);
@@ -58,9 +54,7 @@ void setup() {
   server.on("/shutdown", HTTP_POST, handleShutdown);
   server.on("/restart", HTTP_POST, handleRestart);
 
-  server.onNotFound([]() {
-    server.send(404, "text/plain", "Not found");
-  });
+  registerNotFoundHandler(server);
 
   server.begin();
 }
@@ -71,8 +65,12 @@ void loop() {
 }
 
 #pragma region Endpoints
+void handleGetConfig() {
+  server.send(200, "application/json", buildDeviceConfigJson(name, actions, sizeof(actions) / sizeof(actions[0])));
+}
+
 void handleGetInfo() {
-  server.send(200, "application/json", buildInfoJson());
+  server.send(200, "application/json", buildDeviceInfoJson(name, bootMillis));
 }
 
 void handleGetPinStatus() {
@@ -141,19 +139,12 @@ void handlePostPinStatus() {
 }
 
 void handleRestart() {
-  Serial.println("Restarting...");
-  server.send(200, "text/plain", "Restarting...");
-  delay(300);
-  ESP.restart();
+  sendRestartResponse(server);
 }
 
 void handleShutdown() {
-  Serial.println("Shutting down...");
-  server.send(200, "text/plain", "Shutting down...");
-  delay(300);
   resetPins();
-  WiFi.disconnect(true);
-  ESP.deepSleep(0);
+  sendShutdownResponse(server);
 }
 
 #pragma endregion Endpoints
@@ -183,39 +174,3 @@ void resetPins() {
   }
 }
 
-void connectToWifi() {
-  WiFi.begin(ssid, password);
-  while (!WiFi.isConnected()) {
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
-  }
-
-  Serial.println("");
-  Serial.print("Connected! IP: ");
-  Serial.println(WiFi.localIP());
-}
-
-String buildInfoJson() {
-  // uptime seconds
-  unsigned long upSeconds = (millis() - bootMillis) / 1000UL;
-  JsonDocument doc;
-
-  doc["name"] = name;
-  doc["ip"] = WiFi.localIP().toString();
-  doc["uptimeSeconds"] = upSeconds;
-  
-  JsonArray actionsJson = doc["actions"].to<JsonArray>();
-  const size_t count = sizeof(actions) / sizeof(actions[0]);
-  for (size_t i = 0; i < count; i++) {
-    Action action = actions[i];
-    JsonObject actions_0 = actionsJson.add<JsonObject>();
-    actions_0["action"] = action.action;
-    actions_0["command"] = action.command;
-    actions_0["commandType"] = action.commandType;
-    actions_0["commandArgs"] = action.commandArgs;
-  }
-
-  String json = "";
-  serializeJson(doc, json);
-  return json;
-}

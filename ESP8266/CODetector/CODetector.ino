@@ -2,11 +2,12 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
+#include "Config.h"
+#include <WifiHelper.h>
+#include <DeviceApi.h>
 
 #pragma region Configuration
 const char* name = "CODetector";
-const char* ssid = "";
-const char* password = "!";
 
 const int analogPin = A0;   
 const int digitalPin = D1;
@@ -34,14 +35,7 @@ struct SensorData {
     const char* severity = "SAFE";
 } currentReadings;
 
-struct Action {
-  const char* action;
-  const char* commandType;
-  const char* command;
-  const char* commandArgs;
-};
-
-const Action actions[] = {
+const DeviceAction actions[] = {
   { "STATUS", "GET", "status", "" },
   { "RESTART", "POST", "restart", "{}" },
   { "SHUTDOWN", "POST", "shutdown", "{}" }
@@ -55,16 +49,15 @@ void setup() {
   
   pinMode(digitalPin, INPUT);
   
-  connectToWifi();
-  if (MDNS.begin(name)) {
-    MDNS.addService("http", "tcp", 80);
-  }
+  connectToWifi(ssid, password);
+  startMDNS(name);
 
+  server.on("/config", HTTP_GET, handleGetConfig);
   server.on("/info", HTTP_GET, handleGetInfo);
   server.on("/status", HTTP_GET, handleGetStatus);
   server.on("/restart", HTTP_POST, handleRestart);
   server.on("/shutdown", HTTP_POST, handleShutdown);
-  server.onNotFound([]() { server.send(404, "text/plain", "Not found"); });
+  registerNotFoundHandler(server);
   
   server.begin();
   Serial.println("System Ready.");
@@ -79,48 +72,7 @@ void loop() {
   if (now - lastLoopTick >= 1000) {
     lastLoopTick = now;
     processSensorLogic(now);
-    if (currentReadings.severity != "SAFE") {
-      sendWebhookMessage("ALERT: CO level is " + String(currentReadings.coPercent, 2) + "% - Status: " + String(currentReadings.severity));
-    }
   }
-}
-
-bool sendWebhookMessage(const char* action) {
-  String payload = "{\"message\": \"";
-  payload += action;
-  payload += "\"}";
-
-  String request = "POST ";
-  request += webhookPath;
-  request += " HTTP/1.1\r\n";
-  request += "Host: ";
-  request += webhookHost;
-  request += "\r\n";
-  request += "Content-Type: application/json\r\n";
-  request += "Content-Length: ";
-  request += payload.length();
-  request += "\r\n";
-  request += "key: ";
-  request += webhookKey;
-  request += "\r\n";
-  request += "\r\n";
-  request += payload;
-  
-  if (!client.connect(webhookHost, 80)) {
-    setStatus("Failed to connect to webhook host");
-    return false;
-  }
-
-  setStatus("Connected! Sending request...");
-  size_t expected = request.length();
-  size_t sent = client.print(request);
-  client.flush();
-
-  setStatus("Bytes sent: " + String(sent) + " / " + String(expected));
-
-  bool success = (sent == expected);
-  client.stop();
-  return success;
 }
 
 void processSensorLogic(unsigned long now) {
@@ -187,47 +139,19 @@ void handleGetStatus() {
 }
 
 void handleGetInfo() {
-  unsigned long upSeconds = (millis() - bootMillis) / 1000UL;
-  JsonDocument doc;
+  server.send(200, "application/json", buildDeviceInfoJson(name, bootMillis));
+}
 
-  doc["name"] = name;
-  doc["ip"] = WiFi.localIP().toString();
-  doc["uptimeSeconds"] = upSeconds;
-  
-  JsonArray actionsJson = doc["actions"].to<JsonArray>();
-  for (const auto& action : actions) {
-    JsonObject obj = actionsJson.add<JsonObject>();
-    obj["action"] = action.action;
-    obj["command"] = action.command;
-    obj["commandType"] = action.commandType;
-    obj["commandArgs"] = action.commandArgs;
-  }
-
-  String json;
-  serializeJson(doc, json);
-  server.send(200, "application/json", json);
+void handleGetConfig() {
+  server.send(200, "application/json", buildDeviceConfigJson(name, actions, sizeof(actions) / sizeof(actions[0])));
 }
 
 void handleRestart() {
-  server.send(200, "text/plain", "Restarting");
-  delay(500);
-  ESP.restart();
+  sendRestartResponse(server);
 }
 
 void handleShutdown() {
-  server.send(200, "text/plain", "Entering Deep Sleep");
-  delay(500);
-  ESP.deepSleep(0); 
+  sendShutdownResponse(server);
 }
 
-void connectToWifi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.printf("\nConnected. IP: %s\n", WiFi.localIP().toString().c_str());
-}
 #pragma endregion

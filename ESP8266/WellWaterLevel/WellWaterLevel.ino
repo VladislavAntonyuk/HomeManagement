@@ -2,27 +2,22 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
+#include "Config.h"
+#include <WifiHelper.h>
+#include <DeviceApi.h>
 
 const int TRIG_PIN = 4; // D2 (GPIO4)
 const int ECHO_PIN = 5; // D1 (GPIO5)
 
 #pragma region Configuration
 const char* name = "WellWaterLevel";
-const char* ssid = "";
-const char* password = "!";
 #pragma endregion
 
 #pragma region Globals
 ESP8266WebServer server(80);
 unsigned long bootMillis = 0;
-struct Action {
-  const char* action;
-  const char* commandType;
-  const char* command;
-  const char* commandArgs;
-};
-
-const Action actions[] = {
+const DeviceAction actions[] = {
+  { "INFO", "GET", "info", "" },
   { "Distance", "GET", "distance", "" },
   { "RESTART", "POST", "restart", "{}" },
   { "SHUTDOWN", "POST", "shutdown", "{}" }
@@ -37,16 +32,15 @@ void setup() {
   digitalWrite(TRIG_PIN, LOW);
   pinMode(ECHO_PIN, INPUT);
 
-  connectToWifi();
-  if (MDNS.begin(name)) {
-    MDNS.addService("http", "tcp", 80);
-  }
+  connectToWifi(ssid, password);
+  startMDNS(name);
 
+  server.on("/config", HTTP_GET, handleGetConfig);
   server.on("/info", HTTP_GET, handleGetInfo);
   server.on("/distance", HTTP_GET, handleGetDistance);
   server.on("/restart", HTTP_POST, handleRestart);
   server.on("/shutdown", HTTP_POST, handleShutdown);
-  server.onNotFound([]() { server.send(404, "text/plain", "Not found"); });
+  registerNotFoundHandler(server);
   
   server.begin();
   Serial.println("Setup initialized...");
@@ -58,42 +52,12 @@ void loop() {
   delay(1); // Explicit yield to prevent background soft-WDT issues
 }
 
-bool sendWebhookMessage(const char* action) {
-  String payload = "{\"message\": \"";
-  payload += action;
-  payload += "\"}";
+void handleGetConfig() {
+  server.send(200, "application/json", buildDeviceConfigJson(name, actions, sizeof(actions) / sizeof(actions[0])));
+}
 
-  String request = "POST ";
-  request += webhookPath;
-  request += " HTTP/1.1\r\n";
-  request += "Host: ";
-  request += webhookHost;
-  request += "\r\n";
-  request += "Content-Type: application/json\r\n";
-  request += "Content-Length: ";
-  request += payload.length();
-  request += "\r\n";
-  request += "key: ";
-  request += webhookKey;
-  request += "\r\n";
-  request += "\r\n";
-  request += payload;
-  
-  if (!client.connect(webhookHost, 80)) {
-    setStatus("Failed to connect to webhook host");
-    return false;
-  }
-
-  setStatus("Connected! Sending request...");
-  size_t expected = request.length();
-  size_t sent = client.print(request);
-  client.flush();
-
-  setStatus("Bytes sent: " + String(sent) + " / " + String(expected));
-
-  bool success = (sent == expected);
-  client.stop();
-  return success;
+void handleGetInfo() {
+  server.send(200, "application/json", buildDeviceInfoJson(name, bootMillis));
 }
 
 float getFilteredDistance() {
@@ -149,67 +113,19 @@ void handleGetDistance() {
   } else {
     JsonDocument doc;
     doc["distanceToWaterCm"] = distanceCm;
-    sendWebhookMessage("Distance to water: " + String(distanceCm, 2) + " cm");
-    
+
     String out;
     serializeJson(doc, out);
     server.send(200, "application/json", out);
   }
 }
 
-void handleGetInfo() {
-  unsigned long upSeconds = (millis() - bootMillis) / 1000UL;
-  JsonDocument doc;
-
-  doc["name"] = name;
-  doc["ip"] = WiFi.localIP().toString();
-  doc["uptimeSeconds"] = upSeconds;
-  
-  JsonArray actionsJson = doc["actions"].to<JsonArray>();
-  for (const auto& action : actions) {
-    JsonObject obj = actionsJson.add<JsonObject>();
-    obj["action"] = action.action;
-    obj["command"] = action.command;
-    obj["commandType"] = action.commandType;
-    obj["commandArgs"] = action.commandArgs;
-  }
-
-  String json;
-  serializeJson(doc, json);
-  server.send(200, "application/json", json);
-}
-
 void handleRestart() {
-  server.send(200, "text/plain", "Restarting");
-  delay(500);
-  ESP.restart();
+  sendRestartResponse(server);
 }
 
 void handleShutdown() {
-  server.send(200, "text/plain", "Entering Deep Sleep");
-  delay(500);
-  ESP.deepSleep(0); 
+  sendShutdownResponse(server);
 }
 
-void connectToWifi() {
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting to Wi-Fi");
-  
-  unsigned long startAttemptTime = millis();
-  
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-    
-    // Fallback if network credentials fail or router is unreachable after 15 seconds
-    if (millis() - startAttemptTime > 15000) {
-      Serial.println("\nWi-Fi connection timeout. Proceeding to loop initialization...");
-      break; 
-    }
-  }
-  if(WiFi.status() == WL_CONNECTED) {
-    Serial.printf("\nConnected. IP: %s\n", WiFi.localIP().toString().c_str());
-  }
-}
 #pragma endregion

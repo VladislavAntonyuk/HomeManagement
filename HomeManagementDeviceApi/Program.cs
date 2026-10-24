@@ -31,8 +31,7 @@ app.MapGet("/config", (IConfiguration configuration, IOptions<CommandsSettings> 
         new ("SHUTDOWN", CommandType.Post, "shutdown"),
         new ("RESTART", CommandType.Post, "restart")
     };
-    actions.AddRange(commandsOptions.Value.Commands.Select(x => new DeviceAction($"Start {x.Name}", CommandType.Post, "command", JsonSerializer.Serialize(x.StartCommand))));
-    actions.AddRange(commandsOptions.Value.Commands.Select(x => new DeviceAction($"Stop {x.Name}", CommandType.Post, "command", JsonSerializer.Serialize(x.StopCommand))));
+    actions.AddRange(commandsOptions.Value.Commands.Select(x => new DeviceAction(x.Name, CommandType.Post, "command", JsonSerializer.Serialize(x.Command))));
 
     return new DeviceConfig
     {

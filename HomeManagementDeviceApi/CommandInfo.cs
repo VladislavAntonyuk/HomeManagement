@@ -1,3 +1,3 @@
 namespace HomeManagementDeviceApi;
 
-public record CommandInfo(string Name, Command StartCommand, Command StopCommand);
+public record CommandInfo(string Name, Command Command);

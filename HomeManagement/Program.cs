@@ -54,7 +54,6 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.MapLogin();
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
