@@ -59,21 +59,7 @@ public partial class Workflows(
         }
 
         var delimiter = workflow.ConditionOperator is WorkflowConditionOperator.Or ? " OR " : " AND ";
-        return string.Join(delimiter, conditions.Select(FormatCondition));
-    }
-
-    private static string FormatCondition(WorkflowTriggerCondition condition)
-    {
-        return condition.TriggerType switch
-        {
-            WorkflowTriggerType.DateTime when condition.ScheduledAt is not null
-                => condition.ScheduledAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
-            WorkflowTriggerType.Sunrise => "Sunrise",
-            WorkflowTriggerType.Sunset => "Sunset",
-            WorkflowTriggerType.DeviceResult
-                => $"{condition.TriggerDeviceName}/{condition.TriggerSourceActionName}:{condition.TriggerPropertyPath} {condition.TriggerOperator} {condition.TriggerExpectedValue}",
-            _ => condition.TriggerType.ToString()
-        };
+        return string.Join(delimiter, conditions.Select(WorkflowConditionFormatter.Format));
     }
 
     private async Task Add()
@@ -130,7 +116,14 @@ public partial class Workflows(
                     .Select(x => new WorkflowTriggerConditionEditModel
                     {
                         TriggerType = x.TriggerType,
-                        ScheduledAtLocal = x.ScheduledAt?.ToLocalTime().DateTime,
+                        TriggerDate = x.TriggerDate,
+                        TriggerDateTo = x.TriggerDateTo,
+                        TriggerTimeReference = x.TriggerTimeReference,
+                        TriggerTime = x.TriggerTime,
+                        TriggerTimeOffsetMinutes = x.TriggerTimeOffsetMinutes,
+                        TriggerTimeToReference = x.TriggerTimeToReference,
+                        TriggerTimeTo = x.TriggerTimeTo,
+                        TriggerTimeToOffsetMinutes = x.TriggerTimeToOffsetMinutes,
                         TriggerDeviceName = x.TriggerDeviceName,
                         TriggerSourceActionName = x.TriggerSourceActionName,
                         TriggerPropertyPath = x.TriggerPropertyPath,
@@ -286,20 +279,28 @@ public partial class Workflows(
     {
         var triggerConditions = model.TriggerConditions.Select(x =>
         {
-            DateTimeOffset? scheduledAt = x.ScheduledAtLocal is null
-                ? null
-                : new DateTimeOffset(DateTime.SpecifyKind(x.ScheduledAtLocal.Value, DateTimeKind.Local)).ToUniversalTime();
+            var isDate = x.TriggerType is WorkflowTriggerType.Date;
+            var isTime = x.TriggerType is WorkflowTriggerType.Time;
+            var isDeviceResult = x.TriggerType is WorkflowTriggerType.DeviceResult;
+            var isRange = WorkflowConditionFormatter.IsRange(x.TriggerOperator);
 
             return new WorkflowTriggerCondition
             {
                 TriggerType = x.TriggerType,
-                ScheduledAt = x.TriggerType is WorkflowTriggerType.DateTime ? scheduledAt : null,
-                TriggerDeviceName = x.TriggerType is WorkflowTriggerType.DeviceResult ? x.TriggerDeviceName : null,
-                TriggerSourceActionName = x.TriggerType is WorkflowTriggerType.DeviceResult ? x.TriggerSourceActionName : null,
-                TriggerPropertyPath = x.TriggerType is WorkflowTriggerType.DeviceResult ? x.TriggerPropertyPath : null,
-                TriggerExpectedValue = x.TriggerType is WorkflowTriggerType.DeviceResult ? x.TriggerExpectedValue : null,
-                TriggerValueType = x.TriggerType is WorkflowTriggerType.DeviceResult ? x.TriggerValueType : null,
-                TriggerOperator = x.TriggerType is WorkflowTriggerType.DeviceResult ? x.TriggerOperator : null
+                TriggerOperator = isDate || isTime || isDeviceResult ? x.TriggerOperator : null,
+                TriggerDate = isDate ? x.TriggerDate : null,
+                TriggerDateTo = isDate && isRange ? x.TriggerDateTo : null,
+                TriggerTimeReference = isTime ? x.TriggerTimeReference : null,
+                TriggerTime = isTime && x.TriggerTimeReference is WorkflowTimeReference.Fixed ? x.TriggerTime : null,
+                TriggerTimeOffsetMinutes = isTime && x.TriggerTimeReference is not WorkflowTimeReference.Fixed ? x.TriggerTimeOffsetMinutes : null,
+                TriggerTimeToReference = isTime && isRange ? x.TriggerTimeToReference : null,
+                TriggerTimeTo = isTime && isRange && x.TriggerTimeToReference is WorkflowTimeReference.Fixed ? x.TriggerTimeTo : null,
+                TriggerTimeToOffsetMinutes = isTime && isRange && x.TriggerTimeToReference is not WorkflowTimeReference.Fixed ? x.TriggerTimeToOffsetMinutes : null,
+                TriggerDeviceName = isDeviceResult ? x.TriggerDeviceName : null,
+                TriggerSourceActionName = isDeviceResult ? x.TriggerSourceActionName : null,
+                TriggerPropertyPath = isDeviceResult ? x.TriggerPropertyPath : null,
+                TriggerExpectedValue = isDeviceResult ? x.TriggerExpectedValue : null,
+                TriggerValueType = isDeviceResult ? x.TriggerValueType : null
             };
         }).ToList();
 

@@ -15,7 +15,14 @@ public class WorkflowEditModel
 public class WorkflowTriggerConditionEditModel
 {
     public WorkflowTriggerType TriggerType { get; set; } = WorkflowTriggerType.Manual;
-    public DateTime? ScheduledAtLocal { get; set; }
+    public DateOnly? TriggerDate { get; set; }
+    public DateOnly? TriggerDateTo { get; set; }
+    public WorkflowTimeReference? TriggerTimeReference { get; set; }
+    public TimeOnly? TriggerTime { get; set; }
+    public int? TriggerTimeOffsetMinutes { get; set; }
+    public WorkflowTimeReference? TriggerTimeToReference { get; set; }
+    public TimeOnly? TriggerTimeTo { get; set; }
+    public int? TriggerTimeToOffsetMinutes { get; set; }
     public string? TriggerDeviceName { get; set; }
     public string? TriggerSourceActionName { get; set; }
     public string? TriggerPropertyPath { get; set; }

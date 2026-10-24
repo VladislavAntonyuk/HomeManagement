@@ -140,69 +140,118 @@ public class WorkflowTriggerService(
     {
         return condition.TriggerType switch
         {
-            WorkflowTriggerType.DateTime => EvaluateDateTimeCondition(condition, localNow),
-            WorkflowTriggerType.Sunrise => EvaluateSunCondition(
-                condition,
-                localNow,
-                new SolarTimes(localNow.Date, options.Latitude, options.Longitude).Sunrise,
-                options.SunriseAdjustmentMinutes,
-                options.TimeZoneId),
-            WorkflowTriggerType.Sunset => EvaluateSunCondition(
-                condition,
-                localNow,
-                new SolarTimes(localNow.Date, options.Latitude, options.Longitude).Sunset,
-                options.SunsetAdjustmentMinutes,
-                options.TimeZoneId),
+            WorkflowTriggerType.Date => EvaluateDateCondition(condition, localNow),
+            WorkflowTriggerType.Time => EvaluateTimeCondition(condition, localNow, options),
             WorkflowTriggerType.DeviceResult => await EvaluateDeviceResultConditionAsync(condition, dbContext, deviceActionExecutor, token),
             _ => new ConditionEvaluationResult(false, null)
         };
     }
 
-    private static ConditionEvaluationResult EvaluateDateTimeCondition(WorkflowTriggerCondition condition, DateTimeOffset localNow)
+    private static ConditionEvaluationResult EvaluateDateCondition(WorkflowTriggerCondition condition, DateTimeOffset localNow)
     {
-        if (condition.ScheduledAt is null)
+        var today = DateOnly.FromDateTime(localNow.DateTime);
+        var currentValue = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (condition.TriggerDate is not { } date || condition.TriggerOperator is not { } comparisonOperator)
         {
-            return new ConditionEvaluationResult(false, null);
+            return new ConditionEvaluationResult(false, currentValue);
         }
 
-        var scheduledAtLocal = condition.ScheduledAt.Value.ToLocalTime();
-        if (localNow < scheduledAtLocal)
+        var isMatched = comparisonOperator switch
         {
-            return new ConditionEvaluationResult(false, null);
-        }
+            WorkflowComparisonOperator.Equal => today == date,
+            WorkflowComparisonOperator.NotEqual => today != date,
+            WorkflowComparisonOperator.GreaterThan => today > date,
+            WorkflowComparisonOperator.GreaterThanOrEqual => today >= date,
+            WorkflowComparisonOperator.LessThan => today < date,
+            WorkflowComparisonOperator.LessThanOrEqual => today <= date,
+            WorkflowComparisonOperator.Between => condition.TriggerDateTo is { } dateTo && today >= date && today <= dateTo,
+            WorkflowComparisonOperator.NotBetween => condition.TriggerDateTo is { } dateTo && (today < date || today > dateTo),
+            _ => false
+        };
 
-        var isMatched = condition.LastTriggeredAtUtc is null || condition.LastTriggeredAtUtc < condition.ScheduledAt;
-        if (isMatched)
-        {
-            condition.LastTriggeredAtUtc = DateTimeOffset.UtcNow;
-        }
-
-        return new ConditionEvaluationResult(isMatched, scheduledAtLocal.ToString("O", CultureInfo.InvariantCulture));
+        return new ConditionEvaluationResult(isMatched, currentValue);
     }
 
-    private static ConditionEvaluationResult EvaluateSunCondition(
+    private static ConditionEvaluationResult EvaluateTimeCondition(
         WorkflowTriggerCondition condition,
         DateTimeOffset localNow,
-        DateTime sunEvent,
-        int adjustmentMinutes,
-        string timeZoneId)
+        WorkflowAutomationOptions options)
     {
-        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        var eventLocal = TimeZoneInfo.ConvertTimeFromUtc(sunEvent.ToUniversalTime(), timeZoneInfo)
-            .AddMinutes(adjustmentMinutes);
-
-        if (localNow.Date < eventLocal.Date || localNow < eventLocal)
+        var now = TimeOnly.FromDateTime(localNow.DateTime);
+        var currentValue = now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+        var from = ResolveTime(condition.TriggerTimeReference, condition.TriggerTime, condition.TriggerTimeOffsetMinutes, localNow, options);
+        if (from is null || condition.TriggerOperator is not { } comparisonOperator)
         {
-            return new ConditionEvaluationResult(false, eventLocal.ToString("O", CultureInfo.InvariantCulture));
+            return new ConditionEvaluationResult(false, currentValue);
         }
 
-        if (condition.LastTriggerDateLocal == localNow.Date)
+        if (comparisonOperator is WorkflowComparisonOperator.Equal)
         {
-            return new ConditionEvaluationResult(false, eventLocal.ToString("O", CultureInfo.InvariantCulture));
+            // "At" fires once per day as soon as the time is reached.
+            if (now < from.Value || condition.LastTriggerDateLocal == localNow.Date)
+            {
+                return new ConditionEvaluationResult(false, currentValue);
+            }
+
+            condition.LastTriggerDateLocal = localNow.Date;
+            return new ConditionEvaluationResult(true, currentValue);
         }
 
-        condition.LastTriggerDateLocal = localNow.Date;
-        return new ConditionEvaluationResult(true, eventLocal.ToString("O", CultureInfo.InvariantCulture));
+        if (comparisonOperator is WorkflowComparisonOperator.Between or WorkflowComparisonOperator.NotBetween)
+        {
+            var to = ResolveTime(condition.TriggerTimeToReference, condition.TriggerTimeTo, condition.TriggerTimeToOffsetMinutes, localNow, options);
+            if (to is null)
+            {
+                return new ConditionEvaluationResult(false, currentValue);
+            }
+
+            // The range may wrap around midnight, e.g. between sunset and sunrise.
+            var isInRange = from.Value <= to.Value
+                ? now >= from.Value && now < to.Value
+                : now >= from.Value || now < to.Value;
+
+            return new ConditionEvaluationResult(
+                comparisonOperator is WorkflowComparisonOperator.Between ? isInRange : !isInRange,
+                currentValue);
+        }
+
+        var isMatched = comparisonOperator switch
+        {
+            WorkflowComparisonOperator.GreaterThan => now > from.Value,
+            WorkflowComparisonOperator.GreaterThanOrEqual => now >= from.Value,
+            WorkflowComparisonOperator.LessThan => now < from.Value,
+            WorkflowComparisonOperator.LessThanOrEqual => now <= from.Value,
+            _ => false
+        };
+
+        return new ConditionEvaluationResult(isMatched, currentValue);
+    }
+
+    private static TimeOnly? ResolveTime(
+        WorkflowTimeReference? reference,
+        TimeOnly? fixedTime,
+        int? offsetMinutes,
+        DateTimeOffset localNow,
+        WorkflowAutomationOptions options)
+    {
+        var time = reference switch
+        {
+            WorkflowTimeReference.Fixed => fixedTime,
+            WorkflowTimeReference.Sunrise or WorkflowTimeReference.Sunset
+                => TimeOnly.FromDateTime(GetSunEventLocal(reference.Value, localNow, options)),
+            _ => null
+        };
+
+        return time?.AddMinutes(offsetMinutes ?? 0);
+    }
+
+    private static DateTime GetSunEventLocal(WorkflowTimeReference reference, DateTimeOffset localNow, WorkflowAutomationOptions options)
+    {
+        var solarTimes = new SolarTimes(localNow.Date, options.Latitude, options.Longitude);
+        var sunEvent = reference is WorkflowTimeReference.Sunrise ? solarTimes.Sunrise : solarTimes.Sunset;
+
+        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
+        return TimeZoneInfo.ConvertTimeFromUtc(sunEvent.ToUniversalTime(), timeZoneInfo);
     }
 
     private static async Task<ConditionEvaluationResult> EvaluateDeviceResultConditionAsync(
@@ -419,6 +468,8 @@ public class WorkflowTriggerService(
         {
             WorkflowComparisonOperator.Equal => string.Equals(currentValue, expectedValue, StringComparison.Ordinal),
             WorkflowComparisonOperator.NotEqual => !string.Equals(currentValue, expectedValue, StringComparison.Ordinal),
+            WorkflowComparisonOperator.Contains => currentValue?.Contains(expectedValue, StringComparison.Ordinal) ?? false,
+            WorkflowComparisonOperator.NotContains => !(currentValue?.Contains(expectedValue, StringComparison.Ordinal) ?? false),
             _ => false
         };
     }

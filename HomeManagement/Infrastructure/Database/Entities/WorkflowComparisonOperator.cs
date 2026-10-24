@@ -7,5 +7,9 @@ public enum WorkflowComparisonOperator
     LessThan,
     LessThanOrEqual,
     Equal,
-    NotEqual
+    NotEqual,
+    Between,
+    NotBetween,
+    Contains,
+    NotContains
 }

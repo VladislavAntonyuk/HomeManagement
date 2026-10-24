@@ -8,7 +8,21 @@ public class WorkflowTriggerCondition
 
     public WorkflowTriggerType TriggerType { get; set; } = WorkflowTriggerType.Manual;
 
-    public DateTimeOffset? ScheduledAt { get; set; }
+    public DateOnly? TriggerDate { get; set; }
+
+    public DateOnly? TriggerDateTo { get; set; }
+
+    public WorkflowTimeReference? TriggerTimeReference { get; set; }
+
+    public TimeOnly? TriggerTime { get; set; }
+
+    public int? TriggerTimeOffsetMinutes { get; set; }
+
+    public WorkflowTimeReference? TriggerTimeToReference { get; set; }
+
+    public TimeOnly? TriggerTimeTo { get; set; }
+
+    public int? TriggerTimeToOffsetMinutes { get; set; }
 
     public string? TriggerDeviceName { get; set; }
 
@@ -22,10 +36,8 @@ public class WorkflowTriggerCondition
 
     public WorkflowComparisonOperator? TriggerOperator { get; set; }
 
-    public DateTimeOffset? LastTriggeredAtUtc { get; set; }
-
     public DateTime? LastTriggerDateLocal { get; set; }
 
     public bool? LastConditionMatched { get; set; }
     public int WorkflowId { get; set; }
-}
+}

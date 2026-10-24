@@ -1,3 +1,4 @@
+@using HomeManagement.Application.Workflows
 @using HomeManagement.Infrastructure.Database.Entities
 @inherits ComponentBase
 
@@ -33,10 +34,69 @@
 						<MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => RemoveCondition(index)" />
 					</MudStack>
 
-					@if (condition.TriggerType is WorkflowTriggerType.DateTime)
+					@if (condition.TriggerType is WorkflowTriggerType.Date)
 					{
-						<MudDatePicker Label="Date" Date="@GetConditionDate(index)" DateChanged="value => OnConditionDateChanged(index, value)" />
-						<MudTimePicker Label="Time" Time="@GetConditionTime(index)" TimeChanged="value => OnConditionTimeChanged(index, value)" />
+						<MudSelect T="WorkflowComparisonOperator?" @bind-Value="condition.TriggerOperator" Label="Operator" Required="true">
+							@foreach (var op in WorkflowConditionFormatter.DateOperators)
+							{
+								<MudSelectItem T="WorkflowComparisonOperator?" Value="@op">@WorkflowConditionFormatter.FormatOperator(condition.TriggerType, op)</MudSelectItem>
+							}
+						</MudSelect>
+						<MudDatePicker Label="@(WorkflowConditionFormatter.IsRange(condition.TriggerOperator) ? "From" : "Date")" Date="@ToDateTime(condition.TriggerDate)" DateChanged="value => condition.TriggerDate = ToDateOnly(value)" Required="true" />
+						@if (WorkflowConditionFormatter.IsRange(condition.TriggerOperator))
+						{
+							<MudDatePicker Label="To" Date="@ToDateTime(condition.TriggerDateTo)" DateChanged="value => condition.TriggerDateTo = ToDateOnly(value)" Required="true" />
+						}
+					}
+					else if (condition.TriggerType is WorkflowTriggerType.Time)
+					{
+						<MudSelect T="WorkflowComparisonOperator?" @bind-Value="condition.TriggerOperator" Label="Operator" Required="true">
+							@foreach (var op in WorkflowConditionFormatter.TimeOperators)
+							{
+								<MudSelectItem T="WorkflowComparisonOperator?" Value="@op">@WorkflowConditionFormatter.FormatOperator(condition.TriggerType, op)</MudSelectItem>
+							}
+						</MudSelect>
+						@if (condition.TriggerOperator is WorkflowComparisonOperator.Equal)
+						{
+							<MudText Typo="Typo.caption" Color="Color.Secondary">Matches once per day when the time is reached.</MudText>
+						}
+
+						<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+							<MudSelect T="WorkflowTimeReference?" @bind-Value="condition.TriggerTimeReference" Label="@(WorkflowConditionFormatter.IsRange(condition.TriggerOperator) ? "From" : "Time")" Required="true" Class="action-field">
+								@foreach (var reference in Enum.GetValues<WorkflowTimeReference>())
+								{
+									<MudSelectItem T="WorkflowTimeReference?" Value="@reference">@reference</MudSelectItem>
+								}
+							</MudSelect>
+							@if (condition.TriggerTimeReference is WorkflowTimeReference.Fixed)
+							{
+								<MudTimePicker Label="Fixed time" Time="@condition.TriggerTime?.ToTimeSpan()" TimeChanged="value => condition.TriggerTime = ToTimeOnly(value)" Required="true" Class="action-field" />
+							}
+							else
+							{
+								<MudNumericField T="int?" @bind-Value="condition.TriggerTimeOffsetMinutes" Label="Offset (minutes)" HelperText="Negative for before" Class="action-field" />
+							}
+						</MudStack>
+
+						@if (WorkflowConditionFormatter.IsRange(condition.TriggerOperator))
+						{
+							<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+								<MudSelect T="WorkflowTimeReference?" @bind-Value="condition.TriggerTimeToReference" Label="To" Required="true" Class="action-field">
+									@foreach (var reference in Enum.GetValues<WorkflowTimeReference>())
+									{
+										<MudSelectItem T="WorkflowTimeReference?" Value="@reference">@reference</MudSelectItem>
+									}
+								</MudSelect>
+								@if (condition.TriggerTimeToReference is WorkflowTimeReference.Fixed)
+								{
+									<MudTimePicker Label="Fixed time" Time="@condition.TriggerTimeTo?.ToTimeSpan()" TimeChanged="value => condition.TriggerTimeTo = ToTimeOnly(value)" Required="true" Class="action-field" />
+								}
+								else
+								{
+									<MudNumericField T="int?" @bind-Value="condition.TriggerTimeToOffsetMinutes" Label="Offset (minutes)" HelperText="Negative for before" Class="action-field" />
+								}
+							</MudStack>
+						}
 					}
 					else if (condition.TriggerType is WorkflowTriggerType.DeviceResult)
 					{
@@ -77,7 +137,7 @@
 						<MudSelect T="WorkflowComparisonOperator?" Value="@condition.TriggerOperator" ValueChanged="value => OnConditionOperatorChanged(index, value)" Label="Operator" Required="true">
 							@foreach (var op in GetAllowedOperators(condition.TriggerValueType))
 							{
-								<MudSelectItem T="WorkflowComparisonOperator?" Value="@op">@op</MudSelectItem>
+								<MudSelectItem T="WorkflowComparisonOperator?" Value="@op">@WorkflowConditionFormatter.FormatOperator(condition.TriggerType, op)</MudSelectItem>
 							}
 						</MudSelect>
 
@@ -96,6 +156,11 @@
 						{
 							<MudTextField @bind-Value="condition.TriggerExpectedValue" Label="Expected Value" Required="true" />
 						}
+					}
+
+					@if (!string.IsNullOrWhiteSpace(GetConditionValidationError(index)))
+					{
+						<MudText Typo="Typo.caption" Color="Color.Error">@GetConditionValidationError(index)</MudText>
 					}
 				</MudStack>
 			</MudPaper>

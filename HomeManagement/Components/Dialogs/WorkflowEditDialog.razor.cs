@@ -17,8 +17,7 @@ public partial class WorkflowEditDialog
 
     private MudForm _form = default!;
     private bool _saving;
-    private readonly Dictionary<int, DateTime?> _conditionDates = new();
-    private readonly Dictionary<int, TimeSpan?> _conditionTimes = new();
+    private readonly Dictionary<int, string?> _validationErrors = new();
     private readonly Dictionary<int, string?> _previewErrors = new();
     private readonly Dictionary<int, string?> _previewRawResponses = new();
     private readonly Dictionary<int, IReadOnlyList<WorkflowTriggerPropertyOption>> _previewProperties = new();
@@ -29,7 +28,7 @@ public partial class WorkflowEditDialog
     {
         if (Model.TriggerConditions.Count == 0)
         {
-            Model.TriggerConditions.Add(new WorkflowTriggerConditionEditModel { TriggerType = WorkflowTriggerType.DateTime });
+            Model.TriggerConditions.Add(CreateTimeCondition());
         }
 
         if (Model.Steps.Count == 0)
@@ -40,9 +39,6 @@ public partial class WorkflowEditDialog
         for (var i = 0; i < Model.TriggerConditions.Count; i++)
         {
             var condition = Model.TriggerConditions[i];
-            _conditionDates[i] = condition.ScheduledAtLocal?.Date;
-            _conditionTimes[i] = condition.ScheduledAtLocal?.TimeOfDay;
-
             if (condition.TriggerValueType is WorkflowTriggerValueType.Number
                 && double.TryParse(condition.TriggerExpectedValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
             {
@@ -77,21 +73,11 @@ public partial class WorkflowEditDialog
         {
             var condition = Model.TriggerConditions[i];
 
-            if (condition.TriggerType is WorkflowTriggerType.DateTime)
+            _validationErrors[i] = ValidateCondition(condition);
+            if (_validationErrors[i] is not null)
             {
-                var date = GetConditionDate(i);
-                var time = GetConditionTime(i);
-                if (date is null || time is null)
-                {
-                    _saving = false;
-                    return;
-                }
-
-                condition.ScheduledAtLocal = date.Value.Date + time.Value;
-            }
-            else
-            {
-                condition.ScheduledAtLocal = null;
+                _saving = false;
+                return;
             }
 
             if (condition.TriggerType is WorkflowTriggerType.DeviceResult
@@ -125,8 +111,44 @@ public partial class WorkflowEditDialog
 
     private void AddCondition()
     {
-        Model.TriggerConditions.Add(new WorkflowTriggerConditionEditModel { TriggerType = WorkflowTriggerType.DateTime });
+        Model.TriggerConditions.Add(CreateTimeCondition());
     }
+
+    private static WorkflowTriggerConditionEditModel CreateTimeCondition() => new()
+    {
+        TriggerType = WorkflowTriggerType.Time,
+        TriggerOperator = WorkflowComparisonOperator.GreaterThan,
+        TriggerTimeReference = WorkflowTimeReference.Fixed,
+        TriggerTimeToReference = WorkflowTimeReference.Fixed
+    };
+
+    private static string? ValidateCondition(WorkflowTriggerConditionEditModel condition)
+    {
+        var isRange = WorkflowConditionFormatter.IsRange(condition.TriggerOperator);
+        return condition.TriggerType switch
+        {
+            WorkflowTriggerType.Date when condition.TriggerOperator is null => "Select an operator.",
+            WorkflowTriggerType.Date when condition.TriggerDate is null => "Select a date.",
+            WorkflowTriggerType.Date when isRange && condition.TriggerDateTo is null => "Select the end date.",
+            WorkflowTriggerType.Date when isRange && condition.TriggerDateTo < condition.TriggerDate => "End date must not be before start date.",
+            WorkflowTriggerType.Time when condition.TriggerOperator is null => "Select an operator.",
+            WorkflowTriggerType.Time when !IsTimeValueComplete(condition.TriggerTimeReference, condition.TriggerTime) => "Select a time.",
+            WorkflowTriggerType.Time when isRange && !IsTimeValueComplete(condition.TriggerTimeToReference, condition.TriggerTimeTo) => "Select the end time.",
+            _ => null
+        };
+    }
+
+    private static bool IsTimeValueComplete(WorkflowTimeReference? reference, TimeOnly? time)
+        => reference is WorkflowTimeReference.Sunrise or WorkflowTimeReference.Sunset
+           || (reference is WorkflowTimeReference.Fixed && time is not null);
+
+    private string? GetConditionValidationError(int index) => _validationErrors.TryGetValue(index, out var value) ? value : null;
+
+    private static DateTime? ToDateTime(DateOnly? date) => date?.ToDateTime(TimeOnly.MinValue);
+
+    private static DateOnly? ToDateOnly(DateTime? date) => date is null ? null : DateOnly.FromDateTime(date.Value);
+
+    private static TimeOnly? ToTimeOnly(TimeSpan? time) => time is null ? null : TimeOnly.FromTimeSpan(time.Value);
 
     private async Task RemoveCondition(int index)
     {
@@ -152,7 +174,14 @@ public partial class WorkflowEditDialog
         }
 
         condition.TriggerType = value;
-        condition.ScheduledAtLocal = null;
+        condition.TriggerDate = null;
+        condition.TriggerDateTo = null;
+        condition.TriggerTimeReference = null;
+        condition.TriggerTime = null;
+        condition.TriggerTimeOffsetMinutes = null;
+        condition.TriggerTimeToReference = null;
+        condition.TriggerTimeTo = null;
+        condition.TriggerTimeToOffsetMinutes = null;
         condition.TriggerDeviceName = null;
         condition.TriggerSourceActionName = null;
         condition.TriggerPropertyPath = null;
@@ -160,23 +189,20 @@ public partial class WorkflowEditDialog
         condition.TriggerValueType = null;
         condition.TriggerOperator = null;
 
-        _conditionDates[index] = null;
-        _conditionTimes[index] = null;
         ClearConditionPreview(index);
-    }
+        _validationErrors[index] = null;
 
-    private DateTime? GetConditionDate(int index) => _conditionDates.TryGetValue(index, out var value) ? value : null;
-
-    private TimeSpan? GetConditionTime(int index) => _conditionTimes.TryGetValue(index, out var value) ? value : null;
-
-    private void OnConditionDateChanged(int index, DateTime? date)
-    {
-        _conditionDates[index] = date;
-    }
-
-    private void OnConditionTimeChanged(int index, TimeSpan? time)
-    {
-        _conditionTimes[index] = time;
+        if (value is WorkflowTriggerType.Date)
+        {
+            condition.TriggerOperator = WorkflowComparisonOperator.Equal;
+            condition.TriggerDate = DateOnly.FromDateTime(DateTime.Today);
+        }
+        else if (value is WorkflowTriggerType.Time)
+        {
+            condition.TriggerOperator = WorkflowComparisonOperator.GreaterThan;
+            condition.TriggerTimeReference = WorkflowTimeReference.Fixed;
+            condition.TriggerTimeToReference = WorkflowTimeReference.Fixed;
+        }
     }
 
     private void OnConditionDeviceChanged(int index, string value)
@@ -285,8 +311,7 @@ public partial class WorkflowEditDialog
             _conditionNumberExpectedValues[index] = null;
         }
 
-        if (condition.TriggerOperator is not WorkflowComparisonOperator.Equal and not WorkflowComparisonOperator.NotEqual
-            && selected.ValueType is not WorkflowTriggerValueType.Number)
+        if (condition.TriggerOperator is not { } currentOperator || !GetAllowedOperators(selected.ValueType).Contains(currentOperator))
         {
             condition.TriggerOperator = WorkflowComparisonOperator.Equal;
         }
@@ -431,12 +456,26 @@ public partial class WorkflowEditDialog
 
     private static IEnumerable<WorkflowComparisonOperator> GetAllowedOperators(WorkflowTriggerValueType? valueType)
     {
-        if (valueType is WorkflowTriggerValueType.Number)
+        return valueType switch
         {
-            return Enum.GetValues<WorkflowComparisonOperator>();
-        }
-
-        return [WorkflowComparisonOperator.Equal, WorkflowComparisonOperator.NotEqual];
+            WorkflowTriggerValueType.Number =>
+            [
+                WorkflowComparisonOperator.Equal,
+                WorkflowComparisonOperator.NotEqual,
+                WorkflowComparisonOperator.GreaterThan,
+                WorkflowComparisonOperator.GreaterThanOrEqual,
+                WorkflowComparisonOperator.LessThan,
+                WorkflowComparisonOperator.LessThanOrEqual
+            ],
+            WorkflowTriggerValueType.Text or WorkflowTriggerValueType.Json =>
+            [
+                WorkflowComparisonOperator.Equal,
+                WorkflowComparisonOperator.NotEqual,
+                WorkflowComparisonOperator.Contains,
+                WorkflowComparisonOperator.NotContains
+            ],
+            _ => [WorkflowComparisonOperator.Equal, WorkflowComparisonOperator.NotEqual]
+        };
     }
 
     private bool TryGetCondition(int index, out WorkflowTriggerConditionEditModel condition)
@@ -482,8 +521,7 @@ public partial class WorkflowEditDialog
 
     private void ClearConditionState(int index)
     {
-        _conditionDates.Remove(index);
-        _conditionTimes.Remove(index);
+        _validationErrors.Remove(index);
         _previewErrors.Remove(index);
         _previewRawResponses.Remove(index);
         _previewProperties.Remove(index);

@@ -15,12 +15,12 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20260824103856_Initial";
+    public override string LastMigrationId => "20261024131343_SplitDateTimeTrigger";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
-        modelBuilder.HasAnnotation("ProductVersion", "11.0.0-preview.7.26381.103");
+        modelBuilder.HasAnnotation("ProductVersion", "11.0.0-rc.2.26504.105");
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.AppSetting", b =>
             {
@@ -215,10 +215,10 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                 b.Property<DateTime?>("LastTriggerDateLocal")
                     .HasColumnType("TEXT");
 
-                b.Property<DateTimeOffset?>("LastTriggeredAtUtc")
+                b.Property<DateOnly?>("TriggerDate")
                     .HasColumnType("TEXT");
 
-                b.Property<DateTimeOffset?>("ScheduledAt")
+                b.Property<DateOnly?>("TriggerDateTo")
                     .HasColumnType("TEXT");
 
                 b.Property<string>("TriggerDeviceName")
@@ -239,6 +239,24 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                 b.Property<string>("TriggerSourceActionName")
                     .HasMaxLength(100)
                     .HasColumnType("TEXT");
+
+                b.Property<TimeOnly?>("TriggerTime")
+                    .HasColumnType("TEXT");
+
+                b.Property<int?>("TriggerTimeOffsetMinutes")
+                    .HasColumnType("INTEGER");
+
+                b.Property<int?>("TriggerTimeReference")
+                    .HasColumnType("INTEGER");
+
+                b.Property<TimeOnly?>("TriggerTimeTo")
+                    .HasColumnType("TEXT");
+
+                b.Property<int?>("TriggerTimeToOffsetMinutes")
+                    .HasColumnType("INTEGER");
+
+                b.Property<int?>("TriggerTimeToReference")
+                    .HasColumnType("INTEGER");
 
                 b.Property<int>("TriggerType")
                     .HasColumnType("INTEGER");
