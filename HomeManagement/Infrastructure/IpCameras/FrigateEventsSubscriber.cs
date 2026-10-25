@@ -1,14 +1,13 @@
-using HomeManagement.Infrastructure.Database;
-using System.Threading.Channels;
-using HomeManagement.Infrastructure.Database.Entities;
-using Microsoft.EntityFrameworkCore;
+using HomeManagement.Application.AwayMode;
+using HomeManagement.Application.WebHooks;
 
 namespace HomeManagement.Infrastructure.IpCameras;
 
 public sealed class FrigateEventsSubscriber(
-    Channel<string> channel,
+    IEnumerable<ISender> senders,
+    SenderRequestFactory senderRequestFactory,
     ILogger<FrigateEventsSubscriber> logger,
-    HomeManagementDbContext dbContext)
+    AwayModeService awayModeService)
 {
     public async Task OnFrigateEventAsync(FrigateEventMessage message)
     {
@@ -24,19 +23,7 @@ public sealed class FrigateEventsSubscriber(
             return;
         }
 
-        var awayModeSetting = await dbContext.AppSettings
-            .AsNoTracking()
-            .Select(x => new AppSetting
-            {
-                Id = x.Id,
-                Name = x.Name,
-                Value = x.Value,
-                ValueType = x.ValueType
-            })
-            .FirstOrDefaultAsync(x => x.Name == AppSettingKeys.AwayModeEnabled);
-
-        var isAwayModeEnabled = awayModeSetting?.TryGetBoolean(out var awayModeEnabled) == true && awayModeEnabled;
-        if (!isAwayModeEnabled)
+        if (!await awayModeService.IsEnabledAsync())
         {
             logger.LogInformation("Skipping Frigate event because away mode is disabled.");
             return;
@@ -48,7 +35,19 @@ public sealed class FrigateEventsSubscriber(
 
         var alertMessage = $"Person detected on camera '{after.Camera}' (Score: {after.TopScore:P0}, Event ID: {after.Id}), Snapshot URL: {snapshotUrl}";
 
-        await channel.Writer.WriteAsync(alertMessage);
-        logger.LogInformation("Successfully dispatched alert to Channel: {Alert}", alertMessage);
+        foreach (var sender in senders)
+        {
+            var request = senderRequestFactory.Create(alertMessage, sender);
+            if (request is null)
+            {
+                continue;
+            }
+
+            var sendResult = await sender.Send(request, CancellationToken.None);
+            if (!sendResult.IsSuccessful)
+            {
+                logger.LogError(sendResult.Error);
+            }
+        }
     }
 }

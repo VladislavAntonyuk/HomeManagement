@@ -1,4 +1,5 @@
-﻿using HomeManagement.Application.Router;
+﻿using HomeManagement.Application.AwayMode;
+using HomeManagement.Application.Router;
 using HomeManagement.Infrastructure.Database;
 using HomeManagement.Shared;
 using Microsoft.AspNetCore.Components;
@@ -6,15 +7,14 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using System.Diagnostics;
-using HomeManagement.Infrastructure;
-using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Components.Pages;
 
 public partial class Home(
      ISnackbar snackbar,
      IRouterController routerController,
-     IDbContextFactory<HomeManagementDbContext> dbContextFactory) : ComponentBase
+     IDbContextFactory<HomeManagementDbContext> dbContextFactory,
+     AwayModeService awayModeService) : ComponentBase
 {
     private int _totalDevices;
     private string? _localIp;
@@ -38,11 +38,7 @@ public partial class Home(
         _ramInfo = await GetRamInfo();
         await using var db = await dbContextFactory.CreateDbContextAsync();
         _totalDevices = await db.Devices.CountAsync();
-        var awayModeSetting = await db.AppSettings
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Name == AppSettingKeys.AwayModeEnabled);
-
-        _isAwayModeEnabled = awayModeSetting?.TryGetBoolean(out var isAwayModeEnabled) == true && isAwayModeEnabled;
+        _isAwayModeEnabled = await awayModeService.IsEnabledAsync();
     }
 
     private static async Task<string> GetUptime()
@@ -292,28 +288,11 @@ public partial class Home(
 
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync();
-            var existing = await db.AppSettings.FirstOrDefaultAsync(x => x.Name == AppSettingKeys.AwayModeEnabled);
-            if (existing is null)
-            {
-                db.AppSettings.Add(new AppSetting
-                {
-                    Name = AppSettingKeys.AwayModeEnabled,
-                    ValueType = AppSettingValueType.Boolean,
-                    Value = isEnabled ? bool.TrueString : bool.FalseString
-                });
-            }
-            else
-            {
-                existing.SetBoolean(isEnabled);
-                db.AppSettings.Update(existing);
-            }
-
-            await db.SaveChangesAsync();
+            await awayModeService.SetEnabledAsync(isEnabled);
             _isAwayModeEnabled = isEnabled;
             snackbar.Add($"Away mode {(isEnabled ? "enabled" : "disabled")}.", Severity.Success);
         }
-        catch (DbUpdateException e)
+        catch (Exception e)
         {
             snackbar.Add($"Error updating away mode: {e.Message}", Severity.Error);
         }

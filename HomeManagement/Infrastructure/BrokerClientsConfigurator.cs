@@ -2,6 +2,7 @@ using System.Text.Json;
 using HomeManagement.Infrastructure.IpCameras;
 using MQTTnet.Formatter;
 using Silverback.Messaging.Configuration;
+using Silverback.Messaging.Messages;
 
 namespace HomeManagement.Infrastructure;
 
@@ -23,6 +24,10 @@ public class BrokerClientsConfigurator : IBrokerClientsConfigurator
                             o.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
                         }).UseModel<FrigateEventMessage>().IgnoreMessageTypeHeader())
                         .WithAtLeastOnceQoS()
-                        .OnError(policy => policy.Retry(3).ThenSkip()))));
+                        .OnError(policy => policy.Retry(3).ThenSkip()))
+                    .Produce<StringMessage<FrigateProfile>>(endpoint => endpoint
+                        .ProduceTo(FrigateProfile.SetTopic)
+                        .ProduceStrings()
+                        .WithAtLeastOnceQoS())));
     }
 }

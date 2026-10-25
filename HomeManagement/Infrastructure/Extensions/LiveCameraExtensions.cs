@@ -1,5 +1,5 @@
 ﻿using System.Net;
-using System.Threading.Channels;
+using HomeManagement.Application.AwayMode;
 using HomeManagement.Infrastructure.IpCameras;
 using LiveStreamingServerNet;
 using LiveStreamingServerNet.Flv.Installer;
@@ -23,13 +23,6 @@ public static class LiveCameraExtensions
         );
 
         builder.Services.AddScoped<FrigateEventsSubscriber>();
-        builder.Services.AddHostedService<FrigateAlertsWorker>();
-
-        builder.Services.AddSingleton(Channel.CreateBounded<string>(new BoundedChannelOptions(capacity: 100)
-        {
-            SingleReader = true,
-            SingleWriter = false,
-            FullMode = BoundedChannelFullMode.DropOldest
-        }));
+        builder.Services.AddScoped<AwayModeService>();
     }
 }
