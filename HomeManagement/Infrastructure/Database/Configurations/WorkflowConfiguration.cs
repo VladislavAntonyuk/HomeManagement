@@ -31,8 +31,10 @@ public class WorkflowTriggerConditionConfiguration : IEntityTypeConfiguration<Wo
     {
         builder.HasKey(x => x.Id);
         builder.Property(x => x.TriggerType).IsRequired();
-        builder.Property(x => x.TriggerDeviceName).HasMaxLength(100);
-        builder.Property(x => x.TriggerSourceActionName).HasMaxLength(100);
+        builder.HasOne(x => x.TriggerSourceAction)
+            .WithMany()
+            .HasForeignKey(x => x.TriggerSourceActionId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.TriggerPropertyPath).HasMaxLength(200);
         builder.Property(x => x.TriggerExpectedValue).HasMaxLength(500);
     }
@@ -43,8 +45,10 @@ public class WorkflowStepConfiguration : IEntityTypeConfiguration<WorkflowStep>
     {
         builder.HasKey(x => x.Id);
         builder.Property(x => x.StepType).IsRequired();
-        builder.Property(x => x.DeviceName).HasMaxLength(100);
-        builder.Property(x => x.ActionName).HasMaxLength(100);
+        builder.HasOne(x => x.DeviceAction)
+            .WithMany()
+            .HasForeignKey(x => x.DeviceActionId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.NotifyTitle).HasMaxLength(200);
         builder.Property(x => x.NotifyMessageTemplate).HasMaxLength(2000);
     }

@@ -1,4 +1,4 @@
-using System.Net.NetworkInformation;
+﻿using System.Net.NetworkInformation;
 using Microsoft.Extensions.Options;
 
 namespace HomeManagement.Application.Router;
@@ -44,11 +44,10 @@ public class InternetWatchdogService(
                 var now = DateTimeOffset.UtcNow;
                 if (now - _lastRebootAttempt >= rebootCooldown)
                 {
+                    _lastRebootAttempt = now;
                     try
                     {
                         var result = await routerController.RebootModem();
-                        _lastRebootAttempt = now;
-
                         if (string.IsNullOrEmpty(result.ErrorStatus))
                         {
                             logger.LogWarning("Internet is unavailable. Modem reboot has been requested.");
@@ -62,14 +61,6 @@ public class InternetWatchdogService(
                     catch (HttpRequestException ex)
                     {
                         logger.LogError(ex, "HTTP error while requesting modem reboot.");
-                    }
-                    catch (TaskCanceledException ex) when (!stoppingToken.IsCancellationRequested)
-                    {
-                        logger.LogError(ex, "Timeout while requesting modem reboot.");
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        logger.LogError(ex, "Router configuration is invalid for modem reboot.");
                     }
                 }
             }

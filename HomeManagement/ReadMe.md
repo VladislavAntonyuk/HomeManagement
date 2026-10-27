@@ -32,11 +32,11 @@ sudo systemctl status home-management.service
 
 
 
-ssh orangepi@home-management.local
-rm -r Projects/HomeManagement
+Deploy from the HomeManagement folder:
+.\deploy.ps1
 
-
-scp -r "./" orangepi@home-management.local:/home/orangepi/Projects/HomeManagement
+It publishes, replaces the published appsettings.json with appsettings.Development.json, copies to ~/Projects/HomeManagement.new, then stops the service, swaps the folders and starts it again.
+The database is in ~/.local/share/HomeManagement/home_management.db, so it is kept between deploys.
 
 
 

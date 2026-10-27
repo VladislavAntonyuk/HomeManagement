@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Application.Workflows;
@@ -79,6 +79,17 @@ public static class WorkflowConditionFormatter
     public static bool IsRange(WorkflowComparisonOperator? comparisonOperator)
         => comparisonOperator is WorkflowComparisonOperator.Between or WorkflowComparisonOperator.NotBetween;
 
+    public static string FormatTrigger(Workflow workflow)
+    {
+        if (workflow.TriggerConditions.Count == 0)
+        {
+            return "No conditions";
+        }
+
+        var delimiter = workflow.ConditionOperator is WorkflowConditionOperator.Or ? " OR " : " AND ";
+        return string.Join(delimiter, workflow.TriggerConditions.Select(Format));
+    }
+
     public static string Format(WorkflowTriggerCondition condition)
     {
         return condition.TriggerType switch
@@ -96,7 +107,7 @@ public static class WorkflowConditionFormatter
                 FormatTime(condition.TriggerTimeReference, condition.TriggerTime, condition.TriggerTimeOffsetMinutes),
                 FormatTime(condition.TriggerTimeToReference, condition.TriggerTimeTo, condition.TriggerTimeToOffsetMinutes)),
             WorkflowTriggerType.DeviceResult
-                => $"{condition.TriggerDeviceName}/{condition.TriggerSourceActionName}:{condition.TriggerPropertyPath} {FormatOperator(condition.TriggerType, condition.TriggerOperator)} {condition.TriggerExpectedValue}",
+                => $"{condition.TriggerSourceAction?.Device?.Name ?? "?"}/{condition.TriggerSourceAction?.Action ?? "?"}:{condition.TriggerPropertyPath} {FormatOperator(condition.TriggerType, condition.TriggerOperator)} {condition.TriggerExpectedValue}",
             _ => condition.TriggerType.ToString()
         };
     }
@@ -113,4 +124,4 @@ public static class WorkflowConditionFormatter
             ? $"{subject} {operatorText} {from} and {to}"
             : $"{subject} {operatorText} {from}";
     }
-}
+}

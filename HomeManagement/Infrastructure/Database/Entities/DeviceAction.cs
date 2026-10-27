@@ -1,3 +1,5 @@
+﻿using System.Text.Json.Serialization;
+
 namespace HomeManagement.Infrastructure.Database.Entities;
 
 public class DeviceAction
@@ -8,4 +10,7 @@ public class DeviceAction
     public required string Command { get; set; }
     public string? CommandArgs { get; set; }
     public int DeviceId { get; set; }
+
+    [JsonIgnore]
+    public Device Device { get; set; } = null!;
 }

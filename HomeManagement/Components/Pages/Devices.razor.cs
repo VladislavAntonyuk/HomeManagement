@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using System.Linq.Expressions;
-using System.Net;
 using System.Net.NetworkInformation;
 
 namespace HomeManagement.Components.Pages;
@@ -16,7 +15,8 @@ public partial class Devices(
     ISnackbar snackbar,
     IDbContextFactory<HomeManagementDbContext> dbContextFactory,
     IDialogService dialogService,
-    IDeviceActionExecutor deviceActionExecutor) : ComponentBase, IAsyncDisposable
+    IDeviceActionExecutor deviceActionExecutor,
+    IDeviceDiscoveryService deviceDiscoveryService) : ComponentBase, IAsyncDisposable
 {
     private static readonly TimeSpan StatusRefreshInterval = TimeSpan.FromSeconds(10);
 
@@ -69,7 +69,12 @@ public partial class Devices(
                 _statuses[device.Name] = st;
             }
 
-            st.Loading = true;
+            if (st.IsChecking)
+            {
+                continue;
+            }
+
+            st.IsChecking = true;
             tasks.Add(UpdateDeviceStatusAsync(device, st, token));
         }
 
@@ -83,38 +88,31 @@ public partial class Devices(
     {
         try
         {
-            var info = await NetworkManager.GetDeviceConfigAsync(device.Address, token);
+            if (DeviceAddress.IsPhysicalAddress(device.Address))
+            {
+                status.Online = null;
+                return;
+            }
+
+            var info = await deviceDiscoveryService.GetDeviceConfigAsync(device.Address, token);
             if (info is not null)
             {
                 status.Online = true;
+                return;
             }
-            else
-            {
-                if (PhysicalAddress.TryParse(device.Address, out _))
-                {
-                    status.Online = true;
-                    return;
-                }
 
-                if (Uri.TryCreate(device.Address, UriKind.Absolute, out var address) || IPAddress.TryParse(device.Address, out _))
-                {
-                    using var ping = new Ping();
-                    var reply = await ping.SendPingAsync(address is null ? device.Address : address.Host, 100);
-                    status.Online = reply.Status == IPStatus.Success;
-                }
-                else
-                {
-                    status.Online = false;
-                }
-            }
+            using var ping = new Ping();
+            var reply = await ping.SendPingAsync(new Uri(device.Address).Host, 100);
+            status.Online = reply.Status == IPStatus.Success;
         }
-        catch
+        catch (Exception e) when (e is not OperationCanceledException)
         {
             status.Online = false;
         }
         finally
         {
             status.Loading = false;
+            status.IsChecking = false;
         }
     }
 
@@ -162,7 +160,7 @@ public partial class Devices(
         {
             var result = await deviceActionExecutor.ExecuteAsync(device, action);
             var message = FormatMessage(result.Message);
-            snackbar.Add(new MarkupString(message),
+            snackbar.Add(message,
                 result.IsSuccess ? Severity.Success : Severity.Error,
                 options => options.RequireInteraction = true);
         }
@@ -174,6 +172,7 @@ public partial class Devices(
 
     private string FormatMessage(string resultMessage)
     {
+        const int maxLength = 1000;
         var message = resultMessage;
         try
         {
@@ -183,12 +182,21 @@ public partial class Devices(
         {
             // Ignore any exceptions and use the original message
         }
-        return message.ReplaceLineEndings("<br>");
+        if (message.Length > maxLength)
+        {
+            message = $"{message[..maxLength]}...";
+        }
+
+        return message;
     }
 
     private async Task ScanNetworkDevices()
     {
-        var dialog = await dialogService.ShowAsync<ScanDevicesDialog>("Scan Network");
+        var parameters = new DialogParameters
+        {
+            [nameof(ScanDevicesDialog.ExistingDevices)] = await GetExistingDeviceKeysAsync()
+        };
+        var dialog = await dialogService.ShowAsync<ScanDevicesDialog>("Scan Network", parameters);
         var result = await dialog.Result;
         if (result is null || result.Canceled)
         {
@@ -232,7 +240,7 @@ public partial class Devices(
 
     private async Task Add()
     {
-        var dialog = await dialogService.ShowAsync<AddressDialog>("Enter Address");
+        var dialog = await dialogService.ShowAsync<AddressDialog>("Add Device");
         var result = await dialog.Result;
         if (result is null || result.Canceled)
         {
@@ -240,21 +248,23 @@ public partial class Devices(
         }
 
         var device = (Shared.DeviceConfig)result.Data!;
+        var entity = new Device
+        {
+            Name = device.Name,
+            Address = device.Address,
+            Actions = device.Actions.Select(a => new DeviceAction
+            {
+                Action = a.Action,
+                Command = a.Command,
+                CommandArgs = a.CommandArgs,
+                CommandType = a.CommandType
+            }).ToList()
+        };
+
         try
         {
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            dbContext.Devices.Add(new Device
-            {
-                Name = device.Name,
-                Address = device.Address,
-                Actions = device.Actions.Select(a => new DeviceAction
-                {
-                    Action = a.Action,
-                    Command = a.Command,
-                    CommandArgs = a.CommandArgs,
-                    CommandType = a.CommandType
-                }).ToList()
-            });
+            dbContext.Devices.Add(entity);
             await dbContext.SaveChangesAsync();
 
             snackbar.Add($"Device '{device.Name}' added.", Severity.Success);
@@ -262,8 +272,43 @@ public partial class Devices(
         }
         catch (Exception ex)
         {
-            snackbar.Add($"Failed to add device: {ex.Message}", Severity.Error);
+            snackbar.Add($"Failed to add device: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+            return;
         }
+
+        if (entity.Actions.Count == 0)
+        {
+            await Edit(entity);
+        }
+    }
+
+    private async Task<Dictionary<int, List<string>>> GetActionUsagesAsync(IReadOnlyCollection<int> actionIds)
+    {
+        if (actionIds.Count == 0)
+        {
+            return [];
+        }
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        var stepUsages = await dbContext.Set<WorkflowStep>()
+            .Where(s => s.DeviceActionId != null && actionIds.Contains(s.DeviceActionId.Value))
+            .Join(dbContext.Workflows, s => s.WorkflowId, w => w.Id, (s, w) => new { ActionId = s.DeviceActionId!.Value, w.Name })
+            .ToListAsync();
+        var conditionUsages = await dbContext.Set<WorkflowTriggerCondition>()
+            .Where(c => c.TriggerSourceActionId != null && actionIds.Contains(c.TriggerSourceActionId.Value))
+            .Join(dbContext.Workflows, c => c.WorkflowId, w => w.Id, (c, w) => new { ActionId = c.TriggerSourceActionId!.Value, w.Name })
+            .ToListAsync();
+
+        return stepUsages.Concat(conditionUsages)
+            .GroupBy(x => x.ActionId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Name).Distinct().Order().ToList());
+    }
+
+    private async Task<List<string>> GetExistingDeviceKeysAsync()
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        var devices = await dbContext.Devices.Select(d => new { d.Name, d.Address }).ToListAsync();
+        return devices.SelectMany(d => new[] { d.Name, d.Address }).ToList();
     }
 
     private async Task Edit(Device device)
@@ -278,6 +323,7 @@ public partial class Devices(
                 Description = device.Description,
                 Actions = device.Actions.Select(a => new DeviceActionEditModel
                 {
+                    Id = a.Id,
                     Action = a.Action,
                     Command = a.Command,
                     CommandArgs = a.CommandArgs,
@@ -288,7 +334,8 @@ public partial class Devices(
                     Name = c.Name,
                     Value = c.Value
                 }).ToList()
-            }
+            },
+            [nameof(DeviceEditDialog.ActionUsages)] = await GetActionUsagesAsync(device.Actions.Select(a => a.Id).ToList())
         };
         var options = new DialogOptions()
         {
@@ -318,25 +365,44 @@ public partial class Devices(
                 return;
             }
 
-            existing.Id = model.Id;
             existing.Name = model.Name;
             existing.Address = model.Address;
             existing.Description = model.Description;
-            existing.Actions = model.Actions.Select(a => new DeviceAction
+
+            var keptActionIds = model.Actions.Where(a => a.Id != 0).Select(a => a.Id).ToHashSet();
+            var removedActions = existing.Actions.Where(a => !keptActionIds.Contains(a.Id)).ToList();
+            var usages = await GetActionUsagesAsync(removedActions.Select(a => a.Id).ToList());
+            if (usages.Count > 0)
             {
-                Action = a.Action,
-                Command = a.Command,
-                CommandArgs = a.CommandArgs,
-                CommandType = a.CommandType
-            })
-                .ToList();
+                snackbar.Add($"Cannot remove actions used by workflows: {string.Join(", ", usages.Values.SelectMany(x => x).Distinct())}.", Severity.Error);
+                return;
+            }
+
+            foreach (var removedAction in removedActions)
+            {
+                existing.Actions.Remove(removedAction);
+            }
+
+            foreach (var action in model.Actions)
+            {
+                var target = existing.Actions.FirstOrDefault(a => action.Id != 0 && a.Id == action.Id);
+                if (target is null)
+                {
+                    target = new DeviceAction { Action = action.Action, Command = action.Command };
+                    existing.Actions.Add(target);
+                }
+
+                target.Action = action.Action;
+                target.Command = action.Command;
+                target.CommandArgs = action.CommandArgs;
+                target.CommandType = action.CommandType;
+            }
+
             existing.Configurations = model.Configurations.Select(c => new DeviceConfiguration
             {
                 Name = c.Name,
                 Value = c.Value
-            })
-                .ToList()
-        ;
+            }).ToList();
             await dbContext.SaveChangesAsync();
 
             snackbar.Add("Device updated.", Severity.Success);
@@ -350,6 +416,13 @@ public partial class Devices(
 
     private async Task Delete(Device device)
     {
+        var usages = await GetActionUsagesAsync(device.Actions.Select(a => a.Id).ToList());
+        if (usages.Count > 0)
+        {
+            snackbar.Add($"'{device.Name}' is used by workflows: {string.Join(", ", usages.Values.SelectMany(x => x).Distinct())}. Remove it from those workflows first.", Severity.Warning);
+            return;
+        }
+
         if (!await ConfirmDeleteDeviceAsync(device.Name))
         {
             return;
@@ -401,7 +474,8 @@ public partial class Devices(
 
     private class DeviceStatus
     {
-        public bool Online { get; set; }
+        public bool? Online { get; set; }
         public bool Loading { get; set; } = true;
+        public bool IsChecking { get; set; }
     }
 }

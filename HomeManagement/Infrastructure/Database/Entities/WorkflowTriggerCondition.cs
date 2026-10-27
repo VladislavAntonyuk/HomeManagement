@@ -1,4 +1,4 @@
-using HomeManagement.Shared;
+﻿using HomeManagement.Shared;
 
 namespace HomeManagement.Infrastructure.Database.Entities;
 
@@ -24,9 +24,9 @@ public class WorkflowTriggerCondition
 
     public int? TriggerTimeToOffsetMinutes { get; set; }
 
-    public string? TriggerDeviceName { get; set; }
+    public int? TriggerSourceActionId { get; set; }
 
-    public string? TriggerSourceActionName { get; set; }
+    public DeviceAction? TriggerSourceAction { get; set; }
 
     public string? TriggerPropertyPath { get; set; }
 
@@ -40,4 +40,4 @@ public class WorkflowTriggerCondition
 
     public bool? LastConditionMatched { get; set; }
     public int WorkflowId { get; set; }
-}
+}

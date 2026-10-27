@@ -10,6 +10,5 @@ public static class WorkflowExtensions
         builder.Services.AddHostedService<WorkflowTriggerService>();
         builder.Services.AddSingleton<IWorkflowRunner, WorkflowRunner>();
         builder.Services.AddSingleton<IWorkflowTriggerPreviewService, WorkflowTriggerPreviewService>();
-        builder.Services.AddSingleton<HomeManagement.Application.DeviceManagement.IDeviceActionExecutor, HomeManagement.Application.DeviceManagement.DeviceActionExecutor>();
     }
 }

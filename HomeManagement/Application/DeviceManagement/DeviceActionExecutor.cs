@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Net.NetworkInformation;
 using System.Text;
 using HomeManagement.Infrastructure.Database.Entities;
 
@@ -18,7 +17,7 @@ public class DeviceActionExecutor(IHttpClientFactory httpClientFactory) : IDevic
     {
         try
         {
-            if (PhysicalAddress.TryParse(device.Address, out _))
+            if (DeviceAddress.IsPhysicalAddress(device.Address))
             {
                 var output = await Process.RunAndCaptureTextAsync(new ProcessStartInfo
                 {
@@ -47,7 +46,7 @@ public class DeviceActionExecutor(IHttpClientFactory httpClientFactory) : IDevic
             {
                 Shared.CommandType.Get => await httpClient.GetAsync(string.IsNullOrWhiteSpace(action.CommandArgs) ? action.Command : $"{action.Command}?{action.CommandArgs}", token),
                 Shared.CommandType.Post => await httpClient.PostAsync(action.Command,
-                    string.IsNullOrWhiteSpace(action.CommandArgs) ? null : new StringContent(action.CommandArgs, Encoding.Default, "application/json"),
+                    string.IsNullOrWhiteSpace(action.CommandArgs) ? null : new StringContent(action.CommandArgs, Encoding.UTF8, "application/json"),
                     token),
                 _ => throw new ArgumentOutOfRangeException(nameof(action.CommandType), action.CommandType, null)
             };
@@ -57,7 +56,7 @@ public class DeviceActionExecutor(IHttpClientFactory httpClientFactory) : IDevic
             {
                 content = result.IsSuccessStatusCode
                     ? $"{action.Action} successfully executed"
-                    : "Error has occured";
+                    : "Error has occurred";
             }
 
             return new DeviceActionExecutionResult(result.IsSuccessStatusCode, content, content);

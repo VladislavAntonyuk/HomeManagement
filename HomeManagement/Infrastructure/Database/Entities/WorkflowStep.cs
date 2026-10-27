@@ -1,14 +1,16 @@
-namespace HomeManagement.Infrastructure.Database.Entities;
+﻿namespace HomeManagement.Infrastructure.Database.Entities;
 
 public class WorkflowStep
 {
     public int Id { get; init; }
 
+    public int Order { get; set; }
+
     public WorkflowStepType StepType { get; set; } = WorkflowStepType.DeviceAction;
 
-    public string? DeviceName { get; set; }
+    public int? DeviceActionId { get; set; }
 
-    public string? ActionName { get; set; }
+    public DeviceAction? DeviceAction { get; set; }
 
     public int? DelaySeconds { get; set; }
 

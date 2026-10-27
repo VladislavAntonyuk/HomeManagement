@@ -1,4 +1,4 @@
-using HomeManagement.Infrastructure;
+﻿using HomeManagement.Infrastructure;
 using HomeManagement.Infrastructure.Database;
 using HomeManagement.Infrastructure.Database.Entities;
 using HomeManagement.Infrastructure.IpCameras;

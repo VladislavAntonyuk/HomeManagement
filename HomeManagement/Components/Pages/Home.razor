@@ -4,104 +4,104 @@
 <PageTitle>Home</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
-	<MudGrid Spacing="3">
-		<MudItem xs="12" sm="6" md="3">
-			<MudCard Class="pa-4" Style="height:100%">
-				<MudStack Spacing="1">
-					<MudText Typo="Typo.subtitle2" Color="Color.Secondary">Total Devices</MudText>
-					<MudText Typo="Typo.h4">@_totalDevices</MudText>
-				</MudStack>
-			</MudCard>
-		</MudItem>
-		<MudItem xs="12" sm="6" md="3">
-			<MudCard Class="pa-4" Style="height:100%">
-				<MudStack Spacing="1">
-					<MudText Typo="Typo.subtitle2" Color="Color.Secondary">Local IP</MudText>
-					<MudText Typo="Typo.h6">@_localIp</MudText>
-					<MudButton OnClick="RebootRouter" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Router">Reboot Router</MudButton>
-					<MudButton OnClick="RebootRouterModem" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MobiledataOff">Reboot Modem</MudButton>
-					<MudButton OnClick="TurnOffRouterLeds" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Lightbulb">Turn off LEDs</MudButton>
-				</MudStack>
-			</MudCard>
-		</MudItem>
-		<MudItem xs="12" sm="6" md="3">
-			<MudCard Class="pa-4" Style="height:100%">
-				<MudStack Spacing="1">
-					<MudText Typo="Typo.subtitle2" Color="Color.Secondary">Uptime</MudText>
-					<MudText Typo="Typo.h6" Style="white-space: pre-wrap; word-break: break-all;">@_uptime</MudText>
-				</MudStack>
-			</MudCard>
-		</MudItem>
-		<MudItem xs="12" sm="6" md="3">
-			<MudCard Class="pa-4" Style="height:100%">
-				<MudStack Spacing="1">
-					<MudText Typo="Typo.subtitle2" Color="Color.Secondary">Temperature</MudText>
-					<MudText Typo="Typo.h6" Style="white-space: pre-wrap; word-break: break-all;">@_temperature</MudText>
-				</MudStack>
-			</MudCard>
-		</MudItem>
-		<MudItem xs="12" sm="6" md="3">
-			<MudCard Class="pa-4" Style="height:100%">
-				<MudStack Spacing="1">
-					<MudText Typo="Typo.subtitle2" Color="Color.Secondary">Disk Space</MudText>
-					<MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@_diskSpace</MudText>
-				</MudStack>
-			</MudCard>
-		</MudItem>
-		<MudItem xs="12" sm="6" md="3">
-			<MudCard Class="pa-4" Style="height:100%">
-				<MudStack Spacing="1">
-					<MudText Typo="Typo.subtitle2" Color="Color.Secondary">Network Data</MudText>
-					<MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@_networkData</MudText>
-				</MudStack>
-			</MudCard>
-		</MudItem>
-		<MudItem xs="12" sm="6" md="3">
-			<MudCard Class="pa-4" Style="height:100%">
-				<MudStack Spacing="1">
-					<MudText Typo="Typo.subtitle2" Color="Color.Secondary">CPU Info</MudText>
-					<MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@_cpuInfo</MudText>
-				</MudStack>
-			</MudCard>
-		</MudItem>
-		<MudItem xs="12" sm="6" md="3">
-			<MudCard Class="pa-4" Style="height:100%">
-				<MudStack Spacing="1">
-					<MudText Typo="Typo.subtitle2" Color="Color.Secondary">RAM Info</MudText>
-					<MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@_ramInfo</MudText>
-				</MudStack>
-			</MudCard>
-		</MudItem>
-	</MudGrid>
+    <MudGrid Spacing="3">
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="pa-4" Style="height:100%">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Total Devices</MudText>
+                    <MudText Typo="Typo.h4">@_totalDevices</MudText>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="pa-4" Style="height:100%">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Local IP</MudText>
+                    <MudText Typo="Typo.h6">@_localIp</MudText>
+                    <MudButton OnClick="RebootRouter" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Router">Reboot Router</MudButton>
+                    <MudButton OnClick="RebootRouterModem" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MobiledataOff">Reboot Modem</MudButton>
+                    <MudButton OnClick="TurnOffRouterLeds" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Lightbulb">Turn off LEDs</MudButton>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="pa-4" Style="height:100%">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Uptime</MudText>
+                    <MudText Typo="Typo.h6" Style="white-space: pre-wrap; word-break: break-all;">@(_uptime ?? "Loading...")</MudText>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="pa-4" Style="height:100%">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Temperature</MudText>
+                    <MudText Typo="Typo.h6" Style="white-space: pre-wrap; word-break: break-all;">@(_temperature ?? "Loading...")</MudText>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="pa-4" Style="height:100%">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Disk Space</MudText>
+                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@(_diskSpace ?? "Loading...")</MudText>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="pa-4" Style="height:100%">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Network Data</MudText>
+                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@(_networkData ?? "Loading...")</MudText>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="pa-4" Style="height:100%">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">CPU Info</MudText>
+                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@(_cpuInfo ?? "Loading...")</MudText>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard Class="pa-4" Style="height:100%">
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">RAM Info</MudText>
+                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@(_ramInfo ?? "Loading...")</MudText>
+                </MudStack>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
 
-	<MudGrid Class="mt-4" Spacing="3">
-		<MudItem xs="12" md="6">
-			<MudPaper Class="pa-4" Elevation="1">
-				<MudText Typo="Typo.h6" Class="mb-2">Server Controls</MudText>
-				<MudStack Spacing="2">
-					<MudSwitch T="bool"
-						Value="_isAwayModeEnabled"
-						ValueChanged="OnAwayModeChanged"
-						Disabled="_isUpdatingAwayMode"
-						Color="Color.Primary"
-						Label="@($"Away mode ({(_isAwayModeEnabled ? "enabled" : "disabled")})")" />
-					<MudButton OnClick="Reboot" Color="Color.Error" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.RestartAlt">Reboot</MudButton>
-					<MudButton OnClick="Shutdown" Color="Color.Error" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PowerSettingsNew">Shutdown</MudButton>
-					<MudButton Href="/devices" Color="Color.Primary" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Devices">Manage Devices</MudButton>
-				</MudStack>
-			</MudPaper>
-		</MudItem>
-		<MudItem xs="12" md="6">
-			<MudPaper Class="pa-4" Elevation="1">
-				<MudText Typo="Typo.h6" Class="mb-2">Terminal</MudText>
-				<MudStack Spacing="1">
-					<MudTextField @bind-Value="_terminalCommand" Placeholder="Enter command..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Terminal" Class="terminal-input" OnKeyDown="OnTerminalKeyDown" />
-					<MudButton OnClick="RunTerminalCommand" Color="Color.Primary" Variant="Variant.Filled">Run</MudButton>
-					<MudPaper Class="terminal-output pa-2 mt-2" Style="background:black;color:#39ff14;font-family:monospace;min-height:100px;max-height:300px;overflow:auto;">
-						@_terminalOutput
-					</MudPaper>
-				</MudStack>
-			</MudPaper>
-		</MudItem>
-	</MudGrid>
+    <MudGrid Class="mt-4" Spacing="3">
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-2">Server Controls</MudText>
+                <MudStack Spacing="2">
+                    <MudSwitch T="bool"
+                        Value="_isAwayModeEnabled"
+                        ValueChanged="OnAwayModeChanged"
+                        Disabled="_isUpdatingAwayMode"
+                        Color="Color.Primary"
+                        Label="@($"Away mode ({(_isAwayModeEnabled ? "enabled" : "disabled")})")" />
+                    <MudButton OnClick="Reboot" Color="Color.Error" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.RestartAlt">Reboot</MudButton>
+                    <MudButton OnClick="Shutdown" Color="Color.Error" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PowerSettingsNew">Shutdown</MudButton>
+                    <MudButton Href="/devices" Color="Color.Primary" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Devices">Manage Devices</MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-2">Terminal</MudText>
+                <MudStack Spacing="1">
+                    <MudTextField @bind-Value="_terminalCommand" Immediate="true" Placeholder="Enter command..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Terminal" Class="terminal-input" OnKeyDown="OnTerminalKeyDown" />
+                    <MudButton OnClick="RunTerminalCommand" Color="Color.Primary" Variant="Variant.Filled">Run</MudButton>
+                    <MudPaper Class="terminal-output pa-2 mt-2" Style="background:black;color:#39ff14;font-family:monospace;min-height:100px;max-height:300px;overflow:auto;">
+                        @_terminalOutput
+                    </MudPaper>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
 </MudContainer>

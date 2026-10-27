@@ -1,5 +1,5 @@
-using HomeManagement.Application.DeviceManagement;
-using HomeManagement.Application.WebHooks;
+﻿using HomeManagement.Application.DeviceManagement;
+using HomeManagement.Application.Notifications;
 using HomeManagement.Infrastructure.Database;
 using HomeManagement.Infrastructure.Database.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -24,8 +24,7 @@ public record WorkflowExecutionResult(int ExecutedActions, IReadOnlyList<string>
 public class WorkflowRunner(
     IDbContextFactory<HomeManagementDbContext> dbContextFactory,
     IDeviceActionExecutor deviceActionExecutor,
-    IServiceProvider serviceProvider,
-    SenderRequestFactory senderRequestFactory,
+    INotificationSender notificationSender,
     ILogger<WorkflowRunner> logger) : IWorkflowRunner
 {
     public async Task<WorkflowExecutionResult> RunAsync(Workflow workflow, WorkflowExecutionContext? context = null, CancellationToken token = default)
@@ -33,26 +32,21 @@ public class WorkflowRunner(
         ArgumentNullException.ThrowIfNull(workflow);
 
         var executionContext = context ?? WorkflowExecutionContext.Empty;
-        var steps = workflow.Steps;
+
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
+        var steps = await dbContext.Set<WorkflowStep>()
+            .AsNoTracking()
+            .Where(x => x.WorkflowId == workflow.Id)
+            .Include(x => x.DeviceAction)
+            .ThenInclude(x => x!.Device)
+            .ThenInclude(x => x.Configurations)
+            .OrderBy(x => x.Order)
+            .ToListAsync(token);
 
         if (steps.Count == 0)
         {
             return new WorkflowExecutionResult(0, []);
         }
-
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
-        var deviceNames = steps
-            .Where(x => x.StepType is WorkflowStepType.DeviceAction && !string.IsNullOrWhiteSpace(x.DeviceName))
-            .Select(x => x.DeviceName!)
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-
-        var devices = await dbContext.Devices
-            .AsNoTracking()
-            .Include(x => x.Actions)
-            .Include(x => x.Configurations)
-            .Where(x => deviceNames.Contains(x.Name))
-            .ToDictionaryAsync(x => x.Name, StringComparer.Ordinal, token);
 
         var executedActions = 0;
         var errors = new List<string>();
@@ -61,7 +55,7 @@ public class WorkflowRunner(
             ["Workflow.Name"] = workflow.Name
         };
 
-        foreach (var step in steps)
+        foreach (var (stepIndex, step) in steps.Index())
         {
             token.ThrowIfCancellationRequested();
 
@@ -69,35 +63,23 @@ public class WorkflowRunner(
             {
                 case WorkflowStepType.DeviceAction:
                     {
-                        if (string.IsNullOrWhiteSpace(step.DeviceName) || string.IsNullOrWhiteSpace(step.ActionName))
+                        if (step.DeviceAction is not { } deviceAction)
                         {
-                            errors.Add("DeviceAction step requires DeviceName and ActionName.");
+                            errors.Add($"Step {stepIndex + 1}: its device action no longer exists, select one in the workflow.");
                             continue;
                         }
 
-                        if (!devices.TryGetValue(step.DeviceName, out var device))
-                        {
-                            errors.Add($"Device '{step.DeviceName}' not found.");
-                            continue;
-                        }
-
-                        var deviceAction = device.Actions.FirstOrDefault(x => string.Equals(x.Action, step.ActionName, StringComparison.Ordinal));
-                        if (deviceAction is null)
-                        {
-                            errors.Add($"Action '{step.ActionName}' not found on device '{step.DeviceName}'.");
-                            continue;
-                        }
-
+                        var device = deviceAction.Device;
                         var result = await deviceActionExecutor.ExecuteAsync(device, deviceAction, token);
                         dynamicValues["LastStep.Type"] = nameof(WorkflowStepType.DeviceAction);
                         dynamicValues["LastStep.Success"] = result.IsSuccess.ToString();
                         dynamicValues["LastStep.Message"] = result.Message;
-                        dynamicValues["LastStep.Device"] = step.DeviceName;
-                        dynamicValues["LastStep.Action"] = step.ActionName;
+                        dynamicValues["LastStep.Device"] = device.Name;
+                        dynamicValues["LastStep.Action"] = deviceAction.Action;
 
                         if (!result.IsSuccess)
                         {
-                            errors.Add($"{step.DeviceName}/{step.ActionName}: {result.Message}");
+                            errors.Add($"{device.Name}/{deviceAction.Action}: {result.Message}");
                             continue;
                         }
 
@@ -135,32 +117,15 @@ public class WorkflowRunner(
                         var message = RenderTemplate(template, dynamicValues);
                         var payload = $"{title}{Environment.NewLine}{message}";
 
-                        await using var scope = serviceProvider.CreateAsyncScope();
-                        var senders = scope.ServiceProvider.GetServices<ISender>();
-                        var senderErrors = new List<string>();
-
-                        foreach (var sender in senders)
-                        {
-                            var request = senderRequestFactory.Create(payload, sender);
-                            if (request is null)
-                            {
-                                continue;
-                            }
-
-                            var sendResult = await sender.Send(request, token);
-                            if (!sendResult.IsSuccessful)
-                            {
-                                senderErrors.Add($"{sender.GetType().Name}: {sendResult.Error}");
-                            }
-                        }
+                        var sendResult = await notificationSender.SendAsync(payload, token);
 
                         dynamicValues["LastStep.Type"] = nameof(WorkflowStepType.Notify);
                         dynamicValues["LastStep.Message"] = payload;
-                        dynamicValues["LastStep.Success"] = (senderErrors.Count == 0).ToString();
+                        dynamicValues["LastStep.Success"] = sendResult.IsSuccessful.ToString();
 
-                        if (senderErrors.Count > 0)
+                        if (!sendResult.IsSuccessful)
                         {
-                            errors.Add($"Notify failed: {string.Join(" | ", senderErrors)}");
+                            errors.Add($"Notify failed: {sendResult.Error}");
                             continue;
                         }
 

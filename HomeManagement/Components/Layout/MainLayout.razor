@@ -1,82 +1,94 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager NavigationManager
 
 <MudRTLProvider RightToLeft="_rightToLeft">
-	<MudThemeProvider @bind-IsDarkMode="@_isDarkMode" />
-	<MudPopoverProvider />
-	<MudDialogProvider CloseButton="true"
-					   CloseOnEscapeKey="true"
-					   BackdropClick="false"
-					   Position="DialogPosition.Center" />
-	<MudSnackbarProvider />
+    <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" />
+    <MudPopoverProvider />
+    <MudDialogProvider CloseButton="true"
+                       CloseOnEscapeKey="true"
+                       BackdropClick="false"
+                       Position="DialogPosition.Center" />
+    <MudSnackbarProvider />
 
-	<MudLayout>
-		<MudAppBar Elevation="1">
-			<MudHidden Breakpoint="Breakpoint.SmAndDown">
-				<MudLink Href="/">
-					<img src="favicon.png" alt="Home Management" class="mud-icon-root mud-icon-size-large" />
-				</MudLink>
-			</MudHidden>
-			<MudHidden Breakpoint="Breakpoint.MdAndUp">
-				<MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="DrawerToggle" />
-			</MudHidden>
-			<MudHidden Breakpoint="Breakpoint.Xs">
-				<MudLink Href="/" Typo="Typo.h6" Class="ml-4" Color="Color.Inherit">Home Management</MudLink>
-			</MudHidden>
-			<MudHidden Breakpoint="Breakpoint.Xs" Invert="true">
-				<MudLink Href="/" Typo="Typo.subtitle2" Color="Color.Inherit">Home Management</MudLink>
-			</MudHidden>
-			<MudSpacer />
-			<MudToggleIconButton @bind-Toggled="_rightToLeft"
-								 Icon="@Icons.Material.Filled.FormatTextdirectionRToL"
-								 ToggledIcon="@Icons.Material.Filled.FormatTextdirectionRToL"
-								 Color="Color.Inherit" />
-		</MudAppBar>
+    <MudLayout>
+        <MudAppBar Elevation="1">
+            <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                <MudLink Href="/">
+                    <img src="favicon.png" alt="Home Management" class="mud-icon-root mud-icon-size-large" />
+                </MudLink>
+            </MudHidden>
+            <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="DrawerToggle" />
+            </MudHidden>
+            <MudHidden Breakpoint="Breakpoint.Xs">
+                <MudLink Href="/" Typo="Typo.h6" Class="ml-4" Color="Color.Inherit">Home Management</MudLink>
+            </MudHidden>
+            <MudHidden Breakpoint="Breakpoint.Xs" Invert="true">
+                <MudLink Href="/" Typo="Typo.subtitle2" Color="Color.Inherit">Home Management</MudLink>
+            </MudHidden>
+            <MudSpacer />
+            <MudToggleIconButton @bind-Toggled="_rightToLeft"
+                                 Icon="@Icons.Material.Filled.FormatTextdirectionRToL"
+                                 ToggledIcon="@Icons.Material.Filled.FormatTextdirectionRToL"
+                                 Color="Color.Inherit" />
+        </MudAppBar>
 
-		<MudDrawer @bind-Open="_drawerOpen" Elevation="1" ClipMode="DrawerClipMode.Always">
-			<AuthorizeView>
-				<NavMenu />
-			</AuthorizeView>
-			<MudLink Href="https://www.buymeacoffee.com/vlad.antonyuk" Target="_blank">
-				<MudImage Src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png"
-						  Alt="Buy me A coffee"
-						  Fluid="true"
-						  Class="side-image" />
-			</MudLink>
-		</MudDrawer>
-		<MudMainContent>
-			<MudContainer MaxWidth="MaxWidth.False">
-				<ErrorBoundary MaximumErrorCount="5">
-					<ChildContent>
-						@Body
-					</ChildContent>
-					<ErrorContent Context="exception">
-						<MudText Typo="Typo.h1">Error has occurred</MudText>
-						<MudText Typo="Typo.body1">@exception.Message</MudText>
-					</ErrorContent>
-				</ErrorBoundary>
-			</MudContainer>
-			<MudScrollToTop Style="z-index: 1200">
-				<MudFab StartIcon="@Icons.Material.Filled.ArrowUpward" Color="Color.Primary" />
-			</MudScrollToTop>
-		</MudMainContent>
-	</MudLayout>
+        <MudDrawer @bind-Open="_drawerOpen" Elevation="1" ClipMode="DrawerClipMode.Always">
+            <AuthorizeView>
+                <NavMenu />
+            </AuthorizeView>
+            <MudLink Href="https://www.buymeacoffee.com/vlad.antonyuk" Target="_blank">
+                <MudImage Src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png"
+                          Alt="Buy me A coffee"
+                          Fluid="true"
+                          Class="side-image" />
+            </MudLink>
+        </MudDrawer>
+        <MudMainContent>
+            <MudContainer MaxWidth="MaxWidth.False">
+                <ErrorBoundary @ref="_errorBoundary" MaximumErrorCount="5">
+                    <ChildContent>
+                        @Body
+                    </ChildContent>
+                    <ErrorContent Context="exception">
+                        <MudAlert Severity="Severity.Error" Class="mt-4">
+                            <MudText Typo="Typo.h6">Error has occurred</MudText>
+                            <MudText Typo="Typo.body2">@exception.Message</MudText>
+                        </MudAlert>
+                    </ErrorContent>
+                </ErrorBoundary>
+            </MudContainer>
+            <MudScrollToTop Style="z-index: 1200">
+                <MudFab StartIcon="@Icons.Material.Filled.ArrowUpward" Color="Color.Primary" />
+            </MudScrollToTop>
+        </MudMainContent>
+    </MudLayout>
 </MudRTLProvider>
 
-
 @code {
-	private bool _drawerOpen = true;
-	private bool _isDarkMode = true;
-	private bool _rightToLeft;
+    private bool _drawerOpen = true;
+    private bool _isDarkMode = true;
+    private bool _rightToLeft;
+    private ErrorBoundary? _errorBoundary;
 
+    protected override void OnInitialized()
+    {
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
 
-	void DrawerToggle()
-	{
-		_drawerOpen = !_drawerOpen;
-	}
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => _errorBoundary?.Recover();
+
+    public void Dispose() => NavigationManager.LocationChanged -= OnLocationChanged;
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
 }
 
 <div id="blazor-error-ui" data-nosnippet>
-	An unhandled error has occurred.
-	<a href="." class="reload">Reload</a>
-	<span class="dismiss">🗙</span>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
 </div>

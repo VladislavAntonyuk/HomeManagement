@@ -6,4 +6,6 @@ public class SelectableDevice
 {
     public required DeviceConfig Device { get; init; }
     public bool Selected { get; set; }
+
+    public bool IsExisting { get; init; }
 }

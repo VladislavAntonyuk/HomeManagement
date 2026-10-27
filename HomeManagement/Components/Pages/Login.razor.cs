@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 
 namespace HomeManagement.Components.Pages;
 
@@ -10,4 +10,17 @@ public partial class Login : ComponentBase
 
     [SupplyParameterFromQuery(Name = "returnUrl")]
     public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    [SupplyParameterFromQuery(Name = "username")]
+    public string? PreviousUsername { get; set; }
+
+    private bool HasError => !string.IsNullOrEmpty(Error);
+
+    protected override void OnInitialized()
+    {
+        Username ??= PreviousUsername;
+    }
 }

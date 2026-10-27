@@ -15,7 +15,7 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261024131343_SplitDateTimeTrigger";
+    public override string LastMigrationId => "20261027055057_Initial";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -157,6 +157,9 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     .HasMaxLength(100)
                     .HasColumnType("TEXT");
 
+                b.Property<bool>("RepeatWhileMatched")
+                    .HasColumnType("INTEGER");
+
                 b.HasKey("Id");
 
                 b.HasIndex("Name")
@@ -171,16 +174,11 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     .ValueGeneratedOnAdd()
                     .HasColumnType("INTEGER");
 
-                b.Property<string>("ActionName")
-                    .HasMaxLength(100)
-                    .HasColumnType("TEXT");
-
                 b.Property<int?>("DelaySeconds")
                     .HasColumnType("INTEGER");
 
-                b.Property<string>("DeviceName")
-                    .HasMaxLength(100)
-                    .HasColumnType("TEXT");
+                b.Property<int?>("DeviceActionId")
+                    .HasColumnType("INTEGER");
 
                 b.Property<string>("NotifyMessageTemplate")
                     .HasMaxLength(2000)
@@ -190,6 +188,9 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     .HasMaxLength(200)
                     .HasColumnType("TEXT");
 
+                b.Property<int>("Order")
+                    .HasColumnType("INTEGER");
+
                 b.Property<int>("StepType")
                     .HasColumnType("INTEGER");
 
@@ -197,6 +198,8 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("INTEGER");
 
                 b.HasKey("Id");
+
+                b.HasIndex("DeviceActionId");
 
                 b.HasIndex("WorkflowId");
 
@@ -221,10 +224,6 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                 b.Property<DateOnly?>("TriggerDateTo")
                     .HasColumnType("TEXT");
 
-                b.Property<string>("TriggerDeviceName")
-                    .HasMaxLength(100)
-                    .HasColumnType("TEXT");
-
                 b.Property<string>("TriggerExpectedValue")
                     .HasMaxLength(500)
                     .HasColumnType("TEXT");
@@ -236,9 +235,8 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     .HasMaxLength(200)
                     .HasColumnType("TEXT");
 
-                b.Property<string>("TriggerSourceActionName")
-                    .HasMaxLength(100)
-                    .HasColumnType("TEXT");
+                b.Property<int?>("TriggerSourceActionId")
+                    .HasColumnType("INTEGER");
 
                 b.Property<TimeOnly?>("TriggerTime")
                     .HasColumnType("TEXT");
@@ -269,6 +267,8 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
 
                 b.HasKey("Id");
 
+                b.HasIndex("TriggerSourceActionId");
+
                 b.HasIndex("WorkflowId");
 
                 b.ToTable("WorkflowTriggerCondition");
@@ -276,11 +276,13 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.DeviceAction", b =>
             {
-                b.HasOne("HomeManagement.Infrastructure.Database.Entities.Device", null)
+                b.HasOne("HomeManagement.Infrastructure.Database.Entities.Device", "Device")
                     .WithMany("Actions")
                     .HasForeignKey("DeviceId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
+
+                b.Navigation("Device");
             });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.DeviceConfiguration", b =>
@@ -294,20 +296,34 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.WorkflowStep", b =>
             {
+                b.HasOne("HomeManagement.Infrastructure.Database.Entities.DeviceAction", "DeviceAction")
+                    .WithMany()
+                    .HasForeignKey("DeviceActionId")
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 b.HasOne("HomeManagement.Infrastructure.Database.Entities.Workflow", null)
                     .WithMany("Steps")
                     .HasForeignKey("WorkflowId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
+
+                b.Navigation("DeviceAction");
             });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.WorkflowTriggerCondition", b =>
             {
+                b.HasOne("HomeManagement.Infrastructure.Database.Entities.DeviceAction", "TriggerSourceAction")
+                    .WithMany()
+                    .HasForeignKey("TriggerSourceActionId")
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 b.HasOne("HomeManagement.Infrastructure.Database.Entities.Workflow", null)
                     .WithMany("TriggerConditions")
                     .HasForeignKey("WorkflowId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
+
+                b.Navigation("TriggerSourceAction");
             });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.Device", b =>

@@ -1,16 +1,16 @@
 ﻿<MudNavMenu>
-	<AuthorizeView>
-		<MudText Typo="Typo.body1" Align="Align.Center">
-			Hello @context.User.Identity?.Name!
-		</MudText>
-	</AuthorizeView>
+    <AuthorizeView>
+        <MudText Typo="Typo.body1" Align="Align.Center">
+            Hello @context.User.Identity?.Name!
+        </MudText>
+    </AuthorizeView>
 
-	<MudNavLink Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
-	<MudNavLink Href="@($"{_baseUri.Scheme}://cameras.{_baseUri.Host}/")" Match="NavLinkMatch.Prefix" Target="_blank">IP Cameras</MudNavLink>
-	<MudNavLink Href="/devices" Match="NavLinkMatch.Prefix">Devices</MudNavLink>
-	<MudNavLink Href="/workflows" Match="NavLinkMatch.Prefix">Workflows</MudNavLink>
+    <MudNavLink Href="/" Match="NavLinkMatch.All">Home</MudNavLink>
+    <MudNavLink Href="@($"{_baseUri.Scheme}://cameras.{_baseUri.Host}/")" Match="NavLinkMatch.Prefix" Target="_blank">IP Cameras</MudNavLink>
+    <MudNavLink Href="/devices" Match="NavLinkMatch.Prefix">Devices</MudNavLink>
+    <MudNavLink Href="/workflows" Match="NavLinkMatch.Prefix">Workflows</MudNavLink>
 
-	<AuthorizeView>
-		<MudNavLink Href="/account/logout" Match="NavLinkMatch.Prefix">Log Out</MudNavLink>
-	</AuthorizeView>
+    <AuthorizeView>
+        <MudNavLink Href="/account/logout" Match="NavLinkMatch.Prefix">Log Out</MudNavLink>
+    </AuthorizeView>
 </MudNavMenu>

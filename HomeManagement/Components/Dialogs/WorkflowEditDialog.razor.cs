@@ -1,4 +1,4 @@
-using HomeManagement.Application.Workflows;
+﻿using HomeManagement.Application.Workflows;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 using System.Globalization;
@@ -17,12 +17,32 @@ public partial class WorkflowEditDialog
 
     private MudForm _form = default!;
     private bool _saving;
-    private readonly Dictionary<int, string?> _validationErrors = new();
-    private readonly Dictionary<int, string?> _previewErrors = new();
-    private readonly Dictionary<int, string?> _previewRawResponses = new();
-    private readonly Dictionary<int, IReadOnlyList<WorkflowTriggerPropertyOption>> _previewProperties = new();
-    private readonly HashSet<int> _previewLoadingConditions = [];
-    private readonly Dictionary<int, double?> _conditionNumberExpectedValues = new();
+    private string? _saveError;
+
+    private readonly Dictionary<WorkflowTriggerConditionEditModel, ConditionState> _conditionStates = new(ReferenceEqualityComparer.Instance);
+
+    private sealed class ConditionState
+    {
+        public string? ValidationError { get; set; }
+        public string? PreviewError { get; set; }
+        public string? PreviewRawResponse { get; set; }
+        public IReadOnlyList<WorkflowTriggerPropertyOption> PreviewProperties { get; set; } = [];
+        public bool IsPreviewLoading { get; set; }
+        public double? NumberExpectedValue { get; set; }
+    }
+
+    private ConditionState GetState(WorkflowTriggerConditionEditModel condition)
+    {
+        if (!_conditionStates.TryGetValue(condition, out var state))
+        {
+            state = new ConditionState();
+            _conditionStates[condition] = state;
+        }
+
+        return state;
+    }
+
+    private ConditionState? GetState(int index) => TryGetCondition(index, out var condition) ? GetState(condition) : null;
 
     protected override void OnParametersSet()
     {
@@ -42,7 +62,7 @@ public partial class WorkflowEditDialog
             if (condition.TriggerValueType is WorkflowTriggerValueType.Number
                 && double.TryParse(condition.TriggerExpectedValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
             {
-                _conditionNumberExpectedValues[i] = number;
+                GetState(condition).NumberExpectedValue = number;
             }
         }
     }
@@ -50,6 +70,7 @@ public partial class WorkflowEditDialog
     private async Task Save()
     {
         _saving = true;
+        _saveError = null;
         await _form.ValidateAsync();
         if (!_form.IsValid)
         {
@@ -59,12 +80,14 @@ public partial class WorkflowEditDialog
 
         if (Model.TriggerConditions.Count == 0)
         {
+            _saveError = "Add at least one trigger condition.";
             _saving = false;
             return;
         }
 
         if (Model.Steps.Count == 0)
         {
+            _saveError = "Add at least one step.";
             _saving = false;
             return;
         }
@@ -73,8 +96,9 @@ public partial class WorkflowEditDialog
         {
             var condition = Model.TriggerConditions[i];
 
-            _validationErrors[i] = ValidateCondition(condition);
-            if (_validationErrors[i] is not null)
+            var state = GetState(condition);
+            state.ValidationError = ValidateCondition(condition);
+            if (state.ValidationError is not null)
             {
                 _saving = false;
                 return;
@@ -88,16 +112,16 @@ public partial class WorkflowEditDialog
                     || condition.TriggerOperator is null
                     || condition.TriggerValueType is null))
             {
-                _previewErrors[i] = "Complete DeviceResult setup using Preview Response before saving.";
+                state.PreviewError = "Complete DeviceResult setup using Preview Response before saving.";
                 _saving = false;
                 return;
             }
 
             if (condition.TriggerType is WorkflowTriggerType.DeviceResult && condition.TriggerValueType is WorkflowTriggerValueType.Number)
             {
-                if (!double.TryParse(condition.TriggerExpectedValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedNumber))
+                if (!double.TryParse(condition.TriggerExpectedValue, NumberStyles.Float, CultureInfo.InvariantCulture, out _))
                 {
-                    _previewErrors[i] = "Expected value must be a valid number.";
+                    state.PreviewError = "Expected value must be a valid number.";
                     _saving = false;
                     return;
                 }
@@ -142,7 +166,7 @@ public partial class WorkflowEditDialog
         => reference is WorkflowTimeReference.Sunrise or WorkflowTimeReference.Sunset
            || (reference is WorkflowTimeReference.Fixed && time is not null);
 
-    private string? GetConditionValidationError(int index) => _validationErrors.TryGetValue(index, out var value) ? value : null;
+    private string? GetConditionValidationError(int index) => GetState(index)?.ValidationError;
 
     private static DateTime? ToDateTime(DateOnly? date) => date?.ToDateTime(TimeOnly.MinValue);
 
@@ -162,8 +186,8 @@ public partial class WorkflowEditDialog
             return;
         }
 
+        _conditionStates.Remove(Model.TriggerConditions[index]);
         Model.TriggerConditions.RemoveAt(index);
-        ClearConditionState(index);
     }
 
     private void OnConditionTypeChanged(int index, WorkflowTriggerType value)
@@ -190,7 +214,7 @@ public partial class WorkflowEditDialog
         condition.TriggerOperator = null;
 
         ClearConditionPreview(index);
-        _validationErrors[index] = null;
+        GetState(condition).ValidationError = null;
 
         if (value is WorkflowTriggerType.Date)
         {
@@ -235,14 +259,14 @@ public partial class WorkflowEditDialog
             && !string.IsNullOrWhiteSpace(condition.TriggerSourceActionName);
     }
 
-    private bool IsConditionPreviewLoading(int index) => _previewLoadingConditions.Contains(index);
+    private bool IsConditionPreviewLoading(int index) => GetState(index)?.IsPreviewLoading == true;
 
-    private string? GetConditionPreviewError(int index) => _previewErrors.TryGetValue(index, out var value) ? value : null;
+    private string? GetConditionPreviewError(int index) => GetState(index)?.PreviewError;
 
-    private string? GetConditionPreviewRawResponse(int index) => _previewRawResponses.TryGetValue(index, out var value) ? value : null;
+    private string? GetConditionPreviewRawResponse(int index) => GetState(index)?.PreviewRawResponse;
 
     private IReadOnlyList<WorkflowTriggerPropertyOption> GetConditionPreviewProperties(int index)
-        => _previewProperties.TryGetValue(index, out var value) ? value : [];
+        => GetState(index)?.PreviewProperties ?? [];
 
     private async Task PreviewConditionResponse(int index)
     {
@@ -251,48 +275,53 @@ public partial class WorkflowEditDialog
             return;
         }
 
-        _previewErrors[index] = null;
-        _previewRawResponses[index] = null;
-        _previewProperties[index] = [];
-        _previewLoadingConditions.Add(index);
+        var state = GetState(condition);
+        state.PreviewError = null;
+        state.PreviewRawResponse = null;
+        state.PreviewProperties = [];
+        state.IsPreviewLoading = true;
 
         try
         {
             var preview = await WorkflowTriggerPreviewService.PreviewAsync(condition.TriggerDeviceName!, condition.TriggerSourceActionName!);
             if (!preview.IsSuccess)
             {
-                _previewErrors[index] = preview.Error;
+                state.PreviewError = preview.Error;
                 return;
             }
 
-            _previewRawResponses[index] = preview.RawResponse;
-            _previewProperties[index] = preview.Properties;
+            state.PreviewRawResponse = preview.RawResponse;
+            state.PreviewProperties = preview.Properties;
             if (preview.Properties.Count == 0)
             {
-                _previewErrors[index] = "No comparable values found in response.";
+                state.PreviewError = "No comparable values found in response.";
                 return;
             }
 
             if (!preview.Properties.Any(x => string.Equals(x.Path, condition.TriggerPropertyPath, StringComparison.Ordinal)))
             {
-                OnConditionPropertyChanged(index, preview.Properties[0].Path);
+                SetConditionProperty(condition, preview.Properties[0].Path);
             }
         }
         finally
         {
-            _previewLoadingConditions.Remove(index);
+            state.IsPreviewLoading = false;
         }
     }
 
     private void OnConditionPropertyChanged(int index, string value)
     {
-        if (!TryGetCondition(index, out var condition))
+        if (TryGetCondition(index, out var condition))
         {
-            return;
+            SetConditionProperty(condition, value);
         }
+    }
 
+    private void SetConditionProperty(WorkflowTriggerConditionEditModel condition, string value)
+    {
+        var state = GetState(condition);
         condition.TriggerPropertyPath = value;
-        var selected = GetConditionPreviewProperties(index).FirstOrDefault(x => string.Equals(x.Path, value, StringComparison.Ordinal));
+        var selected = state.PreviewProperties.FirstOrDefault(x => string.Equals(x.Path, value, StringComparison.Ordinal));
         if (selected is null)
         {
             return;
@@ -304,11 +333,11 @@ public partial class WorkflowEditDialog
         if (selected.ValueType is WorkflowTriggerValueType.Number
             && double.TryParse(selected.SampleValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
         {
-            _conditionNumberExpectedValues[index] = number;
+            state.NumberExpectedValue = number;
         }
         else
         {
-            _conditionNumberExpectedValues[index] = null;
+            state.NumberExpectedValue = null;
         }
 
         if (condition.TriggerOperator is not { } currentOperator || !GetAllowedOperators(selected.ValueType).Contains(currentOperator))
@@ -333,23 +362,14 @@ public partial class WorkflowEditDialog
         }
     }
 
-    private double? GetConditionNumberExpectedValue(int index)
-        => _conditionNumberExpectedValues.TryGetValue(index, out var value) ? value : null;
+    private double? GetConditionNumberExpectedValue(int index) => GetState(index)?.NumberExpectedValue;
 
     private void OnConditionNumberExpectedValueChanged(int index, double? value)
     {
-        _conditionNumberExpectedValues[index] = value;
         if (TryGetCondition(index, out var condition))
         {
+            GetState(condition).NumberExpectedValue = value;
             condition.TriggerExpectedValue = value?.ToString(CultureInfo.InvariantCulture);
-        }
-    }
-
-    private void OnConditionExpectedValueChanged(int index, string value)
-    {
-        if (TryGetCondition(index, out var condition))
-        {
-            condition.TriggerExpectedValue = value;
         }
     }
 
@@ -426,22 +446,6 @@ public partial class WorkflowEditDialog
         }
     }
 
-    private void OnStepNotifyTitleChanged(int index, string value)
-    {
-        if (TryGetStep(index, out var step))
-        {
-            step.NotifyTitle = value;
-        }
-    }
-
-    private void OnStepNotifyMessageChanged(int index, string value)
-    {
-        if (TryGetStep(index, out var step))
-        {
-            step.NotifyMessageTemplate = value;
-        }
-    }
-
     private IEnumerable<string> GetActionsForDevice(string? deviceName)
     {
         if (string.IsNullOrWhiteSpace(deviceName))
@@ -504,28 +508,20 @@ public partial class WorkflowEditDialog
 
     private void ClearConditionPreview(int index)
     {
-        _previewErrors[index] = null;
-        _previewRawResponses[index] = null;
-        _previewProperties[index] = [];
-
-        if (TryGetCondition(index, out var condition))
+        if (!TryGetCondition(index, out var condition))
         {
-            condition.TriggerPropertyPath = null;
-            condition.TriggerExpectedValue = null;
-            condition.TriggerValueType = null;
-            condition.TriggerOperator = null;
+            return;
         }
 
-        _conditionNumberExpectedValues[index] = null;
-    }
+        var state = GetState(condition);
+        state.PreviewError = null;
+        state.PreviewRawResponse = null;
+        state.PreviewProperties = [];
+        state.NumberExpectedValue = null;
 
-    private void ClearConditionState(int index)
-    {
-        _validationErrors.Remove(index);
-        _previewErrors.Remove(index);
-        _previewRawResponses.Remove(index);
-        _previewProperties.Remove(index);
-        _previewLoadingConditions.Remove(index);
-        _conditionNumberExpectedValues.Remove(index);
+        condition.TriggerPropertyPath = null;
+        condition.TriggerExpectedValue = null;
+        condition.TriggerValueType = null;
+        condition.TriggerOperator = null;
     }
 }

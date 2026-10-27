@@ -1,7 +1,7 @@
 ﻿using HomeManagement.Application.Login;
+using HomeManagement.Infrastructure.Mcp;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.Extensions.Options;
 
 namespace HomeManagement.Infrastructure.Extensions;
 
@@ -11,7 +11,7 @@ public static class AuthExtensions
     {
         builder.Services.Configure<StaticAuthOptions>(builder.Configuration.GetSection("Auth"));
 
-        List<string> allowedHosts = ["localhost", "home-management.local"];
+        const string mainHost = AppHosts.MainHost;
         // Cookie authentication for Blazor UI + API key authentication for MCP
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(o =>
@@ -20,16 +20,14 @@ public static class AuthExtensions
                 o.LogoutPath = "/Account/Logout";
                 o.AccessDeniedPath = "/Account/Login";
                 o.SlidingExpiration = true;
-                o.ExpireTimeSpan = TimeSpan.FromHours(12);
+                o.ExpireTimeSpan = TimeSpan.FromDays(30);
 
                 o.Cookie.Name = "HomeManagement_Auth";
                 // Allows the session cookie to be valid for both home-management.local and cameras.home-management.local
-                o.Cookie.Domain =
-#if DEBUG
-                    "localhost";
-#else
-                    ".home-management.local";
-#endif
+                o.Cookie.Domain = $".{mainHost}";
+                // Drops the cookie domain when the app is opened by another host (e.g. Tailscale IP),
+                // otherwise the browser rejects the cookie and login never succeeds
+                o.CookieManager = new HostAwareCookieManager();
                 o.Cookie.HttpOnly = true;
                 o.Cookie.SameSite = SameSiteMode.Lax;
                 o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
@@ -45,10 +43,10 @@ public static class AuthExtensions
                     }
 
                     // Redirect to the main host login page if challenged on a subdomain
-                    if (!allowedHosts.Contains(context.Request.Host.Host, StringComparer.OrdinalIgnoreCase))
+                    if (context.Request.Host.Host.EndsWith($".{mainHost}", StringComparison.OrdinalIgnoreCase))
                     {
                         var returnUrl = $"{context.Request.Scheme}://{context.Request.Host}{context.Request.Path}{context.Request.QueryString}";
-                        var loginUri = $"{context.Request.Scheme}://home-management.local/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}";
+                        var loginUri = $"{context.Request.Scheme}://{mainHost}/Account/Login?ReturnUrl={Uri.EscapeDataString(returnUrl)}";
 
                         context.Response.Redirect(loginUri);
                         return Task.CompletedTask;

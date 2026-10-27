@@ -1,13 +1,16 @@
-using HomeManagement.Application.Login;
+﻿using HomeManagement.Application.Login;
 using HomeManagement.Components;
-using HomeManagement.Infrastructure;
 using LiveStreamingServerNet.Flv.Installer;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ModelContextProtocol.Extensions.Apps;
 using MudBlazor.Services;
 using System.Text.Json.Serialization;
+using HomeManagement.Infrastructure;
 using HomeManagement.Infrastructure.Database;
 using HomeManagement.Infrastructure.Extensions;
+using HomeManagement.Infrastructure.Mcp;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +25,7 @@ builder.AddAuth();
 builder.AddServiceBus();
 builder.AddSenders();
 
+builder.AddDevices();
 builder.AddInternetWatchdog();
 builder.AddLiveCamera();
 builder.AddWorkflow();
@@ -37,7 +41,9 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddMcpServer()
     .WithHttpTransport()
     .AddAuthorizationFilters()
-    .WithTools<HomeManagementMcpTools>();
+    .WithTools<HomeManagementMcpTools>()
+    .WithResources<HomeManagementMcpResources>()
+    .WithMcpApps();
 
 var app = builder.Build();
 
@@ -66,20 +72,16 @@ app.UseHttpFlv();
 app.MapStaticAssets();
 app.MapLogin();
 
-app.MapMcp("/mcp").RequireAuthorization(McpApiKeyAuthenticationDefaults.PolicyName);
+app.MapMcp("/mcp")
+    .RequireAuthorization(McpApiKeyAuthenticationDefaults.PolicyName)
+    .WithMetadata(new SkipStatusCodePagesAttribute());
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .WithBrowserOptions(options =>
     {
         options.AddAutoPause();
     })
-    .RequireHost(
-#if DEBUG
-        "localhost:5140"
-#else
-        "home-management.local", "100.87.210.52"
-#endif
-        );
+    .RequireHost([AppHosts.MainHost, .. builder.Configuration.GetSection("UiHosts").Get<string[]>()!]);
 
 app.MapReverseProxy();
 

@@ -32,6 +32,7 @@ app.MapGet("/config", (IConfiguration configuration, IOptions<CommandsSettings> 
         new ("RESTART", CommandType.Post, "restart")
     };
     actions.AddRange(commandsOptions.Value.Commands.Select(x => new DeviceAction(x.Name, CommandType.Post, "command", JsonSerializer.Serialize(x.Command))));
+    actions.AddRange(commandsOptions.Value.Commands.Select(x => new DeviceAction(x.Name, x.Method, x.Endpoint)));
 
     return new DeviceConfig
     {
@@ -40,12 +41,12 @@ app.MapGet("/config", (IConfiguration configuration, IOptions<CommandsSettings> 
         Actions = actions
     };
 });
-app.MapPost("/command", async (Command command, CancellationToken token) =>
+
+foreach (var command in commandsSection.Get<CommandsSettings>()?.Commands ?? [])
 {
-    if (string.IsNullOrWhiteSpace(command.FileName))
-    {
-        return "Command file name is required.";
-    }
+    var method = command.Method == CommandType.Get ? HttpMethods.Get : HttpMethods.Post;
+    app.MapMethods($"/{command.Endpoint}", [method], (CancellationToken token) => RunCommandAsync(command, token));
+}
 
     var arguments = string.Join(' ', command.Arguments);
     var result = await Process.RunAndCaptureTextAsync(new ProcessStartInfo
@@ -72,3 +73,20 @@ app.MapPost("/restart", () =>
 });
 
 app.Run();
+
+static async Task<IResult> RunCommandAsync(CommandInfo command, CancellationToken token)
+{
+    var result = await Process.RunAndCaptureTextAsync(new ProcessStartInfo
+    {
+        FileName = command.FileName,
+        Arguments = string.Join(' ', command.Arguments),
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true
+    }, token);
+
+    return result.ExitStatus.ExitCode == 0
+        ? Results.Text(result.StandardOutput)
+        : Results.Text(result.StandardError, statusCode: StatusCodes.Status500InternalServerError);
+}

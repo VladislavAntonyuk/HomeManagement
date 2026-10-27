@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Home dashboard</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --color-background-primary: light-dark(#ffffff, #1f1f1e);
+            --color-background-secondary: light-dark(#f5f4ef, #2a2a28);
+            --color-text-primary: light-dark(#1f1f1e, #f5f4ef);
+            --color-text-secondary: light-dark(#5e5d59, #b5b3ad);
+            --color-border-primary: light-dark(#dedcd5, #3e3e3a);
+            --color-text-success: light-dark(#1d7a3e, #6fcf8f);
+            --color-text-danger: light-dark(#b42318, #f28b82);
+            --color-ring-primary: light-dark(#5b5bd6, #8e8ef0);
+            --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            --border-radius-md: 8px;
+            --border-radius-full: 999px;
+        }
+
+        :root[data-theme="light"] { color-scheme: light; }
+        :root[data-theme="dark"] { color-scheme: dark; }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 12px;
+            background: var(--color-background-primary);
+            color: var(--color-text-primary);
+            font: 14px/1.4 var(--font-sans);
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        h1 { font-size: 16px; margin: 0; flex: 1; }
+        h2 { font-size: 13px; margin: 16px 0 8px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+
+        .list { display: grid; gap: 8px; }
+
+        .item {
+            border: 1px solid var(--color-border-primary);
+            border-radius: var(--border-radius-md);
+            background: var(--color-background-secondary);
+            padding: 10px 12px;
+        }
+
+        .item-header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+        .item-title { font-weight: 600; }
+        .muted { color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+        .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+
+        button {
+            font: inherit;
+            font-size: 13px;
+            border: 1px solid var(--color-border-primary);
+            border-radius: var(--border-radius-full);
+            background: var(--color-background-primary);
+            color: var(--color-text-primary);
+            padding: 4px 12px;
+            cursor: pointer;
+        }
+
+        button:hover:not(:disabled) { border-color: var(--color-ring-primary); }
+        button:focus-visible { outline: 2px solid var(--color-ring-primary); outline-offset: 1px; }
+        button:disabled { opacity: .55; cursor: default; }
+
+        .switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; }
+        .switch input { width: 16px; height: 16px; margin: 0; accent-color: var(--color-ring-primary); }
+
+        .result { margin-top: 6px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 120px; overflow: auto; }
+        .result.success { color: var(--color-text-success); }
+        .result.error { color: var(--color-text-danger); }
+        .empty { color: var(--color-text-secondary); font-size: 13px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Home</h1>
+        <label class="switch"><input type="checkbox" id="away-mode" disabled /> Away mode</label>
+        <button id="refresh" type="button" disabled>Refresh</button>
+    </header>
+    <div id="status" class="result"></div>
+
+    <h2>Devices</h2>
+    <div id="devices" class="list"><div class="empty">Loading...</div></div>
+
+    <h2>Workflows</h2>
+    <div id="workflows" class="list"><div class="empty">Loading...</div></div>
+
+    <script>
+        "use strict";
+
+        const protocolVersion = "2026-01-26";
+        const pending = new Map();
+        let nextId = 1;
+
+        function send(message) {
+            window.parent.postMessage({ jsonrpc: "2.0", ...message }, "*");
+        }
+
+        function request(method, params) {
+            const id = nextId++;
+            return new Promise((resolve, reject) => {
+                pending.set(id, { resolve, reject });
+                send({ id, method, params });
+            });
+        }
+
+        function notify(method, params) {
+            send(params === undefined ? { method } : { method, params });
+        }
+
+        window.addEventListener("message", event => {
+            if (event.source !== window.parent) {
+                return;
+            }
+
+            const message = event.data;
+            if (!message || message.jsonrpc !== "2.0") {
+                return;
+            }
+
+            if (message.id !== undefined && message.method === undefined) {
+                const call = pending.get(message.id);
+                if (call) {
+                    pending.delete(message.id);
+                    message.error ? call.reject(new Error(message.error.message || "Request failed")) : call.resolve(message.result);
+                }
+                return;
+            }
+
+            switch (message.method) {
+                case "ui/notifications/tool-result":
+                    renderDashboard(message.params?.structuredContent);
+                    break;
+                case "ui/notifications/host-context-changed":
+                    applyHostContext(message.params);
+                    break;
+                case "ui/resource-teardown":
+                    send({ id: message.id, result: {} });
+                    break;
+                default:
+                    if (message.id !== undefined) {
+                        send({ id: message.id, error: { code: -32601, message: "Method not found" } });
+                    }
+            }
+        });
+
+        function applyHostContext(context) {
+            if (!context) {
+                return;
+            }
+
+            if (context.theme) {
+                document.documentElement.dataset.theme = context.theme;
+            }
+
+            const variables = context.styles?.variables;
+            if (variables) {
+                for (const [name, value] of Object.entries(variables)) {
+                    if (value) {
+                        document.documentElement.style.setProperty(name, value);
+                    }
+                }
+            }
+        }
+
+        async function callTool(name, args) {
+            const result = await request("tools/call", { name, arguments: args });
+            const text = result?.content?.find(x => x.type === "text")?.text;
+            const structured = result?.structuredContent ?? {};
+            if (result?.isError) {
+                throw new Error(text || "Tool call failed");
+            }
+            return { ...structured, text };
+        }
+
+        function element(tag, className, text) {
+            const node = document.createElement(tag);
+            if (className) {
+                node.className = className;
+            }
+            if (text !== undefined && text !== null) {
+                node.textContent = text;
+            }
+            return node;
+        }
+
+        function showResult(container, isSuccess, message) {
+            container.className = "result " + (isSuccess ? "success" : "error");
+            container.textContent = message;
+        }
+
+        async function runOperation(button, resultContainer, toolName, args, refreshAfter) {
+            button.disabled = true;
+            const label = button.textContent;
+            button.textContent = label + "...";
+            try {
+                const result = await callTool(toolName, args);
+                const message = result.message ?? result.text ?? "Done";
+                if (refreshAfter) {
+                    await refresh();
+                    showResult(document.getElementById("status"), result.isSuccess !== false, message);
+                } else {
+                    showResult(resultContainer, result.isSuccess !== false, message);
+                }
+            } catch (error) {
+                showResult(resultContainer, false, error.message);
+            } finally {
+                button.disabled = false;
+                button.textContent = label;
+            }
+        }
+
+        function renderDevices(devices) {
+            const list = document.getElementById("devices");
+            list.replaceChildren();
+            if (!devices.length) {
+                list.append(element("div", "empty", "No devices"));
+                return;
+            }
+
+            for (const device of devices) {
+                const item = element("div", "item");
+                const header = element("div", "item-header");
+                header.append(element("span", "item-title", device.name), element("span", "muted", device.address));
+                item.append(header);
+                if (device.description) {
+                    item.append(element("div", "muted", device.description));
+                }
+
+                const actions = element("div", "actions");
+                const result = element("div", "result");
+                for (const action of device.actions ?? []) {
+                    const button = element("button", null, action.name);
+                    button.type = "button";
+                    button.addEventListener("click", () => runOperation(button, result, "run_action", { deviceName: device.name, action: action.name }, false));
+                    actions.append(button);
+                }
+                if (!device.actions?.length) {
+                    actions.append(element("span", "muted", "No actions"));
+                }
+
+                item.append(actions, result);
+                list.append(item);
+            }
+        }
+
+        function renderWorkflows(workflows) {
+            const list = document.getElementById("workflows");
+            list.replaceChildren();
+            if (!workflows.length) {
+                list.append(element("div", "empty", "No workflows"));
+                return;
+            }
+
+            for (const workflow of workflows) {
+                const item = element("div", "item");
+                const header = element("div", "item-header");
+                header.append(element("span", "item-title", workflow.name));
+                if (workflow.lastTriggeredAtUtc) {
+                    header.append(element("span", "muted", "Last run " + new Date(workflow.lastTriggeredAtUtc).toLocaleString()));
+                }
+                item.append(header, element("div", "muted", workflow.trigger));
+
+                const actions = element("div", "actions");
+                const result = element("div", "result");
+
+                const toggle = element("label", "switch");
+                const checkbox = element("input");
+                checkbox.type = "checkbox";
+                checkbox.checked = workflow.isEnabled;
+                checkbox.addEventListener("change", async () => {
+                    checkbox.disabled = true;
+                    try {
+                        const response = await callTool("set_workflow_enabled", { name: workflow.name, enabled: checkbox.checked });
+                        showResult(result, response.isSuccess !== false, response.message ?? "Done");
+                    } catch (error) {
+                        checkbox.checked = !checkbox.checked;
+                        showResult(result, false, error.message);
+                    } finally {
+                        checkbox.disabled = false;
+                    }
+                });
+                toggle.append(checkbox, document.createTextNode("Enabled"));
+
+                const run = element("button", null, "Run now");
+                run.type = "button";
+                run.addEventListener("click", () => runOperation(run, result, "run_workflow", { name: workflow.name }, true));
+
+                actions.append(toggle, run);
+                item.append(actions, result);
+                list.append(item);
+            }
+        }
+
+        function renderDashboard(dashboard) {
+            if (!dashboard) {
+                return;
+            }
+
+            const awayMode = document.getElementById("away-mode");
+            awayMode.checked = !!dashboard.awayModeEnabled;
+            awayMode.disabled = false;
+            document.getElementById("refresh").disabled = false;
+            renderDevices(dashboard.devices ?? []);
+            renderWorkflows(dashboard.workflows ?? []);
+        }
+
+        async function refresh() {
+            renderDashboard(await callTool("show_home_dashboard", {}));
+        }
+
+        document.getElementById("refresh").addEventListener("click", async event => {
+            const button = event.currentTarget;
+            const status = document.getElementById("status");
+            button.disabled = true;
+            try {
+                await refresh();
+                status.textContent = "";
+            } catch (error) {
+                showResult(status, false, error.message);
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        document.getElementById("away-mode").addEventListener("change", async event => {
+            const checkbox = event.currentTarget;
+            const status = document.getElementById("status");
+            checkbox.disabled = true;
+            try {
+                const result = await callTool("set_away_mode", { enabled: checkbox.checked });
+                showResult(status, result.isSuccess !== false, result.message ?? "Done");
+            } catch (error) {
+                checkbox.checked = !checkbox.checked;
+                showResult(status, false, error.message);
+            } finally {
+                checkbox.disabled = false;
+            }
+        });
+
+        let lastHeight = 0;
+        new ResizeObserver(() => {
+            const height = Math.ceil(document.documentElement.getBoundingClientRect().height);
+            if (height !== lastHeight) {
+                lastHeight = height;
+                notify("ui/notifications/size-changed", { width: Math.ceil(window.innerWidth), height });
+            }
+        }).observe(document.documentElement);
+
+        (async () => {
+            try {
+                const result = await request("ui/initialize", {
+                    protocolVersion,
+                    appInfo: { name: "Home Management dashboard", version: "1.0.0" },
+                    appCapabilities: {}
+                });
+                applyHostContext(result?.hostContext);
+                notify("ui/notifications/initialized");
+            } catch (error) {
+                showResult(document.getElementById("status"), false, "Could not connect to the host: " + error.message);
+            }
+        })();
+    </script>
+</body>
+</html>

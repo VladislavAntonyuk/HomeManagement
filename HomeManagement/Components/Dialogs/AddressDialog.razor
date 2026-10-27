@@ -1,23 +1,26 @@
-@inherits ComponentBase
+﻿@inherits ComponentBase
 
 <MudPaper Class="pa-4" Elevation="1" Style="min-width:320px;">
-	<MudStack Spacing="2">
-		<MudText Typo="Typo.h6">Add Device</MudText>
-		<MudTextField @bind-Value="Address" Label="Address" Required="true" Immediate="true" ErrorText="@_error" Error="@(!string.IsNullOrEmpty(_error))" />
-		<MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
-			<MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
-			<MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="string.IsNullOrWhiteSpace(Address) || _isBusy" OnClick="Save">
-				@if (_isBusy)
-				{
-					<MudProgressCircular Indeterminate="true" Size="Size.Small" Class="me-1" />
-				}
+    <MudStack Spacing="2">
+        <MudTextField @bind-Value="Address" Label="Address" Required="true" Immediate="true"
+                      HelperText="HTTP address (e.g. http://192.168.1.10) or MAC address for Bluetooth devices"
+                      ErrorText="@_error" Error="@(!string.IsNullOrEmpty(_error))" />
+        <MudTextField @bind-Value="Name" Label="Name" Required="@IsNameRequired" Immediate="true"
+                      HelperText="@(IsNameRequired ? "Required for devices without an HTTP API" : "Optional, the device name is used by default")" />
+        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+            <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!CanSave || _isBusy)" OnClick="Save">
+                @if (_isBusy)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="me-1" />
+                }
 
-				Add
-			</MudButton>
-			@if (!string.IsNullOrEmpty(_error))
-			{
-				<MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="AddAnyway">Add anyway</MudButton>
-			}
-		</MudStack>
-	</MudStack>
+                Add
+            </MudButton>
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="AddAnyway">Add anyway</MudButton>
+            }
+        </MudStack>
+    </MudStack>
 </MudPaper>

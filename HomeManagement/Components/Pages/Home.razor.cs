@@ -1,5 +1,6 @@
 ﻿using HomeManagement.Application.AwayMode;
 using HomeManagement.Application.Router;
+using HomeManagement.Components.Dialogs;
 using HomeManagement.Infrastructure.Database;
 using HomeManagement.Shared;
 using Microsoft.AspNetCore.Components;
@@ -14,8 +15,10 @@ public partial class Home(
      ISnackbar snackbar,
      IRouterController routerController,
      IDbContextFactory<HomeManagementDbContext> dbContextFactory,
-     AwayModeService awayModeService) : ComponentBase
+     AwayModeService awayModeService,
+     IDialogService dialogService) : ComponentBase
 {
+
     private int _totalDevices;
     private string? _localIp;
     private string? _uptime;
@@ -30,15 +33,33 @@ public partial class Home(
     protected override async Task OnInitializedAsync()
     {
         _localIp = NetworkManager.GetLocalIp();
-        _uptime = await GetUptime();
-        _temperature = await GetTemperature();
-        _diskSpace = await GetDiskSpace();
-        _networkData = await GetNetworkData();
-        _cpuInfo = await GetCpuInfo();
-        _ramInfo = await GetRamInfo();
         await using var db = await dbContextFactory.CreateDbContextAsync();
         _totalDevices = await db.Devices.CountAsync();
         _isAwayModeEnabled = await awayModeService.IsEnabledAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var uptime = GetUptime();
+        var temperature = GetTemperature();
+        var diskSpace = GetDiskSpace();
+        var networkData = GetNetworkData();
+        var cpuInfo = GetCpuInfo();
+        var ramInfo = GetRamInfo();
+        await Task.WhenAll(uptime, temperature, diskSpace, networkData, cpuInfo, ramInfo);
+
+        _uptime = uptime.Result;
+        _temperature = temperature.Result;
+        _diskSpace = diskSpace.Result;
+        _networkData = networkData.Result;
+        _cpuInfo = cpuInfo.Result;
+        _ramInfo = ramInfo.Result;
+        StateHasChanged();
     }
 
     private static async Task<string> GetUptime()
@@ -69,7 +90,7 @@ public partial class Home(
         return lines.Length == 0 ? output : string.Join(Environment.NewLine, lines);
     }
 
-    private async Task<string> GetDiskSpace()
+    private static async Task<string> GetDiskSpace()
     {
         var (isSuccess, output) = await RunCommandAsync("df", "-T", "-h", "-x", "tmpfs", "-x", "devtmpfs");
         if (!isSuccess)
@@ -92,7 +113,7 @@ public partial class Home(
         return formatted.Length == 0 ? output : string.Join(Environment.NewLine, formatted);
     }
 
-    private async Task<string> GetNetworkData()
+    private static async Task<string> GetNetworkData()
     {
         var (isSuccess, output) = await RunCommandAsync("ip", "-brief", "address", "show");
         if (!isSuccess)
@@ -110,7 +131,7 @@ public partial class Home(
         return formatted.Length == 0 ? output : string.Join(Environment.NewLine, formatted);
     }
 
-    private async Task<string> GetRamInfo()
+    private static async Task<string> GetRamInfo()
     {
         var (isSuccess, output) = await RunCommandAsync("free", "-h");
         if (!isSuccess)
@@ -154,7 +175,7 @@ public partial class Home(
         return formatted.Length == 0 ? output : string.Join(Environment.NewLine, formatted);
     }
 
-    private async Task<string> GetCpuInfo()
+    private static async Task<string> GetCpuInfo()
     {
         var (isSuccess, output) = await RunCommandAsync("lscpu");
         if (!isSuccess)
@@ -203,8 +224,6 @@ public partial class Home(
 
     private static async Task<(bool IsSuccess, string Output)> RunCommandAsync(string fileName, params string[] arguments)
     {
-        ArgumentNullException.ThrowIfNull(fileName);
-
         var startInfo = new ProcessStartInfo
         {
             FileName = fileName,
@@ -216,10 +235,7 @@ public partial class Home(
 
         foreach (var argument in arguments)
         {
-            if (!string.IsNullOrWhiteSpace(argument))
-            {
-                startInfo.ArgumentList.Add(argument);
-            }
+            startInfo.ArgumentList.Add(argument);
         }
 
         try
@@ -234,30 +250,38 @@ public partial class Home(
         }
     }
 
-    private void Reboot()
+    private async Task<bool> ConfirmAsync(string title, string message, string confirmText)
     {
-        try
+        var parameters = new DialogParameters
         {
-            Process.StartAndForget("reboot");
-            snackbar.Add("Rebooting...", Severity.Success);
-        }
-        catch (Exception e)
-        {
-            snackbar.Add(e.Message, Severity.Error);
-        }
+            [nameof(ConfirmationDialog.Message)] = message,
+            [nameof(ConfirmationDialog.ConfirmText)] = confirmText
+        };
+        var dialog = await dialogService.ShowAsync<ConfirmationDialog>(title, parameters);
+        var result = await dialog.Result;
+        return result is not null && !result.Canceled;
     }
 
-    private void Shutdown()
+    private async Task Reboot()
     {
-        try
+        if (!await ConfirmAsync("Reboot server", "Reboot the Home Management server?", "Reboot"))
         {
-            Process.StartAndForget("poweroff");
-            snackbar.Add("Shutting down...", Severity.Success);
+            return;
         }
-        catch (Exception e)
+
+        Process.StartAndForget("reboot");
+        snackbar.Add("Rebooting...", Severity.Success);
+    }
+
+    private async Task Shutdown()
+    {
+        if (!await ConfirmAsync("Shut down server", "Shut down the Home Management server? It has to be powered on manually.", "Shut down"))
         {
-            snackbar.Add(e.Message, Severity.Error);
+            return;
         }
+
+        Process.StartAndForget("poweroff");
+        snackbar.Add("Shutting down...", Severity.Success);
     }
 
     private string _terminalCommand = string.Empty;
@@ -304,6 +328,11 @@ public partial class Home(
 
     private async Task RebootRouter()
     {
+        if (!await ConfirmAsync("Reboot router", "Reboot the router? The network will be unavailable for a few minutes.", "Reboot"))
+        {
+            return;
+        }
+
         var result = await routerController.Reboot();
         if (string.IsNullOrEmpty(result.ErrorStatus))
         {
@@ -317,6 +346,11 @@ public partial class Home(
 
     private async Task RebootRouterModem()
     {
+        if (!await ConfirmAsync("Reboot modem", "Reboot the modem? The internet will be unavailable for a few minutes.", "Reboot"))
+        {
+            return;
+        }
+
         var result = await routerController.RebootModem();
         if (string.IsNullOrEmpty(result.ErrorStatus))
         {

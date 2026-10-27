@@ -5,67 +5,67 @@
 <PageTitle>Devices</PageTitle>
 
 <MudTable @ref="_table" ServerData="ServerReload" Dense="true" Hover="true">
-	<ToolBarContent>
-		<MudText Typo="Typo.h6">Devices</MudText>
-		<MudSpacer />
-		<MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="_table.ReloadServerData">Refresh</MudButton>
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Devices</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="_table.ReloadServerData">Refresh</MudButton>
 
-		<MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="ScanNetworkDevices">Scan</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="ScanNetworkDevices">Scan</MudButton>
 
-		<MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="Add">Add</MudButton>
-	</ToolBarContent>
-	<HeaderContent>
-		<MudTh><MudTableSortLabel T="Device">Address</MudTableSortLabel></MudTh>
-		<MudTh><MudTableSortLabel T="Device">Name</MudTableSortLabel></MudTh>
-		<MudTh>Status</MudTh>
-		<MudTh>Actions</MudTh>
-		<MudTh></MudTh>
-	</HeaderContent>
-	<RowTemplate>
-		@{
-			var deviceStatus = GetStatus(context.Name);
-		}
-		<MudTd DataLabel="Address">@context.Address</MudTd>
-		<MudTd DataLabel="Name">@context.Name</MudTd>
-		<MudTd DataLabel="Status">
-			@{
-				if (deviceStatus is null || deviceStatus.Loading)
-				{
-					<MudProgressCircular Indeterminate="true" Size="Size.Small" />
-				}
-				else
-				{
-					<MudChip T="string" Color="@(deviceStatus.Online ? Color.Success : Color.Error)" Variant="Variant.Filled">@(deviceStatus.Online ? "Online" : "Offline")</MudChip>
-				}
-			}
-		</MudTd>
-		<MudTd DataLabel="Actions">
-			<div class="device-actions-container">
-				@foreach (var action in context.Actions)
-				{
-					var disabled = deviceStatus is null || !deviceStatus.Online || _runningActions.Contains((context.Name, action));
-					<MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="@disabled" OnClick="@(() => RunAction(context, action))" Class="device-action-button">
-						@if (_runningActions.Contains((context.Name, action)))
-						{
-							<MudProgressCircular Indeterminate="true" Size="Size.Small" Class="me-1" />
-						}
-						@action.Action
-					</MudButton>
-				}
-			</div>
-		</MudTd>
-		<MudTd>
-			<MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => Edit(context)" />
-			<MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => Delete(context)" />
-		</MudTd>
-	</RowTemplate>
-	<NoRecordsContent>
-		<MudText>No devices found</MudText>
-	</NoRecordsContent>
-	<LoadingContent>
-		<MudText>Loading...</MudText>
-	</LoadingContent>
-	<PagerContent>
-		<MudTablePager />
-	</PagerContent>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="Add">Add</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="Device">Address</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="Device">Name</MudTableSortLabel></MudTh>
+        <MudTh>Status</MudTh>
+        <MudTh>Actions</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        @{
+            var deviceStatus = GetStatus(context.Name);
+        }
+        <MudTd DataLabel="Address">@context.Address</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Status">
+            @{
+                if (deviceStatus is null || deviceStatus.Loading)
+                {
+                    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                }
+                else
+                {
+                    <MudChip T="string" Color="@(deviceStatus.Online switch { true => Color.Success, false => Color.Error, null => Color.Default })" Variant="Variant.Filled">@(deviceStatus.Online switch { true => "Online", false => "Offline", null => "Unknown" })</MudChip>
+                }
+            }
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <div class="device-actions-container">
+                @foreach (var action in context.Actions)
+                {
+                    var disabled = deviceStatus is null || deviceStatus.Online == false || _runningActions.Contains((context.Name, action));
+                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="@disabled" OnClick="@(() => RunAction(context, action))" Class="device-action-button">
+                        @if (_runningActions.Contains((context.Name, action)))
+                        {
+                            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="me-1" />
+                        }
+                        @action.Action
+                    </MudButton>
+                }
+            </div>
+        </MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => Edit(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => Delete(context)" />
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No devices found</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText>Loading...</MudText>
+    </LoadingContent>
+    <PagerContent>
+        <MudTablePager />
+    </PagerContent>
 </MudTable>

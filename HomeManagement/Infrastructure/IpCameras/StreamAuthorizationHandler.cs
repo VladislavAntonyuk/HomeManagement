@@ -1,4 +1,4 @@
-using HomeManagement.Application.Login;
+﻿using HomeManagement.Application.Login;
 using LiveStreamingServerNet.Networking.Contracts;
 using LiveStreamingServerNet.Rtmp.Server.Auth;
 using LiveStreamingServerNet.Rtmp.Server.Auth.Contracts;
@@ -16,7 +16,7 @@ public class StreamAuthorizationHandler(IHttpContextAccessor httpContextAccessor
     {
         // Accepting only the publishing path that includes a valid password parameter
         // For example: rtmp://127.0.0.1:1935/live/stream?password=123456
-        if (streamArguments.TryGetValue("password", out var password) && authOptions.Value.Key == password)
+        if (streamArguments.TryGetValue("password", out var password) && authOptions.Value.StreamKey == password)
         {
             return Task.FromResult(AuthorizationResult.Authorized());
         }
@@ -29,7 +29,7 @@ public class StreamAuthorizationHandler(IHttpContextAccessor httpContextAccessor
         string streamPath,
         IReadOnlyDictionary<string, string> streamArguments)
     {
-        if (streamArguments.TryGetValue("password", out var password) && authOptions.Value.Key == password)
+        if (streamArguments.TryGetValue("password", out var password) && authOptions.Value.StreamKey == password)
         {
             return Task.FromResult(AuthorizationResult.Authorized());
         }

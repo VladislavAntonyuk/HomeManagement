@@ -11,14 +11,14 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HomeManagement.Infrastructure.Database.Migrations;
 
 [DbContext(typeof(HomeManagementDbContext))]
-[Migration("20260824103856_Initial")]
-partial class _20260824103856_Initial
+[Migration("20261027055057_Initial")]
+partial class _20261027055057_Initial
 {
     /// <inheritdoc />
     protected override void BuildTargetModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
-        modelBuilder.HasAnnotation("ProductVersion", "11.0.0-preview.7.26381.103");
+        modelBuilder.HasAnnotation("ProductVersion", "11.0.0-rc.2.26504.105");
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.AppSetting", b =>
             {
@@ -155,6 +155,9 @@ partial class _20260824103856_Initial
                     .HasMaxLength(100)
                     .HasColumnType("TEXT");
 
+                b.Property<bool>("RepeatWhileMatched")
+                    .HasColumnType("INTEGER");
+
                 b.HasKey("Id");
 
                 b.HasIndex("Name")
@@ -169,16 +172,11 @@ partial class _20260824103856_Initial
                     .ValueGeneratedOnAdd()
                     .HasColumnType("INTEGER");
 
-                b.Property<string>("ActionName")
-                    .HasMaxLength(100)
-                    .HasColumnType("TEXT");
-
                 b.Property<int?>("DelaySeconds")
                     .HasColumnType("INTEGER");
 
-                b.Property<string>("DeviceName")
-                    .HasMaxLength(100)
-                    .HasColumnType("TEXT");
+                b.Property<int?>("DeviceActionId")
+                    .HasColumnType("INTEGER");
 
                 b.Property<string>("NotifyMessageTemplate")
                     .HasMaxLength(2000)
@@ -188,6 +186,9 @@ partial class _20260824103856_Initial
                     .HasMaxLength(200)
                     .HasColumnType("TEXT");
 
+                b.Property<int>("Order")
+                    .HasColumnType("INTEGER");
+
                 b.Property<int>("StepType")
                     .HasColumnType("INTEGER");
 
@@ -195,6 +196,8 @@ partial class _20260824103856_Initial
                     .HasColumnType("INTEGER");
 
                 b.HasKey("Id");
+
+                b.HasIndex("DeviceActionId");
 
                 b.HasIndex("WorkflowId");
 
@@ -213,14 +216,10 @@ partial class _20260824103856_Initial
                 b.Property<DateTime?>("LastTriggerDateLocal")
                     .HasColumnType("TEXT");
 
-                b.Property<DateTimeOffset?>("LastTriggeredAtUtc")
+                b.Property<DateOnly?>("TriggerDate")
                     .HasColumnType("TEXT");
 
-                b.Property<DateTimeOffset?>("ScheduledAt")
-                    .HasColumnType("TEXT");
-
-                b.Property<string>("TriggerDeviceName")
-                    .HasMaxLength(100)
+                b.Property<DateOnly?>("TriggerDateTo")
                     .HasColumnType("TEXT");
 
                 b.Property<string>("TriggerExpectedValue")
@@ -234,9 +233,26 @@ partial class _20260824103856_Initial
                     .HasMaxLength(200)
                     .HasColumnType("TEXT");
 
-                b.Property<string>("TriggerSourceActionName")
-                    .HasMaxLength(100)
+                b.Property<int?>("TriggerSourceActionId")
+                    .HasColumnType("INTEGER");
+
+                b.Property<TimeOnly?>("TriggerTime")
                     .HasColumnType("TEXT");
+
+                b.Property<int?>("TriggerTimeOffsetMinutes")
+                    .HasColumnType("INTEGER");
+
+                b.Property<int?>("TriggerTimeReference")
+                    .HasColumnType("INTEGER");
+
+                b.Property<TimeOnly?>("TriggerTimeTo")
+                    .HasColumnType("TEXT");
+
+                b.Property<int?>("TriggerTimeToOffsetMinutes")
+                    .HasColumnType("INTEGER");
+
+                b.Property<int?>("TriggerTimeToReference")
+                    .HasColumnType("INTEGER");
 
                 b.Property<int>("TriggerType")
                     .HasColumnType("INTEGER");
@@ -249,6 +265,8 @@ partial class _20260824103856_Initial
 
                 b.HasKey("Id");
 
+                b.HasIndex("TriggerSourceActionId");
+
                 b.HasIndex("WorkflowId");
 
                 b.ToTable("WorkflowTriggerCondition");
@@ -256,11 +274,13 @@ partial class _20260824103856_Initial
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.DeviceAction", b =>
             {
-                b.HasOne("HomeManagement.Infrastructure.Database.Entities.Device", null)
+                b.HasOne("HomeManagement.Infrastructure.Database.Entities.Device", "Device")
                     .WithMany("Actions")
                     .HasForeignKey("DeviceId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
+
+                b.Navigation("Device");
             });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.DeviceConfiguration", b =>
@@ -274,20 +294,34 @@ partial class _20260824103856_Initial
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.WorkflowStep", b =>
             {
+                b.HasOne("HomeManagement.Infrastructure.Database.Entities.DeviceAction", "DeviceAction")
+                    .WithMany()
+                    .HasForeignKey("DeviceActionId")
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 b.HasOne("HomeManagement.Infrastructure.Database.Entities.Workflow", null)
                     .WithMany("Steps")
                     .HasForeignKey("WorkflowId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
+
+                b.Navigation("DeviceAction");
             });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.WorkflowTriggerCondition", b =>
             {
+                b.HasOne("HomeManagement.Infrastructure.Database.Entities.DeviceAction", "TriggerSourceAction")
+                    .WithMany()
+                    .HasForeignKey("TriggerSourceActionId")
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 b.HasOne("HomeManagement.Infrastructure.Database.Entities.Workflow", null)
                     .WithMany("TriggerConditions")
                     .HasForeignKey("WorkflowId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
+
+                b.Navigation("TriggerSourceAction");
             });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.Device", b =>

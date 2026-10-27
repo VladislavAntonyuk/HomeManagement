@@ -1,4 +1,4 @@
-using HomeManagement.Application.Workflows;
+﻿using HomeManagement.Application.Workflows;
 using HomeManagement.Components.Dialogs;
 using HomeManagement.Infrastructure.Database;
 using Microsoft.AspNetCore.Components;
@@ -18,13 +18,19 @@ public partial class Workflows(
     private MudTable<Workflow> _table = null!;
     private readonly HashSet<string> _runningWorkflows = new(StringComparer.Ordinal);
 
+    private Dictionary<(string DeviceName, string ActionName), int> _actionIds = new();
+
     private async Task<TableData<Workflow>> ServerReload(TableState state, CancellationToken token)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
         var query = dbContext.Workflows
             .AsNoTracking()
             .Include(w => w.TriggerConditions)
-            .Include(w => w.Steps)
+            .ThenInclude(c => c.TriggerSourceAction)
+            .ThenInclude(a => a!.Device)
+            .Include(w => w.Steps.OrderBy(s => s.Order))
+            .ThenInclude(s => s.DeviceAction)
+            .ThenInclude(a => a!.Device)
             .AsQueryable();
 
         var totalItems = await query.CountAsync(token);
@@ -49,18 +55,7 @@ public partial class Workflows(
             : query.OrderBy(keySelector);
     }
 
-    private static string GetTriggerSummary(Workflow workflow)
-    {
-        var conditions = workflow.TriggerConditions.ToList();
-
-        if (conditions.Count == 0)
-        {
-            return "No conditions";
-        }
-
-        var delimiter = workflow.ConditionOperator is WorkflowConditionOperator.Or ? " OR " : " AND ";
-        return string.Join(delimiter, conditions.Select(WorkflowConditionFormatter.Format));
-    }
+    private static string GetTriggerSummary(Workflow workflow) => WorkflowConditionFormatter.FormatTrigger(workflow);
 
     private async Task Add()
     {
@@ -112,6 +107,7 @@ public partial class Workflows(
                 Description = workflow.Description,
                 IsEnabled = workflow.IsEnabled,
                 ConditionOperator = workflow.ConditionOperator,
+                RepeatWhileMatched = workflow.RepeatWhileMatched,
                 TriggerConditions = workflow.TriggerConditions
                     .Select(x => new WorkflowTriggerConditionEditModel
                     {
@@ -124,8 +120,8 @@ public partial class Workflows(
                         TriggerTimeToReference = x.TriggerTimeToReference,
                         TriggerTimeTo = x.TriggerTimeTo,
                         TriggerTimeToOffsetMinutes = x.TriggerTimeToOffsetMinutes,
-                        TriggerDeviceName = x.TriggerDeviceName,
-                        TriggerSourceActionName = x.TriggerSourceActionName,
+                        TriggerDeviceName = x.TriggerSourceAction?.Device.Name,
+                        TriggerSourceActionName = x.TriggerSourceAction?.Action,
                         TriggerPropertyPath = x.TriggerPropertyPath,
                         TriggerExpectedValue = x.TriggerExpectedValue,
                         TriggerValueType = x.TriggerValueType,
@@ -135,8 +131,8 @@ public partial class Workflows(
                     .Select(x => new WorkflowStepEditModel
                     {
                         StepType = x.StepType,
-                        DeviceName = x.DeviceName,
-                        ActionName = x.ActionName,
+                        DeviceName = x.DeviceAction?.Device.Name,
+                        ActionName = x.DeviceAction?.Action,
                         DelaySeconds = x.DelaySeconds,
                         NotifyTitle = x.NotifyTitle,
                         NotifyMessageTemplate = x.NotifyMessageTemplate
@@ -163,15 +159,26 @@ public partial class Workflows(
         try
         {
             await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Workflows.FirstOrDefaultAsync(x => x.Id == workflow.Id);
+            var existing = await dbContext.Workflows
+                .AsTracking()
+                .Include(x => x.TriggerConditions)
+                .Include(x => x.Steps)
+                .FirstOrDefaultAsync(x => x.Id == workflow.Id);
             if (existing is null)
             {
                 snackbar.Add("Workflow not found.", Severity.Error);
                 return;
             }
 
-            dbContext.Workflows.Remove(existing);
-            dbContext.Workflows.Add(MapToEntity(model));
+            var updated = MapToEntity(model);
+            existing.Name = updated.Name;
+            existing.Description = updated.Description;
+            existing.IsEnabled = updated.IsEnabled;
+            existing.ConditionOperator = updated.ConditionOperator;
+            existing.RepeatWhileMatched = updated.RepeatWhileMatched;
+            existing.TriggerConditions = updated.TriggerConditions;
+            existing.Steps = updated.Steps;
+            existing.LastConditionMatched = null;
             await dbContext.SaveChangesAsync();
 
             snackbar.Add("Workflow updated.", Severity.Success);
@@ -267,6 +274,11 @@ public partial class Workflows(
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         var devices = await dbContext.Devices.AsNoTracking().Include(d => d.Actions).ToListAsync();
 
+        _actionIds = devices
+            .SelectMany(d => d.Actions.Select(a => (Key: (d.Name, a.Action), a.Id)))
+            .DistinctBy(x => x.Key)
+            .ToDictionary(x => x.Key, x => x.Id);
+
         return devices
             .OrderBy(d => d.Name)
             .ToDictionary(
@@ -275,7 +287,19 @@ public partial class Workflows(
                 StringComparer.Ordinal);
     }
 
-    private static Workflow MapToEntity(WorkflowEditModel model)
+    private int? ResolveActionId(string? deviceName, string? actionName)
+    {
+        if (string.IsNullOrWhiteSpace(deviceName) || string.IsNullOrWhiteSpace(actionName))
+        {
+            return null;
+        }
+
+        return _actionIds.TryGetValue((deviceName, actionName), out var id)
+            ? id
+            : throw new InvalidOperationException($"Action '{actionName}' no longer exists on device '{deviceName}'.");
+    }
+
+    private Workflow MapToEntity(WorkflowEditModel model)
     {
         var triggerConditions = model.TriggerConditions.Select(x =>
         {
@@ -296,8 +320,7 @@ public partial class Workflows(
                 TriggerTimeToReference = isTime && isRange ? x.TriggerTimeToReference : null,
                 TriggerTimeTo = isTime && isRange && x.TriggerTimeToReference is WorkflowTimeReference.Fixed ? x.TriggerTimeTo : null,
                 TriggerTimeToOffsetMinutes = isTime && isRange && x.TriggerTimeToReference is not WorkflowTimeReference.Fixed ? x.TriggerTimeToOffsetMinutes : null,
-                TriggerDeviceName = isDeviceResult ? x.TriggerDeviceName : null,
-                TriggerSourceActionName = isDeviceResult ? x.TriggerSourceActionName : null,
+                TriggerSourceActionId = isDeviceResult ? ResolveActionId(x.TriggerDeviceName, x.TriggerSourceActionName) : null,
                 TriggerPropertyPath = isDeviceResult ? x.TriggerPropertyPath : null,
                 TriggerExpectedValue = isDeviceResult ? x.TriggerExpectedValue : null,
                 TriggerValueType = isDeviceResult ? x.TriggerValueType : null
@@ -310,12 +333,13 @@ public partial class Workflows(
             Description = model.Description,
             IsEnabled = model.IsEnabled,
             ConditionOperator = model.ConditionOperator,
+            RepeatWhileMatched = model.RepeatWhileMatched,
             TriggerConditions = triggerConditions,
-            Steps = model.Steps.Select(x => new WorkflowStep
+            Steps = model.Steps.Select((x, index) => new WorkflowStep
             {
+                Order = index,
                 StepType = x.StepType,
-                DeviceName = x.DeviceName,
-                ActionName = x.ActionName,
+                DeviceActionId = x.StepType is WorkflowStepType.DeviceAction ? ResolveActionId(x.DeviceName, x.ActionName) : null,
                 DelaySeconds = x.DelaySeconds,
                 NotifyTitle = x.NotifyTitle,
                 NotifyMessageTemplate = x.NotifyMessageTemplate

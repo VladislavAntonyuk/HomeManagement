@@ -1,4 +1,4 @@
-namespace HomeManagement.Infrastructure;
+namespace HomeManagement.Infrastructure.Mcp;
 
 public static class McpApiKeyAuthenticationDefaults
 {

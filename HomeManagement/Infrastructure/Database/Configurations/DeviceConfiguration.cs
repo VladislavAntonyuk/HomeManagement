@@ -14,7 +14,7 @@ public class DeviceConfiguration : IEntityTypeConfiguration<Device>
         builder.Property(d => d.Address).HasMaxLength(100).IsRequired();
 
         builder.HasMany(x => x.Actions)
-            .WithOne()
+            .WithOne(x => x.Device)
             .HasForeignKey(x => x.DeviceId)
             .OnDelete(DeleteBehavior.Cascade);
 

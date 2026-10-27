@@ -1,9 +1,10 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
 
 namespace HomeManagement.Application.Router;
 
-public class AsusRouterController : IRouterController
+public class AsusRouterController(IHttpClientFactory httpClientFactory, IOptions<RouterOptions> options) : IRouterController
 {
     public class LoginResult
     {
@@ -15,34 +16,25 @@ public class AsusRouterController : IRouterController
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
 
-    private readonly HttpClient _httpClient;
-    private readonly string _username;
-    private readonly string _password;
-
-    public AsusRouterController(HttpClient httpClient, string username, string password)
+    private HttpClient CreateClient()
     {
-        _httpClient = httpClient;
-        _username = username;
-        _password = password;
+        var httpClient = httpClientFactory.CreateClient();
+        httpClient.BaseAddress = new Uri(options.Value.IpAddress);
         httpClient.DefaultRequestHeaders.Add("User-Agent", "asusrouter-Android-DUTUtil-1.0.0.3.58-163");
+        return httpClient;
     }
 
-    private async Task<string?> AuthenticateAsync()
+    private async Task<string?> AuthenticateAsync(HttpClient httpClient)
     {
         const string path = "/login.cgi";
-        var formattedUsernamePassword = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_username}:{_password}"));
+        var formattedUsernamePassword = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Value.Username}:{options.Value.Password}"));
 
         var content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             { "login_authorization", formattedUsernamePassword }
         });
 
-        var request = new HttpRequestMessage(HttpMethod.Post, path)
-        {
-            Content = content
-        };
-
-        var response = await _httpClient.SendAsync(request);
+        var response = await httpClient.PostAsync(path, content);
         response.EnsureSuccessStatusCode();
 
         var loginResult = await response.Content.ReadFromJsonAsync<LoginResult>(Options);
@@ -51,25 +43,22 @@ public class AsusRouterController : IRouterController
 
     private async Task<RouterResponse> ApplyAppPostAsync(Dictionary<string, string> payload)
     {
-        var asusToken = await AuthenticateAsync();
+        var httpClient = CreateClient();
+        var asusToken = await AuthenticateAsync(httpClient);
         if (string.IsNullOrEmpty(asusToken))
         {
             return new RouterResponse { ErrorStatus = "Authentication failed" };
         }
 
         const string path = "/apply.cgi";
-        var content = new FormUrlEncodedContent(payload);
-
         var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
-            Content = content
+            Content = new FormUrlEncodedContent(payload)
         };
         request.Headers.Add("Cookie", $"asus_token={asusToken}");
 
-        var response = await _httpClient.SendAsync(request);
-        var r = response.IsSuccessStatusCode;
-        var c = await response.Content.ReadAsStringAsync();
-        return new RouterResponse { ErrorStatus = r ? null : c };
+        var response = await httpClient.SendAsync(request);
+        return new RouterResponse { ErrorStatus = response.IsSuccessStatusCode ? null : await response.Content.ReadAsStringAsync() };
     }
 
     public Task<RouterResponse> SetLeds(bool enabled)

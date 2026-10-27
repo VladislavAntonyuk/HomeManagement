@@ -1,9 +1,10 @@
-using HomeManagement.Shared;
+﻿using HomeManagement.Shared;
 
 namespace HomeManagement.Components.Dialogs;
 
 public class DeviceActionEditModel
 {
+    public int Id { get; set; }
     public string Action { get; set; } = string.Empty;
     public string Command { get; set; } = string.Empty;
     public CommandType CommandType { get; set; } = CommandType.Get;

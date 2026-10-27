@@ -1,10 +1,10 @@
+﻿using System.Collections.Concurrent;
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Infrastructure.Database;
 using Innovative.SolarCalculator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Globalization;
-using System.Text.Json;
 using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Application.Workflows;
@@ -16,63 +16,96 @@ public class WorkflowTriggerService(
     IOptionsMonitor<WorkflowAutomationOptions> optionsMonitor,
     ILogger<WorkflowTriggerService> logger) : BackgroundService
 {
+    private static readonly TimeSpan MinAtTimeGracePeriod = TimeSpan.FromMinutes(5);
+
+    private readonly ConcurrentDictionary<int, Task> _runningWorkflows = new();
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
             var options = optionsMonitor.CurrentValue;
-            if (!options.Enabled)
+            if (options.Enabled)
             {
-                await DelayAsync(options, stoppingToken);
-                continue;
+                try
+                {
+                    await ProcessWorkflowsAsync(options, stoppingToken);
+                }
+                catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+                {
+                    logger.LogError(ex, "Workflow trigger processing failed.");
+                }
             }
 
-            try
-            {
-                await ProcessWorkflowsAsync(options, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (InvalidOperationException ex)
-            {
-                logger.LogError(ex, "Workflow trigger processing failed due to invalid configuration.");
-            }
-            catch (DbUpdateException ex)
-            {
-                logger.LogError(ex, "Workflow trigger processing failed when saving runtime state.");
-            }
-
-            await DelayAsync(options, stoppingToken);
+            await Task.Delay(GetCheckInterval(options), stoppingToken);
         }
     }
 
     private async Task ProcessWorkflowsAsync(WorkflowAutomationOptions options, CancellationToken token)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
-        var nowUtc = DateTimeOffset.UtcNow;
         var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
-        var localNow = TimeZoneInfo.ConvertTime(nowUtc, timeZoneInfo);
+        var nowUtc = DateTimeOffset.UtcNow;
+        var tick = new TriggerTick(
+            TimeZoneInfo.ConvertTime(nowUtc, timeZoneInfo),
+            timeZoneInfo,
+            options,
+            TimeSpan.FromTicks(Math.Max(MinAtTimeGracePeriod.Ticks, GetCheckInterval(options).Ticks * 3)));
 
         var workflows = await dbContext.Workflows
             .AsTracking()
             .Include(x => x.TriggerConditions)
-            .Include(x => x.Steps)
+            .ThenInclude(x => x.TriggerSourceAction)
+            .ThenInclude(x => x!.Device)
+            .ThenInclude(x => x.Configurations)
             .Where(x => x.IsEnabled)
             .ToListAsync(token);
 
+        var runs = new List<(Workflow Workflow, WorkflowExecutionContext Context)>();
         foreach (var workflow in workflows)
         {
-            var (shouldRun, triggerContext) = await ShouldRunByTriggerAsync(workflow, localNow, options, dbContext, token);
-            if (!shouldRun)
+            if (_runningWorkflows.ContainsKey(workflow.Id))
             {
                 continue;
             }
 
-            var result = await workflowRunner.RunAsync(workflow, triggerContext, token);
-            workflow.LastTriggeredAtUtc = nowUtc;
+            var (isMatched, triggerContext) = await EvaluateTriggerAsync(workflow, tick, token);
+            var wasMatched = workflow.LastConditionMatched == true;
+            workflow.LastConditionMatched = isMatched;
 
+            if (!isMatched || (wasMatched && !workflow.RepeatWhileMatched))
+            {
+                continue;
+            }
+
+            workflow.LastTriggeredAtUtc = nowUtc;
+            runs.Add((workflow, triggerContext));
+        }
+
+        await dbContext.SaveChangesAsync(token);
+
+        foreach (var (workflow, context) in runs)
+        {
+            StartRun(workflow, context, token);
+        }
+    }
+
+    private void StartRun(Workflow workflow, WorkflowExecutionContext context, CancellationToken token)
+    {
+        var run = RunAsync(workflow, context, token);
+        _runningWorkflows[workflow.Id] = run;
+        _ = run.ContinueWith(
+            _ => _runningWorkflows.TryRemove(new KeyValuePair<int, Task>(workflow.Id, run)),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private async Task RunAsync(Workflow workflow, WorkflowExecutionContext context, CancellationToken token)
+    {
+        try
+        {
+            var result = await workflowRunner.RunAsync(workflow, context, token);
             if (!result.IsSuccessful)
             {
                 logger.LogWarning(
@@ -81,15 +114,15 @@ public class WorkflowTriggerService(
                     string.Join(" | ", result.Errors));
             }
         }
-
-        await dbContext.SaveChangesAsync(token);
+        catch (Exception ex) when (!token.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Workflow {WorkflowName} execution failed.", workflow.Name);
+        }
     }
 
-    private async Task<(bool ShouldRun, WorkflowExecutionContext Context)> ShouldRunByTriggerAsync(
+    private async Task<(bool IsMatched, WorkflowExecutionContext Context)> EvaluateTriggerAsync(
         Workflow workflow,
-        DateTimeOffset localNow,
-        WorkflowAutomationOptions options,
-        HomeManagementDbContext dbContext,
+        TriggerTick tick,
         CancellationToken token)
     {
         var conditions = workflow.TriggerConditions;
@@ -104,45 +137,41 @@ public class WorkflowTriggerService(
         for (var i = 0; i < conditions.Count; i++)
         {
             var condition = conditions[i];
-            var evaluation = await EvaluateConditionAsync(condition, localNow, options, dbContext, token);
+            var evaluation = await EvaluateConditionAsync(condition, tick, token);
             results.Add(evaluation.IsMatched);
 
             contextValues[$"Trigger[{i}].Type"] = condition.TriggerType.ToString();
-            contextValues[$"Trigger[{i}].Device"] = condition.TriggerDeviceName;
+            contextValues[$"Trigger[{i}].Device"] = condition.TriggerSourceAction?.Device.Name;
             contextValues[$"Trigger[{i}].Property"] = condition.TriggerPropertyPath;
             contextValues[$"Trigger[{i}].Expected"] = condition.TriggerExpectedValue;
             contextValues[$"Trigger[{i}].Current"] = evaluation.CurrentValue;
 
             if (i == 0)
             {
-                contextValues["Trigger.Device"] = condition.TriggerDeviceName;
+                contextValues["Trigger.Device"] = condition.TriggerSourceAction?.Device.Name;
                 contextValues["Trigger.Property"] = condition.TriggerPropertyPath;
                 contextValues["Trigger.Expected"] = condition.TriggerExpectedValue;
                 contextValues["Trigger.Current"] = evaluation.CurrentValue;
             }
-
         }
 
-        var shouldRun = workflow.ConditionOperator is WorkflowConditionOperator.Or
+        var isMatched = workflow.ConditionOperator is WorkflowConditionOperator.Or
             ? results.Any(x => x)
             : results.All(x => x);
 
-        workflow.LastConditionMatched = shouldRun;
-        return (shouldRun, new WorkflowExecutionContext(contextValues));
+        return (isMatched, new WorkflowExecutionContext(contextValues));
     }
 
     private async Task<ConditionEvaluationResult> EvaluateConditionAsync(
         WorkflowTriggerCondition condition,
-        DateTimeOffset localNow,
-        WorkflowAutomationOptions options,
-        HomeManagementDbContext dbContext,
+        TriggerTick tick,
         CancellationToken token)
     {
         return condition.TriggerType switch
         {
-            WorkflowTriggerType.Date => EvaluateDateCondition(condition, localNow),
-            WorkflowTriggerType.Time => EvaluateTimeCondition(condition, localNow, options),
-            WorkflowTriggerType.DeviceResult => await EvaluateDeviceResultConditionAsync(condition, dbContext, deviceActionExecutor, token),
+            WorkflowTriggerType.Date => EvaluateDateCondition(condition, tick.LocalNow),
+            WorkflowTriggerType.Time => EvaluateTimeCondition(condition, tick),
+            WorkflowTriggerType.DeviceResult => await EvaluateDeviceResultConditionAsync(condition, tick, token),
             _ => new ConditionEvaluationResult(false, null)
         };
     }
@@ -172,14 +201,12 @@ public class WorkflowTriggerService(
         return new ConditionEvaluationResult(isMatched, currentValue);
     }
 
-    private static ConditionEvaluationResult EvaluateTimeCondition(
-        WorkflowTriggerCondition condition,
-        DateTimeOffset localNow,
-        WorkflowAutomationOptions options)
+    private static ConditionEvaluationResult EvaluateTimeCondition(WorkflowTriggerCondition condition, TriggerTick tick)
     {
+        var localNow = tick.LocalNow;
         var now = TimeOnly.FromDateTime(localNow.DateTime);
         var currentValue = now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
-        var from = ResolveTime(condition.TriggerTimeReference, condition.TriggerTime, condition.TriggerTimeOffsetMinutes, localNow, options);
+        var from = ResolveTime(condition.TriggerTimeReference, condition.TriggerTime, condition.TriggerTimeOffsetMinutes, tick);
         if (from is null || condition.TriggerOperator is not { } comparisonOperator)
         {
             return new ConditionEvaluationResult(false, currentValue);
@@ -187,19 +214,20 @@ public class WorkflowTriggerService(
 
         if (comparisonOperator is WorkflowComparisonOperator.Equal)
         {
-            // "At" fires once per day as soon as the time is reached.
-            if (now < from.Value || condition.LastTriggerDateLocal == localNow.Date)
+            var elapsed = now - from.Value;
+            var occurrenceDate = (localNow.DateTime - elapsed).Date;
+            if (elapsed >= tick.AtTimeGracePeriod || condition.LastTriggerDateLocal == occurrenceDate)
             {
                 return new ConditionEvaluationResult(false, currentValue);
             }
 
-            condition.LastTriggerDateLocal = localNow.Date;
+            condition.LastTriggerDateLocal = occurrenceDate;
             return new ConditionEvaluationResult(true, currentValue);
         }
 
         if (comparisonOperator is WorkflowComparisonOperator.Between or WorkflowComparisonOperator.NotBetween)
         {
-            var to = ResolveTime(condition.TriggerTimeToReference, condition.TriggerTimeTo, condition.TriggerTimeToOffsetMinutes, localNow, options);
+            var to = ResolveTime(condition.TriggerTimeToReference, condition.TriggerTimeTo, condition.TriggerTimeToOffsetMinutes, tick);
             if (to is null)
             {
                 return new ConditionEvaluationResult(false, currentValue);
@@ -231,37 +259,33 @@ public class WorkflowTriggerService(
         WorkflowTimeReference? reference,
         TimeOnly? fixedTime,
         int? offsetMinutes,
-        DateTimeOffset localNow,
-        WorkflowAutomationOptions options)
+        TriggerTick tick)
     {
         var time = reference switch
         {
             WorkflowTimeReference.Fixed => fixedTime,
             WorkflowTimeReference.Sunrise or WorkflowTimeReference.Sunset
-                => TimeOnly.FromDateTime(GetSunEventLocal(reference.Value, localNow, options)),
+                => TimeOnly.FromDateTime(GetSunEventLocal(reference.Value, tick)),
             _ => null
         };
 
         return time?.AddMinutes(offsetMinutes ?? 0);
     }
 
-    private static DateTime GetSunEventLocal(WorkflowTimeReference reference, DateTimeOffset localNow, WorkflowAutomationOptions options)
+    private static DateTime GetSunEventLocal(WorkflowTimeReference reference, TriggerTick tick)
     {
-        var solarTimes = new SolarTimes(localNow.Date, options.Latitude, options.Longitude);
+        var solarTimes = new SolarTimes(tick.LocalNow.Date, tick.Options.Latitude, tick.Options.Longitude);
         var sunEvent = reference is WorkflowTimeReference.Sunrise ? solarTimes.Sunrise : solarTimes.Sunset;
 
-        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
-        return TimeZoneInfo.ConvertTimeFromUtc(sunEvent.ToUniversalTime(), timeZoneInfo);
+        return TimeZoneInfo.ConvertTimeFromUtc(sunEvent.ToUniversalTime(), tick.TimeZone);
     }
 
-    private static async Task<ConditionEvaluationResult> EvaluateDeviceResultConditionAsync(
+    private async Task<ConditionEvaluationResult> EvaluateDeviceResultConditionAsync(
         WorkflowTriggerCondition condition,
-        HomeManagementDbContext dbContext,
-        IDeviceActionExecutor deviceActionExecutor,
+        TriggerTick tick,
         CancellationToken token)
     {
-        if (string.IsNullOrWhiteSpace(condition.TriggerDeviceName)
-            || string.IsNullOrWhiteSpace(condition.TriggerSourceActionName)
+        if (condition.TriggerSourceAction is not { } sourceAction
             || string.IsNullOrWhiteSpace(condition.TriggerPropertyPath)
             || string.IsNullOrWhiteSpace(condition.TriggerExpectedValue)
             || condition.TriggerOperator is null)
@@ -270,32 +294,14 @@ public class WorkflowTriggerService(
             return new ConditionEvaluationResult(false, null);
         }
 
-        var device = await dbContext.Devices
-            .AsNoTracking()
-            .Include(x => x.Actions)
-            .Include(x => x.Configurations)
-            .FirstOrDefaultAsync(x => x.Name == condition.TriggerDeviceName, token);
-        if (device is null)
-        {
-            condition.LastConditionMatched = false;
-            return new ConditionEvaluationResult(false, null);
-        }
-
-        var action = device.Actions.FirstOrDefault(x => string.Equals(x.Action, condition.TriggerSourceActionName, StringComparison.Ordinal));
-        if (action is null)
-        {
-            condition.LastConditionMatched = false;
-            return new ConditionEvaluationResult(false, null);
-        }
-
-        var execution = await deviceActionExecutor.ExecuteAsync(device, action, token);
+        var execution = await ExecuteSourceActionAsync(sourceAction, tick, token);
         if (!execution.IsSuccess || string.IsNullOrWhiteSpace(execution.RawResponse))
         {
             condition.LastConditionMatched = false;
             return new ConditionEvaluationResult(false, null);
         }
 
-        if (!TryReadProperty(execution.RawResponse, condition.TriggerPropertyPath, out var currentValue, out var currentValueType))
+        if (!JsonValueReader.TryReadProperty(execution.RawResponse, condition.TriggerPropertyPath, out var currentValue, out var currentValueType))
         {
             condition.LastConditionMatched = false;
             return new ConditionEvaluationResult(false, null);
@@ -312,98 +318,19 @@ public class WorkflowTriggerService(
         return new ConditionEvaluationResult(isMatched, currentValue);
     }
 
-    private static bool TryReadProperty(string rawResponse, string propertyPath, out string? value, out WorkflowTriggerValueType valueType)
+    private async Task<DeviceActionExecutionResult> ExecuteSourceActionAsync(
+        DeviceAction action,
+        TriggerTick tick,
+        CancellationToken token)
     {
-        value = null;
-        valueType = WorkflowTriggerValueType.Text;
-
-        try
+        if (tick.SourceActionResults.TryGetValue(action.Id, out var cached))
         {
-            using var document = JsonDocument.Parse(rawResponse);
-            var element = document.RootElement;
-
-            if (propertyPath == "$")
-            {
-                value = element.GetRawText();
-                valueType = MapValueType(element);
-                return true;
-            }
-
-            var normalized = propertyPath.StartsWith("$.", StringComparison.Ordinal) ? propertyPath[2..] : propertyPath;
-            foreach (var segment in normalized.Split('.', StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (!TryResolveSegment(ref element, segment))
-                {
-                    return false;
-                }
-            }
-
-            value = ToComparableString(element);
-            valueType = MapValueType(element);
-            return true;
+            return cached;
         }
-        catch (JsonException)
-        {
-            if (propertyPath == "$")
-            {
-                value = rawResponse;
-                valueType = WorkflowTriggerValueType.Text;
-                return true;
-            }
 
-            return false;
-        }
-    }
-
-    private static bool TryResolveSegment(ref JsonElement element, string segment)
-    {
-        var currentSegment = segment;
-        while (true)
-        {
-            var bracketIndex = currentSegment.IndexOf('[', StringComparison.Ordinal);
-            if (bracketIndex < 0)
-            {
-                if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(currentSegment, out element))
-                {
-                    return false;
-                }
-
-                return true;
-            }
-
-            var propertyName = currentSegment[..bracketIndex];
-            if (!string.IsNullOrWhiteSpace(propertyName))
-            {
-                if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(propertyName, out element))
-                {
-                    return false;
-                }
-            }
-
-            var closeBracket = currentSegment.IndexOf(']', bracketIndex);
-            if (closeBracket < 0)
-            {
-                return false;
-            }
-
-            var indexText = currentSegment[(bracketIndex + 1)..closeBracket];
-            if (!int.TryParse(indexText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index)
-                || element.ValueKind != JsonValueKind.Array
-                || index < 0
-                || index >= element.GetArrayLength())
-            {
-                return false;
-            }
-
-            element = element[index];
-
-            if (closeBracket == currentSegment.Length - 1)
-            {
-                return true;
-            }
-
-            currentSegment = currentSegment[(closeBracket + 1)..];
-        }
+        var result = await deviceActionExecutor.ExecuteAsync(action.Device, action, token);
+        tick.SourceActionResults[action.Id] = result;
+        return result;
     }
 
     private static bool IsMatched(WorkflowComparisonOperator comparisonOperator, string? currentValue, string expectedValue, WorkflowTriggerValueType valueType)
@@ -474,36 +401,17 @@ public class WorkflowTriggerService(
         };
     }
 
-    private static WorkflowTriggerValueType MapValueType(JsonElement element)
-    {
-        return element.ValueKind switch
-        {
-            JsonValueKind.Number => WorkflowTriggerValueType.Number,
-            JsonValueKind.True or JsonValueKind.False => WorkflowTriggerValueType.Boolean,
-            JsonValueKind.String => WorkflowTriggerValueType.Text,
-            JsonValueKind.Null or JsonValueKind.Undefined => WorkflowTriggerValueType.Null,
-            _ => WorkflowTriggerValueType.Json
-        };
-    }
-
-    private static string? ToComparableString(JsonElement element)
-    {
-        return element.ValueKind switch
-        {
-            JsonValueKind.String => element.GetString(),
-            JsonValueKind.Number => element.GetRawText(),
-            JsonValueKind.True => "true",
-            JsonValueKind.False => "false",
-            JsonValueKind.Null => null,
-            _ => element.GetRawText()
-        };
-    }
-
-    private static Task DelayAsync(WorkflowAutomationOptions options, CancellationToken token)
-    {
-        var interval = TimeSpan.FromSeconds(Math.Max(5, options.CheckIntervalSeconds));
-        return Task.Delay(interval, token);
-    }
+    private static TimeSpan GetCheckInterval(WorkflowAutomationOptions options)
+        => TimeSpan.FromSeconds(Math.Max(5, options.CheckIntervalSeconds));
 
     private record ConditionEvaluationResult(bool IsMatched, string? CurrentValue);
+
+    private sealed record TriggerTick(
+        DateTimeOffset LocalNow,
+        TimeZoneInfo TimeZone,
+        WorkflowAutomationOptions Options,
+        TimeSpan AtTimeGracePeriod)
+    {
+        public Dictionary<int, DeviceActionExecutionResult> SourceActionResults { get; } = new();
+    }
 }

@@ -8,6 +8,7 @@ public class WorkflowEditModel
     public string? Description { get; set; }
     public bool IsEnabled { get; set; } = true;
     public WorkflowConditionOperator ConditionOperator { get; set; } = WorkflowConditionOperator.And;
+    public bool RepeatWhileMatched { get; set; }
     public List<WorkflowTriggerConditionEditModel> TriggerConditions { get; set; } = [];
     public List<WorkflowStepEditModel> Steps { get; set; } = [];
 }

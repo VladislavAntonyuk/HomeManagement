@@ -1,4 +1,4 @@
-namespace HomeManagement.Application.WebHooks.Telegram;
+namespace HomeManagement.Application.Notifications;
 
 public class TelegramSettings
 {

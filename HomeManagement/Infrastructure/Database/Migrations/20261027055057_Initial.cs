@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace HomeManagement.Infrastructure.Database.Migrations;
 
 /// <inheritdoc />
-public partial class _20260824103856_Initial : Migration
+public partial class _20261027055057_Initial : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -51,6 +51,7 @@ public partial class _20260824103856_Initial : Migration
                 Description = table.Column<string>(type: "TEXT", maxLength: 400, nullable: true),
                 IsEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
                 ConditionOperator = table.Column<int>(type: "INTEGER", nullable: false),
+                RepeatWhileMatched = table.Column<bool>(type: "INTEGER", nullable: false),
                 LastTriggeredAtUtc = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
                 LastConditionMatched = table.Column<bool>(type: "INTEGER", nullable: true)
             },
@@ -109,9 +110,9 @@ public partial class _20260824103856_Initial : Migration
             {
                 Id = table.Column<int>(type: "INTEGER", nullable: false)
                     .Annotation("Sqlite:Autoincrement", true),
+                Order = table.Column<int>(type: "INTEGER", nullable: false),
                 StepType = table.Column<int>(type: "INTEGER", nullable: false),
-                DeviceName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
-                ActionName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                DeviceActionId = table.Column<int>(type: "INTEGER", nullable: true),
                 DelaySeconds = table.Column<int>(type: "INTEGER", nullable: true),
                 NotifyTitle = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
                 NotifyMessageTemplate = table.Column<string>(type: "TEXT", maxLength: 2000, nullable: true),
@@ -120,6 +121,12 @@ public partial class _20260824103856_Initial : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_WorkflowStep", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_WorkflowStep_DeviceAction_DeviceActionId",
+                    column: x => x.DeviceActionId,
+                    principalTable: "DeviceAction",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Restrict);
                 table.ForeignKey(
                     name: "FK_WorkflowStep_Workflows_WorkflowId",
                     column: x => x.WorkflowId,
@@ -135,14 +142,19 @@ public partial class _20260824103856_Initial : Migration
                 Id = table.Column<int>(type: "INTEGER", nullable: false)
                     .Annotation("Sqlite:Autoincrement", true),
                 TriggerType = table.Column<int>(type: "INTEGER", nullable: false),
-                ScheduledAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
-                TriggerDeviceName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
-                TriggerSourceActionName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                TriggerDate = table.Column<DateOnly>(type: "TEXT", nullable: true),
+                TriggerDateTo = table.Column<DateOnly>(type: "TEXT", nullable: true),
+                TriggerTimeReference = table.Column<int>(type: "INTEGER", nullable: true),
+                TriggerTime = table.Column<TimeOnly>(type: "TEXT", nullable: true),
+                TriggerTimeOffsetMinutes = table.Column<int>(type: "INTEGER", nullable: true),
+                TriggerTimeToReference = table.Column<int>(type: "INTEGER", nullable: true),
+                TriggerTimeTo = table.Column<TimeOnly>(type: "TEXT", nullable: true),
+                TriggerTimeToOffsetMinutes = table.Column<int>(type: "INTEGER", nullable: true),
+                TriggerSourceActionId = table.Column<int>(type: "INTEGER", nullable: true),
                 TriggerPropertyPath = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
                 TriggerExpectedValue = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
                 TriggerValueType = table.Column<int>(type: "INTEGER", nullable: true),
                 TriggerOperator = table.Column<int>(type: "INTEGER", nullable: true),
-                LastTriggeredAtUtc = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
                 LastTriggerDateLocal = table.Column<DateTime>(type: "TEXT", nullable: true),
                 LastConditionMatched = table.Column<bool>(type: "INTEGER", nullable: true),
                 WorkflowId = table.Column<int>(type: "INTEGER", nullable: false)
@@ -150,6 +162,12 @@ public partial class _20260824103856_Initial : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_WorkflowTriggerCondition", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_WorkflowTriggerCondition_DeviceAction_TriggerSourceActionId",
+                    column: x => x.TriggerSourceActionId,
+                    principalTable: "DeviceAction",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Restrict);
                 table.ForeignKey(
                     name: "FK_WorkflowTriggerCondition_Workflows_WorkflowId",
                     column: x => x.WorkflowId,
@@ -187,9 +205,19 @@ public partial class _20260824103856_Initial : Migration
             unique: true);
 
         migrationBuilder.CreateIndex(
+            name: "IX_WorkflowStep_DeviceActionId",
+            table: "WorkflowStep",
+            column: "DeviceActionId");
+
+        migrationBuilder.CreateIndex(
             name: "IX_WorkflowStep_WorkflowId",
             table: "WorkflowStep",
             column: "WorkflowId");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_WorkflowTriggerCondition_TriggerSourceActionId",
+            table: "WorkflowTriggerCondition",
+            column: "TriggerSourceActionId");
 
         migrationBuilder.CreateIndex(
             name: "IX_WorkflowTriggerCondition_WorkflowId",
@@ -204,9 +232,6 @@ public partial class _20260824103856_Initial : Migration
             name: "AppSettings");
 
         migrationBuilder.DropTable(
-            name: "DeviceAction");
-
-        migrationBuilder.DropTable(
             name: "DeviceConfiguration");
 
         migrationBuilder.DropTable(
@@ -216,9 +241,12 @@ public partial class _20260824103856_Initial : Migration
             name: "WorkflowTriggerCondition");
 
         migrationBuilder.DropTable(
-            name: "Devices");
+            name: "DeviceAction");
 
         migrationBuilder.DropTable(
             name: "Workflows");
+
+        migrationBuilder.DropTable(
+            name: "Devices");
     }
 }
