@@ -231,7 +231,8 @@
             for (const device of devices) {
                 const item = element("div", "item");
                 const header = element("div", "item-header");
-                header.append(element("span", "item-title", device.name), element("span", "muted", device.address));
+                const status = device.isOnline === true ? "online" : device.isOnline === false ? "offline" : "unknown";
+                header.append(element("span", "item-title", device.name), element("span", "muted", `${device.deviceId} · ${status}`));
                 item.append(header);
                 if (device.description) {
                     item.append(element("div", "muted", device.description));

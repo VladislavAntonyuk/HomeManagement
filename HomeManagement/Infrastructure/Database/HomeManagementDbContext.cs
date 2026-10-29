@@ -1,7 +1,6 @@
 using HomeManagement.Infrastructure.Database.Configurations;
 using HomeManagement.Infrastructure.Database.Entities;
 using Microsoft.EntityFrameworkCore;
-using DeviceConfiguration = HomeManagement.Infrastructure.Database.Configurations.DeviceConfiguration;
 
 namespace HomeManagement.Infrastructure.Database;
 

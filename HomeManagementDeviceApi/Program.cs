@@ -1,92 +1,31 @@
-using HomeManagement.Shared;
-using HomeManagementDeviceApi;
-using Microsoft.Extensions.Options;
-using System.Diagnostics;
-using System.Globalization;
-using System.Text.Json;
+﻿using HomeManagementDeviceApi;
+using HomeManagementDeviceApi.Mqtt;
+using Silverback.Configuration;
+using Silverback.Messaging.Configuration;
+using Silverback.Messaging.Messages;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+{
+    Args = args,
+    // Keeps existing deployments that set ASPNETCORE_ENVIRONMENT working.
+    EnvironmentName = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+});
 
+builder.Services.AddOptions<DeviceSettings>()
+    .Bind(builder.Configuration)
+    .Validate(x => !string.IsNullOrEmpty(x.GetDeviceId()), "DeviceName or DeviceId is required.")
+    .ValidateOnStart();
+builder.Services.Configure<MqttSettings>(builder.Configuration.GetSection("Mqtt"));
 builder.Services.Configure<CommandsSettings>(builder.Configuration.GetSection("CommandsSettings"));
 
-var app = builder.Build();
+builder.Services.AddSystemd();
+builder.Services.AddSingleton<DeviceAgent>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<DeviceAgent>());
 
-app.UseHttpsRedirection();
+builder.Services.AddSilverback()
+    .WithConnectionToMessageBroker(options => options.AddMqtt().ConnectAfterStartup().RetryOnConnectionFailure())
+    .AddBrokerClientsConfigurator<AgentBrokerClientsConfigurator>()
+    .AddSingletonBrokerClientCallback(sp => sp.GetRequiredService<DeviceAgent>())
+    .AddDelegateSubscriber((IInboundEnvelope<StringMessage<DeviceCommandPayload>> envelope, DeviceAgent agent) => agent.OnCommandAsync(envelope));
 
-app.MapGet("/info", (IConfiguration configuration) => new DeviceInfo
-{
-    Name = configuration.GetValue("DeviceName", string.Empty),
-    Address = NetworkManager.GetAddress(),
-    Metrics = new Dictionary<string, string>
-    {
-        { "UptimeSeconds", DeviceManager.GetUptime().ToString() },
-        { "Temperature", DeviceManager.GetTemperature().ToString(CultureInfo.InvariantCulture) }
-    }
-});
-app.MapGet("/config", (IConfiguration configuration, IOptions<CommandsSettings> commandsOptions) =>
-{
-    var actions = new List<DeviceAction>()
-    {
-        new ("INFO", CommandType.Get, "info"),
-        new ("SHUTDOWN", CommandType.Post, "shutdown"),
-        new ("RESTART", CommandType.Post, "restart")
-    };
-    actions.AddRange(commandsOptions.Value.Commands.Select(x => new DeviceAction(x.Name, CommandType.Post, "command", JsonSerializer.Serialize(x.Command))));
-    actions.AddRange(commandsOptions.Value.Commands.Select(x => new DeviceAction(x.Name, x.Method, x.Endpoint)));
-
-    return new DeviceConfig
-    {
-        Name = configuration.GetValue("DeviceName", string.Empty),
-        Address = NetworkManager.GetAddress(),
-        Actions = actions
-    };
-});
-
-foreach (var command in commandsSection.Get<CommandsSettings>()?.Commands ?? [])
-{
-    var method = command.Method == CommandType.Get ? HttpMethods.Get : HttpMethods.Post;
-    app.MapMethods($"/{command.Endpoint}", [method], (CancellationToken token) => RunCommandAsync(command, token));
-}
-
-    var arguments = string.Join(' ', command.Arguments);
-    var result = await Process.RunAndCaptureTextAsync(new ProcessStartInfo
-    {
-        FileName = command.FileName,
-        Arguments = arguments,
-        RedirectStandardOutput = true,
-        RedirectStandardError = true,
-        UseShellExecute = false,
-        CreateNoWindow = true
-    }, token);
-
-    return result.ExitStatus.ExitCode == 0 ? result.StandardOutput : result.StandardError;
-});
-
-app.MapPost("/shutdown", () =>
-{
-    Process.StartAndForget("poweroff");
-});
-
-app.MapPost("/restart", () =>
-{
-    Process.StartAndForget("reboot");
-});
-
-app.Run();
-
-static async Task<IResult> RunCommandAsync(CommandInfo command, CancellationToken token)
-{
-    var result = await Process.RunAndCaptureTextAsync(new ProcessStartInfo
-    {
-        FileName = command.FileName,
-        Arguments = string.Join(' ', command.Arguments),
-        RedirectStandardOutput = true,
-        RedirectStandardError = true,
-        UseShellExecute = false,
-        CreateNoWindow = true
-    }, token);
-
-    return result.ExitStatus.ExitCode == 0
-        ? Results.Text(result.StandardOutput)
-        : Results.Text(result.StandardError, statusCode: StatusCodes.Status500InternalServerError);
-}
+await builder.Build().RunAsync();

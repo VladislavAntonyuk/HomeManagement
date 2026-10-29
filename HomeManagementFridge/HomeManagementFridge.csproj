@@ -1,0 +1,36 @@
+<Project Sdk="nanoFramework.NET.Sdk/1.0.0-preview.11">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>HomeManagementFridge</RootNamespace>
+    <AssemblyName>HomeManagementFridge</AssemblyName>
+    <LangVersion>preview</LangVersion>
+    <!-- The SDK turns on ClickOnce manifests, which reject the nanoFramework TargetFrameworkVersion (MSB3174). -->
+    <GenerateManifests>false</GenerateManifests>
+  </PropertyGroup>
+
+  <!--
+    The SDK's MetadataProcessor 4.x emits the nanoFramework 2.0 PE format (NFMRK2), which 1.x firmware silently refuses to load.
+    The board runs 1.x firmware, so use MetadataProcessor 3.x (NFMRK1). The SDK expects a net8.0 task folder, which 3.x does not ship.
+  -->
+  <PropertyGroup>
+    <NF_MDP_MSBUILDTASK_PATH Condition="'$(MSBuildRuntimeType)' == 'Core'">$(PkgnanoFramework_Tools_MetadataProcessor_MsBuildTask)\lib\net6.0</NF_MDP_MSBUILDTASK_PATH>
+    <NF_MDP_MSBUILDTASK_PATH Condition="'$(MSBuildRuntimeType)' != 'Core'">$(PkgnanoFramework_Tools_MetadataProcessor_MsBuildTask)\lib\net472</NF_MDP_MSBUILDTASK_PATH>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="nanoFramework.Tools.MetadataProcessor.MsBuildTask"
+                      Version="3.0.104"
+                      PrivateAssets="all"
+                      GeneratePathProperty="true"
+                      ExcludeAssets="runtime;compile;build;buildTransitive" />
+    <PackageReference Include="nanoFramework.CoreLibrary" Version="1.17.11" />
+    <PackageReference Include="nanoFramework.Json" Version="2.2.213" />
+    <PackageReference Include="nanoFramework.M2Mqtt" Version="5.1.226" />
+    <PackageReference Include="nanoFramework.Runtime.Native" Version="1.7.11" />
+    <PackageReference Include="nanoFramework.System.Collections" Version="1.5.75" />
+    <PackageReference Include="nanoFramework.System.Device.Wifi" Version="1.5.152" />
+    <PackageReference Include="nanoFramework.System.Net.Http.Client" Version="1.5.214" />
+  </ItemGroup>
+
+</Project>

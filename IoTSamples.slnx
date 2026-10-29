@@ -5,11 +5,6 @@
     </Project>
     <Project Path="BluetoothGpioController/BluetoothGpioController/BluetoothGpioController.csproj" />
   </Folder>
-  <Folder Name="/ESP/">
-    <File Path="ESP8266/PowerNotifier/PowerNotifier.ino" />
-    <File Path="ESP8266/README.md" />
-    <File Path="ESP8266/WifiLamp/WifiLamp.ino" />
-  </Folder>
   <Folder Name="/IPCamera/">
     <Project Path="IPCamera/IpCameraMaui/IpCameraMaui.csproj">
       <Deploy />
@@ -22,4 +17,7 @@
   <Project Path="HomeManagement.Shared/HomeManagement.Shared.csproj" Id="23f8c5b5-59d0-4a4f-ba05-ef0d782f181c" />
   <Project Path="HomeManagement/HomeManagement.csproj" Id="ec61e7d2-d096-4ac6-86b7-8a177c983bfa" />
   <Project Path="HomeManagementDeviceApi/HomeManagementDeviceApi.csproj" Id="8e7fa9c3-22c2-45e5-bd56-b3b8937f5eb6" />
+  <Project Path="HomeManagementFridge/HomeManagementFridge.csproj" Type="11a8dd76-328b-46df-9f39-f559912d0360" Id="a490034d-5223-4d95-99fa-ab341aff7443">
+    <Deploy />
+  </Project>
 </Solution>

@@ -9,4 +9,6 @@ License: MIT.
 ## Projects
 
 - [BluetoothGpioController](BluetoothGpioController)
+- [ESP32](ESP32)
+- [ESP8266](ESP8266)
 - [IPCamera](IPCamera)

@@ -1,7 +1,6 @@
 #include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
+#include <H4.h>
 #include "Config.h"
 #include <WifiHelper.h>
 #include <DeviceApi.h>
@@ -17,31 +16,22 @@ const char* name = "SoilMoistureSensor";
 #pragma endregion
 
 #pragma region Globals
-ESP8266WebServer server(80);
-unsigned long bootMillis = 0;
 const DeviceAction actions[] = {
-  { "STATUS", "GET", "status", "" },
-  { "RESTART", "POST", "restart", "{}" },
-  { "SHUTDOWN", "POST", "shutdown", "{}" }
+  { "STATUS", "Get", "status" }
 };
+
+H4 h4(9600);
+MqttDevice device(name, actions, sizeof(actions) / sizeof(actions[0]));
 #pragma endregion
 
-void setup() {
-  Serial.begin(9600);
-  bootMillis = millis();
+void h4setup() {
   pinMode(SENSOR_PIN, INPUT);
 
   connectToWifi(ssid, password);
-  startMDNS(name);
 
-  server.on("/config", HTTP_GET, handleGetConfig);
-  server.on("/info", HTTP_GET, handleGetInfo);
-  server.on("/status", HTTP_GET, handleGetStatus);
-  server.on("/restart", HTTP_POST, handleRestart);
-  server.on("/shutdown", HTTP_POST, handleShutdown);
-  registerNotFoundHandler(server);
+  device.addTelemetry("status", readStatus);
+  device.begin({ mqttHost, mqttPort, mqttUsername, mqttPassword });
 
-  server.begin();
   Serial.println("\n================================================");
   Serial.println("--- Automated Soil Moisture System Started ---");
   Serial.print("Calibration Limits: Dry=");
@@ -54,12 +44,7 @@ void setup() {
   Serial.println("================================================");
 }
 
-void loop() {
-  MDNS.update();
-  server.handleClient();
-}
-
-String handleGetStatus() {
+String readStatus() {
   long totalRaw = 0;
   const int samples = 10;
 
@@ -83,37 +68,16 @@ String handleGetStatus() {
   doc["voltage"] = voltage;
   doc["moisture"] = moisturePercent;
 
-  String result = "";
   // Automation logic handling thresholds
   if (moisturePercent < WATER_TRIGGER_PCT) {
     doc["status"] = "ALERT: Soil is DRY! Needs watering.";
-    result = "ALERT: Soil is DRY! Needs watering." + String(moisturePercent) + "%";
   } else if (moisturePercent > 75) {
     doc["status"] = "STATUS: Soil is highly saturated / wet.";
-    result = "STATUS: Soil is highly saturated / wet." + String(moisturePercent) + "%";
   } else {
     doc["status"] = "STATUS: Soil moisture level is optimal.";
   }
 
   String out;
   serializeJson(doc, out);
-  server.send(200, "application/json", out);
-  return result;
+  return out;
 }
-
-void handleGetInfo() {
-  server.send(200, "application/json", buildDeviceInfoJson(name, bootMillis));
-}
-
-void handleGetConfig() {
-  server.send(200, "application/json", buildDeviceConfigJson(name, actions, sizeof(actions) / sizeof(actions[0])));
-}
-
-void handleRestart() {
-  sendRestartResponse(server);
-}
-
-void handleShutdown() {
-  sendShutdownResponse(server);
-}
-

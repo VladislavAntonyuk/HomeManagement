@@ -1,76 +1,14 @@
 ﻿@inherits ComponentBase
-@using HomeManagement.Shared
 
 <MudPaper Class="pa-4" Elevation="1">
     <MudForm @ref="_form">
         <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
-        <MudTextField @bind-Value="Model.Address" Label="Address" Required="true" />
         <MudTextField @bind-Value="Model.Description" Label="Description" Lines="5" Required="false" />
-
-        <MudDivider Class="my-2" />
-        <MudText Typo="Typo.subtitle1">Actions</MudText>
-        @if (Model.Actions.Count == 0)
-        {
-            <MudText Color="Color.Secondary" Typo="Typo.caption">No actions. Add one.</MudText>
-        }
-
-        @foreach (var (index, action) in Model.Actions.Index())
-        {
-            <MudPaper Class="pa-2 my-2" Elevation="0">
-                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                    <MudTextField @bind-Value="action.Action" Label="Action" Required="true" />
-                    <MudSelect T="CommandType" @bind-Value="action.CommandType" Label="Command Type" Required="true">
-                        @foreach (var commandType in Enum.GetValues<CommandType>())
-                        {
-                            <MudSelectItem Value="commandType">@commandType</MudSelectItem>
-                        }
-                    </MudSelect>
-                    <MudTextField @bind-Value="action.Command" Label="Command" Required="true" />
-                    <MudTextField @bind-Value="action.CommandArgs" Label="Command Args" Required="false" />
-                    @if (GetActionUsage(action) is { } usedBy)
-                    {
-                        <MudTooltip Text="@($"Used by workflows: {usedBy}")" Placement="Placement.Left">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Disabled="true" />
-                        </MudTooltip>
-                    }
-                    else
-                    {
-                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => RemoveAction(index)" />
-                    }
-                </MudStack>
-            </MudPaper>
-        }
-
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="AddAction" StartIcon="@Icons.Material.Filled.Add" Class="my-2">Add Action</MudButton>
-
-        <MudDivider Class="my-2" />
-        <MudText Typo="Typo.subtitle1">Configurations</MudText>
-        @if (Model.Configurations.Count == 0)
-        {
-            <MudText Color="Color.Secondary" Typo="Typo.caption">No configurations. Add one.</MudText>
-        }
-
-        @foreach (var (index, config) in Model.Configurations.Index())
-        {
-            <MudPaper Class="pa-2 my-2" Elevation="0">
-                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                    <MudTextField @bind-Value="config.Name" Label="Name" Required="true" />
-                    <MudTextField @bind-Value="config.Value" Label="Value" Required="true" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => RemoveConfiguration(index)" />
-                </MudStack>
-            </MudPaper>
-        }
-
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="AddConfiguration" StartIcon="@Icons.Material.Filled.Add" Class="my-2">Add Configuration</MudButton>
-
-        @if (!string.IsNullOrEmpty(_saveError))
-        {
-            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-4">@_saveError</MudAlert>
-        }
+        <MudText Color="Color.Secondary" Typo="Typo.caption">Actions are reported by the device.</MudText>
 
         <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd" Class="mt-4">
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="_saving">Save</MudButton>
-            <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="Cancel" Disabled="_saving">Cancel</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Save</MudButton>
+            <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="Cancel">Cancel</MudButton>
         </MudStack>
     </MudForm>
 </MudPaper>

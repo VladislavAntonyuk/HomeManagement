@@ -39,7 +39,6 @@ public class WorkflowRunner(
             .Where(x => x.WorkflowId == workflow.Id)
             .Include(x => x.DeviceAction)
             .ThenInclude(x => x!.Device)
-            .ThenInclude(x => x.Configurations)
             .OrderBy(x => x.Order)
             .ToListAsync(token);
 

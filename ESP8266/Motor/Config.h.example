@@ -2,3 +2,10 @@
 
 const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
+
+// MQTT broker of HomeManagement. ESP8266 cannot resolve .local names, so use the IP address of the hub.
+const char* mqttHost = "192.168.50.151";
+const uint16_t mqttPort = 1883;
+// Leave empty when the broker does not require a login.
+const char* mqttUsername = "";
+const char* mqttPassword = "";

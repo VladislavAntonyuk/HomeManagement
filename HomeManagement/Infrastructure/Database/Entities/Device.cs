@@ -6,10 +6,12 @@ public class Device
 
     public required string Name { get; set; }
 
-    public required string Address { get; set; }
+    /// <summary>
+    /// Id the device uses in its MQTT topics.
+    /// </summary>
+    public required string DeviceId { get; set; }
 
     public string? Description { get; set; }
 
     public IList<DeviceAction> Actions { get; set; } = [];
-    public IList<DeviceConfiguration> Configurations { get; set; } = [];
 }

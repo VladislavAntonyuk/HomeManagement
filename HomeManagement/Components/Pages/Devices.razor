@@ -9,41 +9,28 @@
         <MudText Typo="Typo.h6">Devices</MudText>
         <MudSpacer />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="_table.ReloadServerData">Refresh</MudButton>
-
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="ScanNetworkDevices">Scan</MudButton>
-
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="Add">Add</MudButton>
     </ToolBarContent>
     <HeaderContent>
-        <MudTh><MudTableSortLabel T="Device">Address</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel T="Device">Name</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="Device" SortLabel="@nameof(Device.Name)">Name</MudTableSortLabel></MudTh>
+        <MudTh Style="white-space: nowrap"><MudTableSortLabel T="Device" SortLabel="@nameof(Device.DeviceId)">Device Id</MudTableSortLabel></MudTh>
         <MudTh>Status</MudTh>
         <MudTh>Actions</MudTh>
         <MudTh></MudTh>
     </HeaderContent>
     <RowTemplate>
         @{
-            var deviceStatus = GetStatus(context.Name);
+            var isOnline = IsOnline(context);
         }
-        <MudTd DataLabel="Address">@context.Address</MudTd>
         <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Device Id">@context.DeviceId</MudTd>
         <MudTd DataLabel="Status">
-            @{
-                if (deviceStatus is null || deviceStatus.Loading)
-                {
-                    <MudProgressCircular Indeterminate="true" Size="Size.Small" />
-                }
-                else
-                {
-                    <MudChip T="string" Color="@(deviceStatus.Online switch { true => Color.Success, false => Color.Error, null => Color.Default })" Variant="Variant.Filled">@(deviceStatus.Online switch { true => "Online", false => "Offline", null => "Unknown" })</MudChip>
-                }
-            }
+            <MudChip T="string" Color="@(isOnline switch { true => Color.Success, false => Color.Error, null => Color.Default })" Variant="Variant.Filled">@(isOnline switch { true => "Online", false => "Offline", null => "Unknown" })</MudChip>
         </MudTd>
         <MudTd DataLabel="Actions">
             <div class="device-actions-container">
                 @foreach (var action in context.Actions)
                 {
-                    var disabled = deviceStatus is null || deviceStatus.Online == false || _runningActions.Contains((context.Name, action));
+                    var disabled = isOnline != true || _runningActions.Contains((context.Name, action));
                     <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="@disabled" OnClick="@(() => RunAction(context, action))" Class="device-action-button">
                         @if (_runningActions.Contains((context.Name, action)))
                         {
@@ -55,12 +42,12 @@
             </div>
         </MudTd>
         <MudTd>
-            <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="() => Edit(context)" />
-            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => Delete(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="Edit device" OnClick="() => Edit(context)" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete device" Color="Color.Error" OnClick="() => Delete(context)" />
         </MudTd>
     </RowTemplate>
     <NoRecordsContent>
-        <MudText>No devices found</MudText>
+        <MudText>No devices yet. Devices appear here when they connect to the MQTT broker.</MudText>
     </NoRecordsContent>
     <LoadingContent>
         <MudText>Loading...</MudText>

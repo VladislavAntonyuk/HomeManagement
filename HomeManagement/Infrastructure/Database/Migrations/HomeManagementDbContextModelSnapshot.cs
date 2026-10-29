@@ -15,12 +15,12 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261027055057_Initial";
+    public override string LastMigrationId => "20261029051700_MqttDevices";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
-        modelBuilder.HasAnnotation("ProductVersion", "11.0.0-rc.2.26504.105");
+        modelBuilder.HasAnnotation("ProductVersion", "11.0.0-rc.3.26522.148");
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.AppSetting", b =>
             {
@@ -55,12 +55,12 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     .ValueGeneratedOnAdd()
                     .HasColumnType("INTEGER");
 
-                b.Property<string>("Address")
-                    .IsRequired()
-                    .HasMaxLength(100)
+                b.Property<string>("Description")
                     .HasColumnType("TEXT");
 
-                b.Property<string>("Description")
+                b.Property<string>("DeviceId")
+                    .IsRequired()
+                    .HasMaxLength(100)
                     .HasColumnType("TEXT");
 
                 b.Property<string>("Name")
@@ -69,6 +69,9 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     .HasColumnType("TEXT");
 
                 b.HasKey("Id");
+
+                b.HasIndex("DeviceId")
+                    .IsUnique();
 
                 b.HasIndex("Name")
                     .IsUnique();
@@ -90,9 +93,6 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     .IsRequired()
                     .HasColumnType("TEXT");
 
-                b.Property<string>("CommandArgs")
-                    .HasColumnType("TEXT");
-
                 b.Property<int>("CommandType")
                     .HasColumnType("INTEGER");
 
@@ -104,30 +104,6 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                 b.HasIndex("DeviceId");
 
                 b.ToTable("DeviceAction");
-            });
-
-        modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.DeviceConfiguration", b =>
-            {
-                b.Property<int>("Id")
-                    .ValueGeneratedOnAdd()
-                    .HasColumnType("INTEGER");
-
-                b.Property<int>("DeviceId")
-                    .HasColumnType("INTEGER");
-
-                b.Property<string>("Name")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<string>("Value")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.HasKey("Id");
-
-                b.HasIndex("DeviceId");
-
-                b.ToTable("DeviceConfiguration");
             });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.Workflow", b =>
@@ -285,15 +261,6 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                 b.Navigation("Device");
             });
 
-        modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.DeviceConfiguration", b =>
-            {
-                b.HasOne("HomeManagement.Infrastructure.Database.Entities.Device", null)
-                    .WithMany("Configurations")
-                    .HasForeignKey("DeviceId")
-                    .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
-            });
-
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.WorkflowStep", b =>
             {
                 b.HasOne("HomeManagement.Infrastructure.Database.Entities.DeviceAction", "DeviceAction")
@@ -329,8 +296,6 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.Device", b =>
             {
                 b.Navigation("Actions");
-
-                b.Navigation("Configurations");
             });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.Workflow", b =>

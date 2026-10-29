@@ -1,0 +1,21 @@
+namespace HomeManagementFridge
+{
+    // Copy to Config.cs and fill in. Config.cs is not committed.
+    internal static class Config
+    {
+        public const string WifiSsid = "YOUR_WIFI_SSID";
+        public const string WifiPassword = "YOUR_WIFI_PASSWORD";
+
+        // MQTT broker of HomeManagement. Use the IP address of the hub if the board cannot resolve .local names.
+        public const string MqttHost = "192.168.50.151";
+        public const int MqttPort = 1883;
+        // Leave empty when the broker does not require a login.
+        public const string MqttUsername = "";
+        public const string MqttPassword = "";
+
+        // Liebherr SmartDevice Home API. Get the API key in the SmartDevice app, and the device id from GET /v1/devices.
+        public const string FridgeApiBaseUrl = "https://home-api.smartdevice.liebherr.com";
+        public const string FridgeApiKey = "YOUR_LIEBHERR_API_KEY";
+        public const string FridgeId = "YOUR_FRIDGE_DEVICE_ID";
+    }
+}

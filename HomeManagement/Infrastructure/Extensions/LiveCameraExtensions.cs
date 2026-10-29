@@ -16,10 +16,16 @@ public static class LiveCameraExtensions
             .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
             .AddServiceDiscoveryDestinationResolver();
 
+        builder.Services.AddHttpClient(FrigateStreamSync.HttpClientName, client => client.BaseAddress = new Uri("https+http://frigate-service"))
+            .AddServiceDiscovery();
+        builder.Services.AddSingleton<FrigateStreamSync>();
+
         builder.Services.AddLiveStreamingServer(
             new IPEndPoint(IPAddress.Any, 1935),
             options => options
-                .AddAuthorizationHandler<StreamAuthorizationHandler>().AddFlv()
+                .AddAuthorizationHandler<StreamAuthorizationHandler>()
+                .AddStreamEventHandler(sp => sp.GetRequiredService<FrigateStreamSync>())
+                .AddFlv()
         );
 
         builder.Services.AddScoped<FrigateEventsSubscriber>();

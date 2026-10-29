@@ -11,7 +11,7 @@ namespace HomeManagement.Infrastructure.Mcp;
 
 public record McpDeviceAction(string Name, string CommandType);
 
-public record McpDevice(string Name, string Address, string? Description, IReadOnlyList<McpDeviceAction> Actions);
+public record McpDevice(string Name, string DeviceId, bool? IsOnline, string? Description, IReadOnlyList<McpDeviceAction> Actions);
 
 public record McpWorkflow(
     string Name,
@@ -37,18 +37,19 @@ public class HomeManagementMcpTools
     public static async Task<McpHomeDashboard> ShowHomeDashboard(
         HomeManagementDbContext dbContext,
         AwayModeService awayModeService,
+        DeviceStateStore deviceStateStore,
         CancellationToken token)
     {
         return new McpHomeDashboard(
             await awayModeService.IsEnabledAsync(token),
-            await GetDevicesAsync(dbContext, token),
+            await GetDevicesAsync(dbContext, deviceStateStore, token),
             await GetWorkflowsAsync(dbContext, token));
     }
 
     [McpServerTool(UseStructuredContent = true, ReadOnly = true)]
     [Description("Lists all devices and their actions")]
-    public static Task<List<McpDevice>> ListDevices(HomeManagementDbContext dbContext, CancellationToken token)
-        => GetDevicesAsync(dbContext, token);
+    public static Task<List<McpDevice>> ListDevices(HomeManagementDbContext dbContext, DeviceStateStore deviceStateStore, CancellationToken token)
+        => GetDevicesAsync(dbContext, deviceStateStore, token);
 
     [McpServerTool(UseStructuredContent = true)]
     [Description("Runs an action of a device, both found by name")]
@@ -61,7 +62,6 @@ public class HomeManagementMcpTools
     {
         var device = await dbContext.Devices.AsNoTracking()
             .Include(x => x.Actions)
-            .Include(x => x.Configurations)
             .FirstOrDefaultAsync(x => x.Name == deviceName, token);
         if (device is null)
         {
@@ -136,7 +136,7 @@ public class HomeManagementMcpTools
         return new McpOperationResult(true, $"Away mode {(enabled ? "enabled" : "disabled")}.");
     }
 
-    private static async Task<List<McpDevice>> GetDevicesAsync(HomeManagementDbContext dbContext, CancellationToken token)
+    private static async Task<List<McpDevice>> GetDevicesAsync(HomeManagementDbContext dbContext, DeviceStateStore deviceStateStore, CancellationToken token)
     {
         var devices = await dbContext.Devices.AsNoTracking()
             .Include(x => x.Actions)
@@ -146,7 +146,8 @@ public class HomeManagementMcpTools
         return devices
             .Select(d => new McpDevice(
                 d.Name,
-                d.Address,
+                d.DeviceId,
+                deviceStateStore.IsOnline(d.DeviceId),
                 d.Description,
                 d.Actions.Select(a => new McpDeviceAction(a.Action, a.CommandType.ToString())).ToList()))
             .ToList();

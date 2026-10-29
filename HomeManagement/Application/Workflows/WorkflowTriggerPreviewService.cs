@@ -38,7 +38,6 @@ public class WorkflowTriggerPreviewService(
         var device = await dbContext.Devices
             .AsNoTracking()
             .Include(x => x.Actions)
-            .Include(x => x.Configurations)
             .FirstOrDefaultAsync(x => x.Name == deviceName, token);
 
         if (device is null)

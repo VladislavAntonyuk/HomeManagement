@@ -57,7 +57,6 @@ public class WorkflowTriggerService(
             .Include(x => x.TriggerConditions)
             .ThenInclude(x => x.TriggerSourceAction)
             .ThenInclude(x => x!.Device)
-            .ThenInclude(x => x.Configurations)
             .Where(x => x.IsEnabled)
             .ToListAsync(token);
 

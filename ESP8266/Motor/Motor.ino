@@ -1,27 +1,23 @@
 #include <ESP8266WiFi.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
 #include <Preferences.h>
+#include <H4.h>
 #include "Config.h"
 #include <WifiHelper.h>
 #include <DeviceApi.h>
 
 const char* name = "ChickenDoor";
 
-ESP8266WebServer server(80);
 Preferences preferences;
 
-unsigned long bootMillis = 0;
-
 const DeviceAction actions[] = {
-  { "INFO", "GET", "info", "" },
-  { "STATUS", "GET", "status", "" },
-  { "OPEN", "POST", "open", "{}" },
-  { "CLOSE", "POST", "close", "{}" },
-  { "RESTART", "POST", "restart", "{}" },
-  { "SHUTDOWN", "POST", "shutdown", "{}" }
+  { "STATUS", "Get", "status" },
+  { "OPEN", "Post", "open" },
+  { "CLOSE", "Post", "close" }
 };
+
+H4 h4(9600);
+MqttDevice device(name, actions, sizeof(actions) / sizeof(actions[0]));
 
 const int RELAY_OPEN_PIN = 14; // D5 на платі це GPIO14
 
@@ -49,32 +45,30 @@ void stopMotor() {
   Serial.println("Мотор зупинено.");
 }
 
-void triggerOpen() {
+CommandResult triggerOpen() {
   if (isOpened || (isMotorRunning && pendingState == 1)) {
-    server.send(400, "application/json", "{\"error\":\"Door is already open or currently opening\"}");
-    return;
+    return { false, "Door is already open or currently opening" };
   }
 
   if (isMotorRunning) stopMotor();
 
   Serial.println("Запуск: ВІДКРИТТЯ дверей...");
   digitalWrite(RELAY_OPEN_PIN, MOTOR_ON);
-  
+
   isMotorRunning = true;
   motorStartTime = millis();
   pendingState = 1;
 
-  server.send(200, "application/json", "{\"status\":\"Opening\"}");
+  device.publishTelemetry("status");
+  return { true, "Opening" };
 }
 
-void triggerClose() {
+CommandResult triggerClose() {
   if (!isOpened && !isMotorRunning) {
-    server.send(400, "application/json", "{\"error\":\"Door is already closed\"}");
-    return;
+    return { false, "Door is already closed" };
   }
   if (isMotorRunning && pendingState == -1) {
-    server.send(400, "application/json", "{\"error\":\"Door is currently closing\"}");
-    return;
+    return { false, "Door is currently closing" };
   }
 
   if (isMotorRunning) stopMotor();
@@ -85,72 +79,33 @@ void triggerClose() {
   motorStartTime = millis() + WORK_TIME_MS;
   pendingState = -1;
 
-  server.send(200, "application/json", "{\"status\":\"Closing\"}");
+  device.publishTelemetry("status");
+  return { true, "Closing" };
 }
 
-void handleGetStatus() {
+CommandResult handleCommand(const String& command) {
+  if (command == "open") {
+    return triggerOpen();
+  }
+
+  if (command == "close") {
+    return triggerClose();
+  }
+
+  return { false, "Unknown command '" + command + "'." };
+}
+
+String readStatus() {
   JsonDocument doc;
   doc["isOpened"] = isOpened;
   doc["isMoving"] = isMotorRunning;
 
   String out;
   serializeJson(doc, out);
-  server.send(200, "application/json", out);
+  return out;
 }
 
-void handleGetInfo() {
-  server.send(200, "application/json", buildDeviceInfoJson(name, bootMillis));
-}
-
-void handleGetConfig() {
-  server.send(200, "application/json", buildDeviceConfigJson(name, actions, sizeof(actions) / sizeof(actions[0])));
-}
-
-void handleRestart() {
-  stopMotor();
-  sendRestartResponse(server);
-}
-
-void handleShutdown() {
-  stopMotor();
-  sendShutdownResponse(server);
-}
-
-void setup() {
-  Serial.begin(9600);
-
-  pinMode(RELAY_OPEN_PIN, OUTPUT);
-  stopMotor();
-
-  // Load saved state from NVS flash
-  preferences.begin("door", true); // readonly = true
-  isOpened = preferences.getBool("isOpened", false);
-  preferences.end();
-
-  bootMillis = millis();
-
-  connectToWifi(ssid, password);
-
-  startMDNS(name);
-
-  server.on("/info", HTTP_GET, handleGetInfo);
-  server.on("/config", HTTP_GET, handleGetConfig);
-  server.on("/status", HTTP_GET, handleGetStatus);
-  server.on("/open", HTTP_POST, triggerOpen);
-  server.on("/close", HTTP_POST, triggerClose);
-  server.on("/restart", HTTP_POST, handleRestart);
-  server.on("/shutdown", HTTP_POST, handleShutdown);
-
-  registerNotFoundHandler(server);
-
-  server.begin();
-  Serial.println("HTTP сервер запущено.");
-}
-
-void loop() {
-  MDNS.update();
-  server.handleClient();
-
+void checkMotor() {
   if (isMotorRunning && (millis() - motorStartTime >= WORK_TIME_MS)) {
     if (pendingState == 1) {
       saveState(true);
@@ -160,5 +115,26 @@ void loop() {
 
     stopMotor();
     Serial.println("Операцію завершено за таймером. Стан збережено.");
+    device.publishTelemetry("status");
   }
+}
+
+void h4setup() {
+  pinMode(RELAY_OPEN_PIN, OUTPUT);
+  stopMotor();
+
+  // Load saved state from NVS flash
+  preferences.begin("door", true); // readonly = true
+  isOpened = preferences.getBool("isOpened", false);
+  preferences.end();
+
+  connectToWifi(ssid, password);
+
+  device.onCommand(handleCommand);
+  device.addTelemetry("status", readStatus);
+  device.onPowerOff(stopMotor);
+  device.begin({ mqttHost, mqttPort, mqttUsername, mqttPassword });
+
+  h4.every(50, checkMotor);
+  Serial.println("Пристрій запущено.");
 }

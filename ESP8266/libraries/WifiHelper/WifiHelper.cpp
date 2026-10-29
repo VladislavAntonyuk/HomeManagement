@@ -1,7 +1,12 @@
 #include "WifiHelper.h"
 
+#if defined(ARDUINO_ARCH_ESP32)
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#else
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
+#endif
 
 void connectToWifi(const char* ssid, const char* password, unsigned long timeoutMs) {
   WiFi.mode(WIFI_STA);
