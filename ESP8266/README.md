@@ -30,6 +30,7 @@ Libraries to install in the Arduino sketchbook (`Documents/Arduino/libraries`):
 - [H4AsyncTCP](https://github.com/hamzahajeir/H4AsyncTCP) 0.0.25, commit 90ec706
 - [H4AsyncMQTT](https://github.com/hamzahajeir/H4AsyncMQTT) 1.0.0-rc12, commit 6fbf4cb
 - ArduinoJson, from the Library Manager
+- [Preferences](https://github.com/vshymanskyy/Preferences) 2.4.0 by Volodymyr Shymanskyy, from the Library Manager, for the settings that `CODetector` and `Motor` keep in flash
 - `libraries/DeviceApi` and `libraries/WifiHelper` from this folder, for example as junctions
 
 `DeviceApi` and `WifiHelper` also build for the ESP32, see [ESP32/README.md](../ESP32/README.md).

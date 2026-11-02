@@ -1,0 +1,15 @@
+#pragma once
+
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+
+// MQTT broker of HomeManagement. Use the IP address of the hub.
+const char* mqttHost = "192.168.50.151";
+const uint16_t mqttPort = 1883;
+// Leave empty when the broker does not require a login.
+const char* mqttUsername = "";
+const char* mqttPassword = "";
+
+// Bluetooth address of the power station, e.g. "E8:06:90:A9:F3:3A", shown by any Bluetooth scanner app next to its name such as "AP300".
+// Leave empty to connect to the first Bluetti power station found.
+const char* bluettiAddress = "";

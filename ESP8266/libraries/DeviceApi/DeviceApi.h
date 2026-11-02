@@ -91,6 +91,7 @@ private:
   void publishTwin();
   void publishAllTelemetry();
   void handleMessage(const char* topic, const uint8_t* payload, size_t length, H4AMC_MessageOptions options);
+  void executeCommand(const String& command, const H4AMC_BinaryData& correlationData, const std::string& responseTopic);
   CommandResult execute(const String& command);
   bool markHandled(const H4AMC_BinaryData& requestId);
   void powerOff(bool restart);

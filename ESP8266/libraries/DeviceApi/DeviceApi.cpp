@@ -187,11 +187,17 @@ void MqttDevice::handleMessage(const char* topicName, const uint8_t*, size_t, H4
     return;
   }
 
+  // The MQTT receive path already takes much of the 4 KB loop stack, so a command that publishes or writes flash
+  // overflows it. Run the command from the top of the H4 loop instead.
+  h4.queueFunction([this, command, correlationData, responseTopic] { executeCommand(command, correlationData, responseTopic); });
+}
+
+void MqttDevice::executeCommand(const String& command, const H4AMC_BinaryData& correlationData, const std::string& responseTopic) {
   bool isPowerOff = command == RestartKey || command == ShutdownKey;
   CommandResult result = isPowerOff
                            ? CommandResult{ true, command == RestartKey ? "Restarting" : "Shutting down" }
                            : execute(command);
-  Serial.printf("Command '%s' executed. Success: %s.\n", command.c_str(), result.isSuccess ? "true" : "false");
+  Serial.printf("Command '%s' executed. Success: %s. %s\n", command.c_str(), result.isSuccess ? "true" : "false", result.output.c_str());
 
   if (!responseTopic.empty()) {
     JsonDocument response;

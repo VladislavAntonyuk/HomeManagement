@@ -32,7 +32,13 @@ public class Program
 
     private const int TelemetryIntervalMs = 60000;
     private const int ReconnectDelayMs = 10000;
-    private const ushort KeepAliveSeconds = 60;
+
+    // M2Mqtt only pings after a whole keep alive period without sending anything, so it has to be shorter than the telemetry
+    // interval. Otherwise every publish postpones the ping, and a connection that died silently (e.g. a router restart) is never noticed.
+    private const ushort KeepAliveSeconds = 30;
+
+    // Restarting recovers from everything the device cannot fix itself, e.g. lost Wi-Fi or low memory.
+    private const int MaxDisconnectedMs = 10 * 60 * 1000;
 
     private static readonly string StatusTopic = Topic("status");
 
@@ -57,33 +63,61 @@ public class Program
         Debug.WriteLine("Connected to Wi-Fi.");
 
         var fridge = new LiebherrFridge();
-        var client = new MqttClient(Config.MqttHost, Config.MqttPort, false, null, null, MqttSslProtocols.None)
-        {
-            ProtocolVersion = MqttProtocolVersion.Version_5
-        };
+        MqttClient client = null;
+        var lastConnectedTicks = Environment.TickCount64;
 
         while (true)
         {
-            if (!client.IsConnected && !TryConnect(client))
+            if (client is not { IsConnected: true })
             {
-                Thread.Sleep(ReconnectDelayMs);
-                continue;
+                Close(client);
+                client = TryConnect();
+                if (client is null)
+                {
+                    if (Environment.TickCount64 - lastConnectedTicks >= MaxDisconnectedMs)
+                    {
+                        Debug.WriteLine("No connection to the MQTT broker for 10 minutes. Restarting.");
+                        Power.RebootDevice();
+                    }
+
+                    Thread.Sleep(ReconnectDelayMs);
+                    continue;
+                }
             }
 
-            TryPublish(client, Topic("telemetry/" + InfoKey), BuildInfoJson());
-            if (fridge.ReadTemperatureJson() is { } temperature)
+            lastConnectedTicks = Environment.TickCount64;
+
+            var isPublished = TryPublish(client, Topic("telemetry/" + InfoKey), BuildInfoJson());
+            if (isPublished && fridge.ReadTemperatureJson() is { } temperature)
             {
-                TryPublish(client, Topic("telemetry/" + TemperatureKey), temperature);
+                isPublished = TryPublish(client, Topic("telemetry/" + TemperatureKey), temperature);
+            }
+
+            if (!isPublished)
+            {
+                // Reconnect right away instead of waiting for the keep alive to notice.
+                Close(client);
+                client = null;
+                continue;
             }
 
             Thread.Sleep(TelemetryIntervalMs);
         }
     }
 
-    private static bool TryConnect(MqttClient client)
+    /// <summary>
+    /// Connects a new client every time: a client whose connection was lost is not reused.
+    /// </summary>
+    private static MqttClient TryConnect()
     {
+        MqttClient client = null;
         try
         {
+            client = new MqttClient(Config.MqttHost, Config.MqttPort, false, null, null, MqttSslProtocols.None)
+            {
+                ProtocolVersion = MqttProtocolVersion.Version_5
+            };
+
             var result = client.Connect(
                 DeviceId,
                 Config.MqttUsername.Length > 0 ? Config.MqttUsername : null,
@@ -99,18 +133,42 @@ public class Program
             if (result != MqttReasonCode.Success)
             {
                 Debug.WriteLine($"MQTT broker refused the connection: {result}.");
-                return false;
+                Close(client);
+                return null;
             }
         }
         catch (Exception e)
         {
             Debug.WriteLine($"Failed to connect to the MQTT broker: {e.Message}");
-            return false;
+            Close(client);
+            return null;
         }
 
         Debug.WriteLine($"Connected to the MQTT broker as '{DeviceId}'.");
-        return TryPublish(client, Topic("twin"), BuildTwinJson())
-               && TryPublish(client, StatusTopic, Online);
+        if (TryPublish(client, Topic("twin"), BuildTwinJson()) && TryPublish(client, StatusTopic, Online))
+        {
+            return client;
+        }
+
+        Close(client);
+        return null;
+    }
+
+    private static void Close(MqttClient client)
+    {
+        if (client is null)
+        {
+            return;
+        }
+
+        try
+        {
+            client.Close();
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine($"Failed to close the MQTT client: {e.Message}");
+        }
     }
 
     private static bool TryPublish(MqttClient client, string topic, string payload)
