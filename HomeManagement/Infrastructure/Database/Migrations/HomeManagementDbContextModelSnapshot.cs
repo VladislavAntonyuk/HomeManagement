@@ -15,7 +15,7 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261029051700_MqttDevices";
+    public override string LastMigrationId => "20261105164729_DeviceStatusTrigger";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -200,6 +200,12 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                 b.Property<DateOnly?>("TriggerDateTo")
                     .HasColumnType("TEXT");
 
+                b.Property<int?>("TriggerDeviceId")
+                    .HasColumnType("INTEGER");
+
+                b.Property<int?>("TriggerDeviceStatus")
+                    .HasColumnType("INTEGER");
+
                 b.Property<string>("TriggerExpectedValue")
                     .HasMaxLength(500)
                     .HasColumnType("TEXT");
@@ -243,6 +249,8 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
 
                 b.HasKey("Id");
 
+                b.HasIndex("TriggerDeviceId");
+
                 b.HasIndex("TriggerSourceActionId");
 
                 b.HasIndex("WorkflowId");
@@ -279,6 +287,11 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.WorkflowTriggerCondition", b =>
             {
+                b.HasOne("HomeManagement.Infrastructure.Database.Entities.Device", "TriggerDevice")
+                    .WithMany()
+                    .HasForeignKey("TriggerDeviceId")
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 b.HasOne("HomeManagement.Infrastructure.Database.Entities.DeviceAction", "TriggerSourceAction")
                     .WithMany()
                     .HasForeignKey("TriggerSourceActionId")
@@ -289,6 +302,8 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     .HasForeignKey("WorkflowId")
                     .OnDelete(DeleteBehavior.Cascade)
                     .IsRequired();
+
+                b.Navigation("TriggerDevice");
 
                 b.Navigation("TriggerSourceAction");
             });

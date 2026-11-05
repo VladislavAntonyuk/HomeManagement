@@ -158,6 +158,8 @@ public partial class WorkflowEditDialog
             WorkflowTriggerType.Time when condition.TriggerOperator is null => "Select an operator.",
             WorkflowTriggerType.Time when !IsTimeValueComplete(condition.TriggerTimeReference, condition.TriggerTime) => "Select a time.",
             WorkflowTriggerType.Time when isRange && !IsTimeValueComplete(condition.TriggerTimeToReference, condition.TriggerTimeTo) => "Select the end time.",
+            WorkflowTriggerType.DeviceStatus when string.IsNullOrWhiteSpace(condition.TriggerDeviceName) => "Select a device.",
+            WorkflowTriggerType.DeviceStatus when condition.TriggerDeviceStatus is null => "Select a status.",
             _ => null
         };
     }
@@ -208,6 +210,7 @@ public partial class WorkflowEditDialog
         condition.TriggerTimeToOffsetMinutes = null;
         condition.TriggerDeviceName = null;
         condition.TriggerSourceActionName = null;
+        condition.TriggerDeviceStatus = null;
         condition.TriggerPropertyPath = null;
         condition.TriggerExpectedValue = null;
         condition.TriggerValueType = null;
@@ -226,6 +229,10 @@ public partial class WorkflowEditDialog
             condition.TriggerOperator = WorkflowComparisonOperator.GreaterThan;
             condition.TriggerTimeReference = WorkflowTimeReference.Fixed;
             condition.TriggerTimeToReference = WorkflowTimeReference.Fixed;
+        }
+        else if (value is WorkflowTriggerType.DeviceStatus)
+        {
+            condition.TriggerDeviceStatus = DeviceStatus.Offline;
         }
     }
 

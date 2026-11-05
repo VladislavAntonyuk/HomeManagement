@@ -11,7 +11,25 @@ namespace HomeManagement.Infrastructure.Mcp;
 
 public record McpDeviceAction(string Name, string CommandType);
 
-public record McpDevice(string Name, string DeviceId, bool? IsOnline, string? Description, IReadOnlyList<McpDeviceAction> Actions);
+/// <param name="Name">Metric name as the device reports it, e.g. UptimeSeconds.</param>
+/// <param name="Value">Raw value.</param>
+/// <param name="Label">Readable name, e.g. Uptime.</param>
+/// <param name="DisplayValue">Readable value, e.g. 1 d 2 h.</param>
+public record McpDeviceMetric(string Name, string Value, string Label, string DisplayValue);
+
+public record McpDeviceInfo(string? Address, IReadOnlyList<McpDeviceMetric> Metrics, DateTimeOffset UpdatedAtUtc);
+
+/// <param name="Status">online, offline, not responding (reports online but stopped sending heartbeats) or unknown.</param>
+/// <param name="LastSeenUtc">When the hub last received a message of the device.</param>
+public record McpDevice(
+    string Name,
+    string DeviceId,
+    bool? IsOnline,
+    string Status,
+    DateTimeOffset? LastSeenUtc,
+    string? Description,
+    McpDeviceInfo? Info,
+    IReadOnlyList<McpDeviceAction> Actions);
 
 public record McpWorkflow(
     string Name,
@@ -47,7 +65,7 @@ public class HomeManagementMcpTools
     }
 
     [McpServerTool(UseStructuredContent = true, ReadOnly = true)]
-    [Description("Lists all devices and their actions")]
+    [Description("Lists all devices with their status, when they were last seen, their info (address, uptime, signal and other metrics) and their actions")]
     public static Task<List<McpDevice>> ListDevices(HomeManagementDbContext dbContext, DeviceStateStore deviceStateStore, CancellationToken token)
         => GetDevicesAsync(dbContext, deviceStateStore, token);
 
@@ -144,13 +162,39 @@ public class HomeManagementMcpTools
             .ToListAsync(token);
 
         return devices
-            .Select(d => new McpDevice(
-                d.Name,
-                d.DeviceId,
-                deviceStateStore.IsOnline(d.DeviceId),
-                d.Description,
-                d.Actions.Select(a => new McpDeviceAction(a.Action, a.CommandType.ToString())).ToList()))
+            .Select(d =>
+            {
+                var presence = deviceStateStore.GetPresence(d.DeviceId);
+                return new McpDevice(
+                    d.Name,
+                    d.DeviceId,
+                    presence?.IsOnline,
+                    DeviceInfoFormatter.FormatStatus(presence).ToLowerInvariant(),
+                    presence?.LastSeenUtc,
+                    d.Description,
+                    GetDeviceInfo(deviceStateStore, d.DeviceId),
+                    d.Actions.Select(a => new McpDeviceAction(a.Action, a.CommandType.ToString())).ToList());
+            })
             .ToList();
+    }
+
+    private static McpDeviceInfo? GetDeviceInfo(DeviceStateStore deviceStateStore, string deviceId)
+    {
+        if (deviceStateStore.GetInfo(deviceId) is not { } info
+            || deviceStateStore.GetTelemetry(deviceId, Shared.DeviceTopics.InfoKey) is not { } telemetry)
+        {
+            return null;
+        }
+
+        var metrics = info.Metrics
+            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .Select(x =>
+            {
+                var (label, displayValue) = DeviceInfoFormatter.FormatMetric(x.Key, x.Value);
+                return new McpDeviceMetric(x.Key, x.Value, label, displayValue);
+            })
+            .ToList();
+        return new McpDeviceInfo(string.IsNullOrEmpty(info.Address) ? null : info.Address, metrics, telemetry.ReceivedAtUtc);
     }
 
     private static async Task<List<McpWorkflow>> GetWorkflowsAsync(HomeManagementDbContext dbContext, CancellationToken token)
@@ -159,6 +203,8 @@ public class HomeManagementMcpTools
             .Include(x => x.TriggerConditions)
             .ThenInclude(x => x.TriggerSourceAction)
             .ThenInclude(x => x!.Device)
+            .Include(x => x.TriggerConditions)
+            .ThenInclude(x => x.TriggerDevice)
             .Include(x => x.Steps)
             .OrderBy(x => x.Name)
             .ToListAsync(token);

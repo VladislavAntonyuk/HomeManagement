@@ -25,14 +25,16 @@ All messages use QoS 1.
 1. Connect with MQTT v5, client id `{deviceId}`, and a last will of `offline` on the status topic with the retain flag.
 2. Subscribe to `home/devices/{deviceId}/commands/#` if the device has `Post` actions.
 3. Publish the twin, then `online` to the status topic, both retained.
-4. Publish telemetry, retained, whenever a value changes and at a regular interval.
-5. On a clean shutdown, publish `offline` to the status topic before disconnecting, because the broker only sends the last will on an unexpected disconnect.
+4. Publish the `info` telemetry right away and then at the heartbeat interval announced in the twin.
+5. Publish other telemetry, retained, whenever a value changes and at a regular interval.
+6. On a clean shutdown, publish `offline` to the status topic before disconnecting, because the broker only sends the last will on an unexpected disconnect.
 
 ## Twin
 
 ```json
 {
   "name": "LiveCamera",
+  "heartbeatIntervalSeconds": 60,
   "actions": [
     { "action": "Get Temperature", "commandType": "Get", "command": "temperature" },
     { "action": "Stop LiveCamera", "commandType": "Post", "command": "live-camera/stop" }
@@ -41,12 +43,35 @@ All messages use QoS 1.
 ```
 
 `command` is the key used in the telemetry or command topic.
+`heartbeatIntervalSeconds` is optional and says how often the device publishes its `info` telemetry; the hub assumes 60 seconds when it is missing.
 `Get` actions are read from the latest telemetry value, so the hub never waits for the device to answer them.
 `Post` actions are sent to the device as commands.
 
 The hub adds a device when its twin first arrives and updates the actions every time the twin changes.
 The device name is only used for the first registration and can be changed on the Devices page afterwards.
 An action the device stops reporting is removed, unless a workflow still uses it.
+
+## Device info and heartbeat
+
+The `info` telemetry (`home/devices/{deviceId}/telemetry/info`) describes the device and doubles as its heartbeat:
+
+```json
+{
+  "name": "Temperature And Humidity",
+  "address": "192.168.1.42",
+  "metrics": { "UptimeSeconds": "93784", "FreeHeap": "23456", "Rssi": "-67" }
+}
+```
+
+`metrics` is a free list of text values.
+The hub shows every metric on the Devices page, and formats the ones it knows: `UptimeSeconds`, `Rssi` (dBm), `FreeHeap` (bytes) and `Temperature` (°C).
+
+The last will alone cannot always tell the real status.
+When the broker loses power together with a device, or restarts before it saved the last will, the retained `online` stays forever.
+So the hub also tracks when it last received any message of a device.
+A device that reports `online` but sent nothing for 3 heartbeat intervals is shown as "Not responding" and treated as offline: its actions are disabled and commands to it fail.
+The first message it sends again makes it online.
+The number of missed heartbeats, the default interval and how often the hub checks are set in the `DevicePresence` section of the hub's `appsettings.json` (`MissedHeartbeats`, `DefaultHeartbeatInterval`, `CheckInterval`).
 
 ## Commands
 
@@ -128,3 +153,13 @@ pattern write home/hub/+/responses
 ```
 
 Create the logins with `sudo mosquitto_passwd /etc/mosquitto/passwd <user>`, and add the Frigate login to the `mqtt` section of the Frigate configuration.
+
+Keep retained messages and sessions over a broker restart, and save them often, so a power outage does not bring back an old status:
+
+```
+persistence true
+persistence_location /var/lib/mosquitto/
+autosave_interval 60
+```
+
+The hub does not rely on this: a device that stopped sending heartbeats is shown as not responding either way.

@@ -35,6 +35,10 @@ public class WorkflowTriggerConditionConfiguration : IEntityTypeConfiguration<Wo
             .WithMany()
             .HasForeignKey(x => x.TriggerSourceActionId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.TriggerDevice)
+            .WithMany()
+            .HasForeignKey(x => x.TriggerDeviceId)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(x => x.TriggerPropertyPath).HasMaxLength(200);
         builder.Property(x => x.TriggerExpectedValue).HasMaxLength(500);
     }

@@ -28,6 +28,15 @@ public class WorkflowTriggerCondition
 
     public DeviceAction? TriggerSourceAction { get; set; }
 
+    public int? TriggerDeviceId { get; set; }
+
+    /// <summary>
+    /// Device whose status a <see cref="WorkflowTriggerType.DeviceStatus"/> condition watches.
+    /// </summary>
+    public Device? TriggerDevice { get; set; }
+
+    public DeviceStatus? TriggerDeviceStatus { get; set; }
+
     public string? TriggerPropertyPath { get; set; }
 
     public string? TriggerExpectedValue { get; set; }

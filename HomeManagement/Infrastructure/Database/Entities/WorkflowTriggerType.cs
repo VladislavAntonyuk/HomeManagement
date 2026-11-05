@@ -5,5 +5,10 @@ public enum WorkflowTriggerType
     Manual,
     Date,
     Time,
-    DeviceResult
+    DeviceResult,
+
+    /// <summary>
+    /// Matches while a device is online or offline. Runs the workflow when the device changes to that status.
+    /// </summary>
+    DeviceStatus
 }

@@ -16,15 +16,24 @@ public partial class Devices(
     IDialogService dialogService,
     IDeviceActionExecutor deviceActionExecutor,
     IDeviceHub deviceHub,
-    DeviceStateStore deviceStateStore) : ComponentBase, IDisposable
+    DeviceStateStore deviceStateStore,
+    TimeProvider timeProvider) : ComponentBase, IDisposable
 {
+    // Keeps "seen ... ago" and the device info current between status changes.
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(10);
+
     private MudTable<Device> _table = null!;
     private readonly HashSet<(string DeviceName, DeviceAction Action)> _runningActions = new();
+    private readonly HashSet<string> _expandedDevices = new(StringComparer.Ordinal);
+    private ITimer? _refreshTimer;
+
+    private DateTimeOffset Now => timeProvider.GetUtcNow();
 
     protected override void OnInitialized()
     {
         deviceStateStore.StatusChanged += OnStatusChanged;
         deviceStateStore.DevicesChanged += OnDevicesChanged;
+        _refreshTimer = timeProvider.CreateTimer(_ => OnStatusChanged(), null, RefreshInterval, RefreshInterval);
     }
 
     private async Task<TableData<Device>> ServerReload(TableState state, CancellationToken token)
@@ -56,6 +65,39 @@ public partial class Devices(
     }
 
     private bool? IsOnline(Device device) => deviceStateStore.IsOnline(device.DeviceId);
+
+    private void ToggleDetails(Device device)
+    {
+        if (!_expandedDevices.Remove(device.DeviceId))
+        {
+            _expandedDevices.Add(device.DeviceId);
+        }
+    }
+
+    private static Color GetStatusColor(DevicePresence? presence) => presence switch
+    {
+        { IsHeartbeatMissed: true } => Color.Warning,
+        { IsOnline: true } => Color.Success,
+        { IsOnline: false } => Color.Error,
+        _ => Color.Default
+    };
+
+    private static string GetStatusTooltip(DevicePresence? presence)
+    {
+        if (presence?.LastSeenUtc is not { } lastSeen)
+        {
+            return "The device has not reported its status yet.";
+        }
+
+        var seen = lastSeen.ToLocalTime().ToString("G");
+        return presence switch
+        {
+            { IsHeartbeatMissed: true } => $"The device reports online, but sent nothing since {seen}. It probably lost power or network.",
+            { IsOnline: true } => $"Last message {seen}. Expected at least every {DeviceInfoFormatter.FormatDuration(presence.HeartbeatInterval)}.",
+            { IsOnline: false } => $"The device went offline. Last message {seen}.",
+            _ => $"Unknown status. Last message {seen}."
+        };
+    }
 
     private void OnStatusChanged() => _ = InvokeAsync(StateHasChanged);
 
@@ -125,6 +167,16 @@ public partial class Devices(
             .ToDictionary(g => g.Key, g => g.Select(x => x.Name).Distinct().Order().ToList());
     }
 
+    /// <returns>Names of the workflows with a <see cref="WorkflowTriggerType.DeviceStatus"/> condition on the device.</returns>
+    private async Task<List<string>> GetStatusUsagesAsync(int deviceId)
+    {
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+        return await dbContext.Workflows
+            .Where(w => w.TriggerConditions.Any(c => c.TriggerDeviceId == deviceId))
+            .Select(w => w.Name)
+            .ToListAsync();
+    }
+
     private async Task Edit(Device device)
     {
         var parameters = new DialogParameters
@@ -176,10 +228,11 @@ public partial class Devices(
 
     private async Task Delete(Device device)
     {
-        var usages = await GetActionUsagesAsync(device.Actions.Select(a => a.Id).ToList());
+        var actionUsages = await GetActionUsagesAsync(device.Actions.Select(a => a.Id).ToList());
+        var usages = actionUsages.Values.SelectMany(x => x).Concat(await GetStatusUsagesAsync(device.Id)).Distinct().Order().ToList();
         if (usages.Count > 0)
         {
-            snackbar.Add($"'{device.Name}' is used by workflows: {string.Join(", ", usages.Values.SelectMany(x => x).Distinct())}. Remove it from those workflows first.", Severity.Warning);
+            snackbar.Add($"'{device.Name}' is used by workflows: {string.Join(", ", usages)}. Remove it from those workflows first.", Severity.Warning);
             return;
         }
 
@@ -226,6 +279,7 @@ public partial class Devices(
 
     public void Dispose()
     {
+        _refreshTimer?.Dispose();
         deviceStateStore.StatusChanged -= OnStatusChanged;
         deviceStateStore.DevicesChanged -= OnDevicesChanged;
     }

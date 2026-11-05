@@ -5,6 +5,7 @@ using Innovative.SolarCalculator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Globalization;
+using System.Threading.Channels;
 using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Application.Workflows;
@@ -13,23 +14,55 @@ public class WorkflowTriggerService(
     IDbContextFactory<HomeManagementDbContext> dbContextFactory,
     IWorkflowRunner workflowRunner,
     IDeviceActionExecutor deviceActionExecutor,
+    DeviceStateStore deviceStateStore,
     IOptionsMonitor<WorkflowAutomationOptions> optionsMonitor,
+    TimeProvider timeProvider,
     ILogger<WorkflowTriggerService> logger) : BackgroundService
 {
     private static readonly TimeSpan MinAtTimeGracePeriod = TimeSpan.FromMinutes(5);
 
     private readonly ConcurrentDictionary<int, Task> _runningWorkflows = new();
 
+    // Holds at most one pending change, so a burst of changes, e.g. the retained statuses after a reconnect, causes at most two checks.
+    private readonly Channel<bool> _statusChanges = Channel.CreateBounded<bool>(
+        new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        deviceStateStore.StatusChanged += OnDeviceStatusChanged;
+        try
+        {
+            await RunLoopAsync(stoppingToken);
+        }
+        finally
+        {
+            deviceStateStore.StatusChanged -= OnDeviceStatusChanged;
+        }
+    }
+
+    private void OnDeviceStatusChanged() => _statusChanges.Writer.TryWrite(true);
+
+    /// <summary>
+    /// Checks all workflows every <see cref="WorkflowAutomationOptions.CheckIntervalSeconds"/>, and the workflows with
+    /// <see cref="WorkflowTriggerType.DeviceStatus"/> conditions as soon as a device status changes, so short outages are not missed.
+    /// </summary>
+    private async Task RunLoopAsync(CancellationToken stoppingToken)
+    {
+        var nextFullCheck = timeProvider.GetUtcNow();
+        var isFullCheck = true;
         while (!stoppingToken.IsCancellationRequested)
         {
             var options = optionsMonitor.CurrentValue;
+            if (isFullCheck)
+            {
+                nextFullCheck = timeProvider.GetUtcNow() + GetCheckInterval(options);
+            }
+
             if (options.Enabled)
             {
                 try
                 {
-                    await ProcessWorkflowsAsync(options, stoppingToken);
+                    await ProcessWorkflowsAsync(options, deviceStatusOnly: !isFullCheck, stoppingToken);
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
@@ -37,11 +70,31 @@ public class WorkflowTriggerService(
                 }
             }
 
-            await Task.Delay(GetCheckInterval(options), stoppingToken);
+            isFullCheck = !await WaitForDeviceStatusChangeAsync(nextFullCheck - timeProvider.GetUtcNow(), stoppingToken);
         }
     }
 
-    private async Task ProcessWorkflowsAsync(WorkflowAutomationOptions options, CancellationToken token)
+    /// <returns>True when a device status changed before <paramref name="timeout"/> elapsed.</returns>
+    private async Task<bool> WaitForDeviceStatusChangeAsync(TimeSpan timeout, CancellationToken token)
+    {
+        if (timeout > TimeSpan.Zero)
+        {
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeoutSource.CancelAfter(timeout);
+            try
+            {
+                await _statusChanges.Reader.WaitToReadAsync(timeoutSource.Token);
+            }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested)
+            {
+                return false;
+            }
+        }
+
+        return _statusChanges.Reader.TryRead(out _);
+    }
+
+    private async Task ProcessWorkflowsAsync(WorkflowAutomationOptions options, bool deviceStatusOnly, CancellationToken token)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
         var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
@@ -52,13 +105,20 @@ public class WorkflowTriggerService(
             options,
             TimeSpan.FromTicks(Math.Max(MinAtTimeGracePeriod.Ticks, GetCheckInterval(options).Ticks * 3)));
 
-        var workflows = await dbContext.Workflows
+        var query = dbContext.Workflows
             .AsTracking()
             .Include(x => x.TriggerConditions)
             .ThenInclude(x => x.TriggerSourceAction)
             .ThenInclude(x => x!.Device)
-            .Where(x => x.IsEnabled)
-            .ToListAsync(token);
+            .Include(x => x.TriggerConditions)
+            .ThenInclude(x => x.TriggerDevice)
+            .Where(x => x.IsEnabled);
+        if (deviceStatusOnly)
+        {
+            query = query.Where(x => x.TriggerConditions.Any(c => c.TriggerType == WorkflowTriggerType.DeviceStatus));
+        }
+
+        var workflows = await query.ToListAsync(token);
 
         var runs = new List<(Workflow Workflow, WorkflowExecutionContext Context)>();
         foreach (var workflow in workflows)
@@ -68,7 +128,13 @@ public class WorkflowTriggerService(
                 continue;
             }
 
-            var (isMatched, triggerContext) = await EvaluateTriggerAsync(workflow, tick, token);
+            var (evaluation, triggerContext) = await EvaluateTriggerAsync(workflow, tick, token);
+            if (evaluation is not { } isMatched)
+            {
+                // A device status is not known yet, e.g. right after the hub started. Keep the previous state, so the workflow does not run again.
+                continue;
+            }
+
             var wasMatched = workflow.LastConditionMatched == true;
             workflow.LastConditionMatched = isMatched;
 
@@ -119,7 +185,8 @@ public class WorkflowTriggerService(
         }
     }
 
-    private async Task<(bool IsMatched, WorkflowExecutionContext Context)> EvaluateTriggerAsync(
+    /// <returns>Whether the conditions match, or null when the result depends on a condition that cannot be evaluated yet.</returns>
+    private async Task<(bool? IsMatched, WorkflowExecutionContext Context)> EvaluateTriggerAsync(
         Workflow workflow,
         TriggerTick tick,
         CancellationToken token)
@@ -131,7 +198,7 @@ public class WorkflowTriggerService(
         }
 
         var contextValues = new Dictionary<string, string?>(StringComparer.Ordinal);
-        var results = new List<bool>(conditions.Count);
+        var results = new List<bool?>(conditions.Count);
 
         for (var i = 0; i < conditions.Count; i++)
         {
@@ -140,23 +207,26 @@ public class WorkflowTriggerService(
             results.Add(evaluation.IsMatched);
 
             contextValues[$"Trigger[{i}].Type"] = condition.TriggerType.ToString();
-            contextValues[$"Trigger[{i}].Device"] = condition.TriggerSourceAction?.Device.Name;
+            var deviceName = condition.TriggerDevice?.Name ?? condition.TriggerSourceAction?.Device.Name;
+            var expectedValue = condition.TriggerDeviceStatus?.ToString() ?? condition.TriggerExpectedValue;
+            contextValues[$"Trigger[{i}].Device"] = deviceName;
             contextValues[$"Trigger[{i}].Property"] = condition.TriggerPropertyPath;
-            contextValues[$"Trigger[{i}].Expected"] = condition.TriggerExpectedValue;
+            contextValues[$"Trigger[{i}].Expected"] = expectedValue;
             contextValues[$"Trigger[{i}].Current"] = evaluation.CurrentValue;
 
             if (i == 0)
             {
-                contextValues["Trigger.Device"] = condition.TriggerSourceAction?.Device.Name;
+                contextValues["Trigger.Device"] = deviceName;
                 contextValues["Trigger.Property"] = condition.TriggerPropertyPath;
-                contextValues["Trigger.Expected"] = condition.TriggerExpectedValue;
+                contextValues["Trigger.Expected"] = expectedValue;
                 contextValues["Trigger.Current"] = evaluation.CurrentValue;
             }
         }
 
-        var isMatched = workflow.ConditionOperator is WorkflowConditionOperator.Or
-            ? results.Any(x => x)
-            : results.All(x => x);
+        // Three-valued logic: an unknown condition decides the result only when the known conditions do not.
+        bool? isMatched = workflow.ConditionOperator is WorkflowConditionOperator.Or
+            ? results.Contains(true) ? true : results.Contains(null) ? null : false
+            : results.Contains(false) ? false : results.Contains(null) ? null : true;
 
         return (isMatched, new WorkflowExecutionContext(contextValues));
     }
@@ -171,6 +241,7 @@ public class WorkflowTriggerService(
             WorkflowTriggerType.Date => EvaluateDateCondition(condition, tick.LocalNow),
             WorkflowTriggerType.Time => EvaluateTimeCondition(condition, tick),
             WorkflowTriggerType.DeviceResult => await EvaluateDeviceResultConditionAsync(condition, tick, token),
+            WorkflowTriggerType.DeviceStatus => EvaluateDeviceStatusCondition(condition),
             _ => new ConditionEvaluationResult(false, null)
         };
     }
@@ -277,6 +348,25 @@ public class WorkflowTriggerService(
         var sunEvent = reference is WorkflowTimeReference.Sunrise ? solarTimes.Sunrise : solarTimes.Sunset;
 
         return TimeZoneInfo.ConvertTimeFromUtc(sunEvent.ToUniversalTime(), tick.TimeZone);
+    }
+
+    private ConditionEvaluationResult EvaluateDeviceStatusCondition(WorkflowTriggerCondition condition)
+    {
+        if (condition.TriggerDevice is not { } device || condition.TriggerDeviceStatus is not { } expectedStatus)
+        {
+            return new ConditionEvaluationResult(false, null);
+        }
+
+        DeviceStatus? status = deviceStateStore.IsOnline(device.DeviceId) switch
+        {
+            true => DeviceStatus.Online,
+            false => DeviceStatus.Offline,
+            null => null
+        };
+
+        return status is null
+            ? new ConditionEvaluationResult(null, null)
+            : new ConditionEvaluationResult(status == expectedStatus, status.ToString());
     }
 
     private async Task<ConditionEvaluationResult> EvaluateDeviceResultConditionAsync(
@@ -403,7 +493,8 @@ public class WorkflowTriggerService(
     private static TimeSpan GetCheckInterval(WorkflowAutomationOptions options)
         => TimeSpan.FromSeconds(Math.Max(5, options.CheckIntervalSeconds));
 
-    private record ConditionEvaluationResult(bool IsMatched, string? CurrentValue);
+    /// <param name="IsMatched">Whether the condition matches, or null when it cannot be evaluated yet.</param>
+    private record ConditionEvaluationResult(bool? IsMatched, string? CurrentValue);
 
     private sealed record TriggerTick(
         DateTimeOffset LocalNow,

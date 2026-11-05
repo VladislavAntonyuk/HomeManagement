@@ -12,7 +12,7 @@ public class DeviceSettings
     public string? DeviceId { get; set; }
 
     /// <summary>
-    /// How often Get commands and device info are published.
+    /// How often Get commands and device info are published. Device info is also the heartbeat the hub uses to detect a device that lost power.
     /// </summary>
     public int TelemetryIntervalSeconds { get; set; } = 60;
 

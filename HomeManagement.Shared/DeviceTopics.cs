@@ -14,6 +14,11 @@ public static class DeviceTopics
 
     public const string Offline = "offline";
 
+    /// <summary>
+    /// Telemetry key of the <see cref="DeviceInfo"/> JSON. Published at the heartbeat interval of the device.
+    /// </summary>
+    public const string InfoKey = "info";
+
     public const string TwinSegment = "twin";
 
     public const string StatusSegment = "status";

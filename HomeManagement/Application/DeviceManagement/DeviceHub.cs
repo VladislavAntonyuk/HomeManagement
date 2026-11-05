@@ -100,6 +100,7 @@ public sealed class DeviceHub(
             return;
         }
 
+        stateStore.SetHeartbeatInterval(deviceId, twin.HeartbeatIntervalSeconds is { } seconds ? TimeSpan.FromSeconds(seconds) : null);
         await registry.RegisterAsync(deviceId, twin);
         stateStore.NotifyDevicesChanged();
     }
@@ -122,10 +123,18 @@ public sealed class DeviceHub(
 
         if (isOnline != true)
         {
-            foreach (var pending in _pendingCommands.Values.Where(x => x.DeviceId == deviceId))
-            {
-                pending.Completion.TrySetResult(new CommandResponse(false, $"Device '{deviceId}' went offline."));
-            }
+            FailPendingCommands(deviceId, $"Device '{deviceId}' went offline.");
+        }
+    }
+
+    /// <summary>
+    /// Completes the commands still waiting for a response of the device, because it will not send one.
+    /// </summary>
+    public void FailPendingCommands(string deviceId, string reason)
+    {
+        foreach (var pending in _pendingCommands.Values.Where(x => x.DeviceId == deviceId))
+        {
+            pending.Completion.TrySetResult(new CommandResponse(false, reason));
         }
     }
 

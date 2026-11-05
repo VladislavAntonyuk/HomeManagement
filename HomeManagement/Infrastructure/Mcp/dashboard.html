@@ -55,6 +55,11 @@
         .item-header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
         .item-title { font-weight: 600; }
         .muted { color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+        .status { font-size: 12px; font-weight: 600; }
+        .status.online { color: var(--color-text-success); }
+        .status.offline { color: var(--color-text-danger); }
+        .status.unknown { color: var(--color-text-secondary); }
+        .details { margin-top: 4px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
 
         button {
@@ -220,6 +225,23 @@
             }
         }
 
+        function formatAgo(value) {
+            const seconds = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 1000));
+            if (seconds < 10) {
+                return "just now";
+            }
+            if (seconds < 60) {
+                return `${seconds} s ago`;
+            }
+            if (seconds < 3600) {
+                return `${Math.floor(seconds / 60)} min ago`;
+            }
+            if (seconds < 86400) {
+                return `${Math.floor(seconds / 3600)} h ago`;
+            }
+            return `${Math.floor(seconds / 86400)} d ago`;
+        }
+
         function renderDevices(devices) {
             const list = document.getElementById("devices");
             list.replaceChildren();
@@ -231,9 +253,27 @@
             for (const device of devices) {
                 const item = element("div", "item");
                 const header = element("div", "item-header");
-                const status = device.isOnline === true ? "online" : device.isOnline === false ? "offline" : "unknown";
-                header.append(element("span", "item-title", device.name), element("span", "muted", `${device.deviceId} · ${status}`));
+                const statusClass = device.isOnline === true ? "online" : device.isOnline === false ? "offline" : "unknown";
+                const statusText = element("span", `status ${statusClass}`, device.status);
+                if (device.lastSeenUtc) {
+                    statusText.title = "Last seen " + new Date(device.lastSeenUtc).toLocaleString();
+                }
+                header.append(element("span", "item-title", device.name), element("span", "muted", device.deviceId), statusText);
                 item.append(header);
+
+                const details = [];
+                if (device.lastSeenUtc) {
+                    details.push("Seen " + formatAgo(device.lastSeenUtc));
+                }
+                if (device.info?.address) {
+                    details.push(device.info.address);
+                }
+                for (const metric of device.info?.metrics ?? []) {
+                    details.push(`${metric.label} ${metric.displayValue}`);
+                }
+                if (details.length) {
+                    item.append(element("div", "muted details", details.join(" · ")));
+                }
                 if (device.description) {
                     item.append(element("div", "muted", device.description));
                 }

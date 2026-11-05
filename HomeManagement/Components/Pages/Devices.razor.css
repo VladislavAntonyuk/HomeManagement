@@ -11,6 +11,57 @@
     white-space: nowrap;
 }
 
+.device-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+}
+
+.device-last-seen {
+    white-space: nowrap;
+}
+
+/* Below 600px MudTable shows every row as a card, where the cell needs its full width. */
+@media (min-width: 600px) {
+    .devices ::deep .device-expand-cell {
+        width: 1px;
+        padding-right: 0 !important;
+    }
+}
+
+.device-details-cell {
+    background-color: var(--mud-palette-background-gray);
+}
+
+/* On small screens MudTable lays cells out as flex rows with a label in front, which push content to the right. */
+.device-details-cell::before {
+    display: none !important;
+}
+
+.device-details,
+.device-details-empty {
+    flex: 1 1 100%;
+}
+
+.device-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+    gap: 0.75rem 1.5rem;
+    margin: 0;
+}
+
+.device-details dt {
+    color: var(--mud-palette-text-secondary);
+    font-size: 0.75rem;
+}
+
+.device-details dd {
+    margin: 0;
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+}
+
 @media (max-width: 960px) {
     .device-actions-container {
         flex-wrap: nowrap;

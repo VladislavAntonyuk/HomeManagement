@@ -17,11 +17,6 @@ public static class NetworkManager
         return $"{subnetBytes[0]}.{subnetBytes[1]}.{subnetBytes[2]}.{subnetBytes[3]}";
     }
 
-    public static string GetAddress()
-    {
-        return $"http://{GetLocalIp()}";
-    }
-
     private static byte[] GetSubnets()
     {
         foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())

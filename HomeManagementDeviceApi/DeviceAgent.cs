@@ -21,7 +21,6 @@ public sealed class DeviceAgent(
     IServiceScopeFactory serviceScopeFactory,
     ILogger<DeviceAgent> logger) : BackgroundService, IMqttClientConnectedCallback, IMqttClientDisconnectingCallback
 {
-    private const string InfoKey = "info";
     private const string ShutdownKey = "shutdown";
     private const string RestartKey = "restart";
 
@@ -86,20 +85,35 @@ public sealed class DeviceAgent(
         });
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        var telemetryInterval = TimeSpan.FromSeconds(Math.Max(1, deviceOptions.Value.TelemetryIntervalSeconds));
+    private TimeSpan TelemetryInterval => TimeSpan.FromSeconds(Math.Max(1, deviceOptions.Value.TelemetryIntervalSeconds));
 
+    // The heartbeat runs on its own, so a slow Get command cannot make the hub think the device is offline.
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+        => Task.WhenAll(PublishHeartbeatsAsync(stoppingToken), PublishTelemetryAsync(stoppingToken));
+
+    private async Task PublishHeartbeatsAsync(CancellationToken stoppingToken)
+    {
+        using var timer = new PeriodicTimer(TelemetryInterval);
+        while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
+            if (_isConnected)
+            {
+                await TryPublishInfoAsync(stoppingToken);
+            }
+        }
+    }
+
+    private async Task PublishTelemetryAsync(CancellationToken stoppingToken)
+    {
         while (!stoppingToken.IsCancellationRequested)
         {
             // Wakes up early when the device (re)connects, so telemetry is published right away.
-            await _publishTelemetrySignal.WaitAsync(telemetryInterval, stoppingToken);
+            await _publishTelemetrySignal.WaitAsync(TelemetryInterval, stoppingToken);
             if (!_isConnected)
             {
                 continue;
             }
 
-            await TryPublishTelemetryAsync(InfoKey, () => Task.FromResult<string?>(JsonSerializer.Serialize(GetDeviceInfo(), JsonOptions)), stoppingToken);
             foreach (var command in commandsOptions.Value.Commands.Where(x => x.Method == CommandType.Get))
             {
                 await TryPublishTelemetryAsync(command.Endpoint, async () =>
@@ -123,6 +137,7 @@ public sealed class DeviceAgent(
         {
             await PublishAsync(BuildTwin());
             await PublishAsync(new StringMessage<DeviceStatusPayload>(DeviceTopics.Online));
+            await TryPublishInfoAsync(CancellationToken.None);
             if (_publishTelemetrySignal.CurrentCount == 0)
             {
                 _publishTelemetrySignal.Release();
@@ -138,7 +153,7 @@ public sealed class DeviceAgent(
     {
         var actions = new List<DeviceAction>
         {
-            new("INFO", CommandType.Get, InfoKey),
+            new("INFO", CommandType.Get, DeviceTopics.InfoKey),
             new("SHUTDOWN", CommandType.Post, ShutdownKey),
             new("RESTART", CommandType.Post, RestartKey)
         };
@@ -147,9 +162,13 @@ public sealed class DeviceAgent(
         return new DeviceTwin
         {
             Name = deviceOptions.Value.DeviceName,
-            Actions = actions
+            Actions = actions,
+            HeartbeatIntervalSeconds = (int)TelemetryInterval.TotalSeconds
         };
     }
+
+    private Task TryPublishInfoAsync(CancellationToken token)
+        => TryPublishTelemetryAsync(DeviceTopics.InfoKey, () => Task.FromResult<string?>(JsonSerializer.Serialize(GetDeviceInfo(), JsonOptions)), token);
 
     private async Task TryPublishTelemetryAsync(string key, Func<Task<string?>> readValue, CancellationToken token)
     {
@@ -229,7 +248,7 @@ public sealed class DeviceAgent(
     private DeviceInfo GetDeviceInfo() => new()
     {
         Name = deviceOptions.Value.DeviceName,
-        Address = NetworkManager.GetAddress(),
+        Address = NetworkManager.GetLocalIp(),
         Metrics = new Dictionary<string, string>
         {
             { "UptimeSeconds", DeviceManager.GetUptime().ToString(CultureInfo.InvariantCulture) },

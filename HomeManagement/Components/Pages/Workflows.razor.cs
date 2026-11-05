@@ -20,6 +20,8 @@ public partial class Workflows(
 
     private Dictionary<(string DeviceName, string ActionName), int> _actionIds = new();
 
+    private Dictionary<string, int> _deviceIds = new(StringComparer.Ordinal);
+
     private async Task<TableData<Workflow>> ServerReload(TableState state, CancellationToken token)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
@@ -28,6 +30,8 @@ public partial class Workflows(
             .Include(w => w.TriggerConditions)
             .ThenInclude(c => c.TriggerSourceAction)
             .ThenInclude(a => a!.Device)
+            .Include(w => w.TriggerConditions)
+            .ThenInclude(c => c.TriggerDevice)
             .Include(w => w.Steps.OrderBy(s => s.Order))
             .ThenInclude(s => s.DeviceAction)
             .ThenInclude(a => a!.Device)
@@ -120,8 +124,9 @@ public partial class Workflows(
                         TriggerTimeToReference = x.TriggerTimeToReference,
                         TriggerTimeTo = x.TriggerTimeTo,
                         TriggerTimeToOffsetMinutes = x.TriggerTimeToOffsetMinutes,
-                        TriggerDeviceName = x.TriggerSourceAction?.Device.Name,
+                        TriggerDeviceName = x.TriggerDevice?.Name ?? x.TriggerSourceAction?.Device.Name,
                         TriggerSourceActionName = x.TriggerSourceAction?.Action,
+                        TriggerDeviceStatus = x.TriggerDeviceStatus,
                         TriggerPropertyPath = x.TriggerPropertyPath,
                         TriggerExpectedValue = x.TriggerExpectedValue,
                         TriggerValueType = x.TriggerValueType,
@@ -274,6 +279,7 @@ public partial class Workflows(
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         var devices = await dbContext.Devices.AsNoTracking().Include(d => d.Actions).ToListAsync();
 
+        _deviceIds = devices.ToDictionary(d => d.Name, d => d.Id, StringComparer.Ordinal);
         _actionIds = devices
             .SelectMany(d => d.Actions.Select(a => (Key: (d.Name, a.Action), a.Id)))
             .DistinctBy(x => x.Key)
@@ -299,6 +305,18 @@ public partial class Workflows(
             : throw new InvalidOperationException($"Action '{actionName}' no longer exists on device '{deviceName}'.");
     }
 
+    private int? ResolveDeviceId(string? deviceName)
+    {
+        if (string.IsNullOrWhiteSpace(deviceName))
+        {
+            return null;
+        }
+
+        return _deviceIds.TryGetValue(deviceName, out var id)
+            ? id
+            : throw new InvalidOperationException($"Device '{deviceName}' no longer exists.");
+    }
+
     private Workflow MapToEntity(WorkflowEditModel model)
     {
         var triggerConditions = model.TriggerConditions.Select(x =>
@@ -306,6 +324,7 @@ public partial class Workflows(
             var isDate = x.TriggerType is WorkflowTriggerType.Date;
             var isTime = x.TriggerType is WorkflowTriggerType.Time;
             var isDeviceResult = x.TriggerType is WorkflowTriggerType.DeviceResult;
+            var isDeviceStatus = x.TriggerType is WorkflowTriggerType.DeviceStatus;
             var isRange = WorkflowConditionFormatter.IsRange(x.TriggerOperator);
 
             return new WorkflowTriggerCondition
@@ -321,6 +340,8 @@ public partial class Workflows(
                 TriggerTimeTo = isTime && isRange && x.TriggerTimeToReference is WorkflowTimeReference.Fixed ? x.TriggerTimeTo : null,
                 TriggerTimeToOffsetMinutes = isTime && isRange && x.TriggerTimeToReference is not WorkflowTimeReference.Fixed ? x.TriggerTimeToOffsetMinutes : null,
                 TriggerSourceActionId = isDeviceResult ? ResolveActionId(x.TriggerDeviceName, x.TriggerSourceActionName) : null,
+                TriggerDeviceId = isDeviceStatus ? ResolveDeviceId(x.TriggerDeviceName) : null,
+                TriggerDeviceStatus = isDeviceStatus ? x.TriggerDeviceStatus : null,
                 TriggerPropertyPath = isDeviceResult ? x.TriggerPropertyPath : null,
                 TriggerExpectedValue = isDeviceResult ? x.TriggerExpectedValue : null,
                 TriggerValueType = isDeviceResult ? x.TriggerValueType : null

@@ -26,6 +26,7 @@ public class WorkflowTriggerConditionEditModel
     public int? TriggerTimeToOffsetMinutes { get; set; }
     public string? TriggerDeviceName { get; set; }
     public string? TriggerSourceActionName { get; set; }
+    public DeviceStatus? TriggerDeviceStatus { get; set; }
     public string? TriggerPropertyPath { get; set; }
     public string? TriggerExpectedValue { get; set; }
     public WorkflowTriggerValueType? TriggerValueType { get; set; }

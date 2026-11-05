@@ -99,6 +99,24 @@
                             </MudStack>
                         }
                     }
+                    else if (condition.TriggerType is WorkflowTriggerType.DeviceStatus)
+                    {
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudSelect T="string" @bind-Value="condition.TriggerDeviceName" Label="Device" Required="true" Class="action-field">
+                                @foreach (var deviceName in AvailableActions.Keys.Order())
+                                {
+                                    <MudSelectItem T="string" Value="@deviceName">@deviceName</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudSelect T="DeviceStatus?" @bind-Value="condition.TriggerDeviceStatus" Label="Goes" Required="true" Class="action-field">
+                                @foreach (var status in Enum.GetValues<DeviceStatus>())
+                                {
+                                    <MudSelectItem T="DeviceStatus?" Value="@status">@status</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudStack>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Runs as soon as the device changes to this status. Matches while it stays so, e.g. for AND with other conditions.</MudText>
+                    }
                     else if (condition.TriggerType is WorkflowTriggerType.DeviceResult)
                     {
                         <MudSelect T="string" Value="@condition.TriggerDeviceName" ValueChanged="value => OnConditionDeviceChanged(index, value)" Label="Device" Required="true">

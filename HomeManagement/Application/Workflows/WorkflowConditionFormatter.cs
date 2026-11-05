@@ -108,6 +108,8 @@ public static class WorkflowConditionFormatter
                 FormatTime(condition.TriggerTimeToReference, condition.TriggerTimeTo, condition.TriggerTimeToOffsetMinutes)),
             WorkflowTriggerType.DeviceResult
                 => $"{condition.TriggerSourceAction?.Device?.Name ?? "?"}/{condition.TriggerSourceAction?.Action ?? "?"}:{condition.TriggerPropertyPath} {FormatOperator(condition.TriggerType, condition.TriggerOperator)} {condition.TriggerExpectedValue}",
+            WorkflowTriggerType.DeviceStatus
+                => $"{condition.TriggerDevice?.Name ?? "?"} goes {condition.TriggerDeviceStatus?.ToString().ToLowerInvariant() ?? "?"}",
             _ => condition.TriggerType.ToString()
         };
     }
