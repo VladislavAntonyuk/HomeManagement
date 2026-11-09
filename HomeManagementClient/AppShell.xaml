@@ -1,0 +1,11 @@
+<Shell
+    x:Class="HomeManagementClient.AppShell"
+    xmlns:local="clr-namespace:HomeManagementClient"
+    Title="HomeManagementClient">
+
+    <ShellContent
+        Title="Home"
+        ContentTemplate="{DataTemplate local:MainPage}"
+        Route="MainPage" />
+
+</Shell>
