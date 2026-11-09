@@ -31,12 +31,16 @@ The status is JSON, for example from an AP300:
   "acOutputVoltage": 230.1,
   "acOutputFrequency": 50.0,
   "timeRemaining": 18.4,
+  "charging": true,
   "solar1": { "power": 262, "voltage": 38.2, "current": 6.8 },
   "solar2": { "power": 150, "voltage": 36.9, "current": 4.0 }
 }
 ```
 
 Values the model does not report are left out, and `error` explains why the power station is not connected.
+`timeRemaining` is in hours and, as in the Bluetti app, it is the time until the battery is full while it charges and until it is empty while it discharges.
+`charging` tells which: it is true when the input power is higher than the output power.
+The AP300 does not report its AC input power, so charging from the grid is not counted.
 The power station is polled every 10 seconds, and the status is published as soon as it changes and every minute.
 
 POLLING OFF disconnects from the power station, for example at night when no updates are needed, and frees it for the Bluetti app.
@@ -55,7 +59,7 @@ It finds the protocol version from the device type registers after connecting.
   Outputs are switched with registers 3007 (AC) and 3008 (DC).
 - Protocol 2: AP300, AC180, AC180P, AC60, AC60P, AC70, AC2P, EL30V2, EP600 and the other newer models.
   Battery and powers are read from registers 100 to 161.
-  The AP300 also reports the time remaining (104), both solar inputs (1212 to 1222) and the AC output frequency and voltage (1500, 1511).
+  The AP300 also reports the time until full or empty (104), both solar inputs (1212 to 1222) and the AC output frequency and voltage (1500, 1511).
   Outputs are switched with registers 2011 (AC) and 2012 (DC) on the models that support it; the AP300 has no switchable outputs.
 
 Newer Bluetti firmware (IoT module 9046 and later) encrypts the connection.

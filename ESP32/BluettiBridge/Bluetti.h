@@ -47,7 +47,7 @@ struct BluettiStatus {
   int dcOutputPower = -1;
   float acOutputVoltage = -1;
   float acOutputFrequency = -1;
-  // Hours.
+  // Hours until full while charging, until empty while discharging, as in the Bluetti app.
   float timeRemaining = -1;
   float powerGeneration = -1;
   BluettiSolarInput solarInputs[2];

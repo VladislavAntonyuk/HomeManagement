@@ -134,6 +134,12 @@ String readStatus() {
   setDecimal(doc, "acOutputVoltage", status.acOutputVoltage);
   setDecimal(doc, "acOutputFrequency", status.acOutputFrequency);
   setDecimal(doc, "timeRemaining", status.timeRemaining);
+  // The time remaining is until full while charging and until empty while discharging, which the inputs and outputs tell apart.
+  if (status.timeRemaining >= 0) {
+    int input = std::max(status.acInputPower, 0) + std::max(status.dcInputPower, 0);
+    int output = std::max(status.acOutputPower, 0) + std::max(status.dcOutputPower, 0);
+    doc["charging"] = input > output;
+  }
   for (size_t i = 0; i < 2; i++) {
     const BluettiSolarInput& input = status.solarInputs[i];
     if (input.power >= 0) {
