@@ -1,0 +1,38 @@
+<ContentPage x:Class="HomeManagementClient.Pages.CameraPage"
+             x:Name="Page"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:DataType="CameraViewModel"
+             Shell.TabBarIsVisible="False"
+             Title="{Binding Camera}"
+             BackgroundColor="Black">
+
+    <ContentPage.Behaviors>
+        <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Appearing" Command="{Binding StartCommand}" />
+        <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Disappearing" Command="{Binding StopCommand}" />
+    </ContentPage.Behaviors>
+
+    <Grid RowDefinitions="*,Auto">
+        <Image Source="{Binding Frame}" Aspect="AspectFit" />
+
+        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" IsVisible="{Binding HasStatus}">
+            <ActivityIndicator IsRunning="{Binding HasStatus}" Color="White" />
+            <Label Text="{Binding Status}" TextColor="White" HorizontalTextAlignment="Center" Margin="24,0" />
+        </VerticalStackLayout>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Padding="16,8" BackgroundColor="#CC000000">
+            <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
+                <Ellipse WidthRequest="10" HeightRequest="10" Fill="{StaticResource StatusOffline}" VerticalOptions="Center"
+                         IsVisible="{Binding HasStatus, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Text="LIVE" TextColor="White" FontFamily="OpenSansSemibold" VerticalOptions="Center"
+                       IsVisible="{Binding HasStatus, Converter={StaticResource InvertedBoolConverter}}" />
+                <Label Text="{Binding Fps}" TextColor="{StaticResource Gray300}" VerticalOptions="Center" />
+            </HorizontalStackLayout>
+            <Picker Grid.Column="1"
+                    ItemsSource="{Binding Qualities}"
+                    SelectedItem="{Binding SelectedQuality}"
+                    ItemDisplayBinding="{Binding Name, x:DataType=StreamQuality}"
+                    TextColor="White"
+                    MinimumWidthRequest="150" />
+        </Grid>
+    </Grid>
+</ContentPage>

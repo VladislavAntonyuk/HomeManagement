@@ -1,0 +1,11 @@
+<ContentView x:Class="HomeManagementClient.Pages.NotConfiguredView"
+             x:DataType="RefreshableViewModel">
+    <VerticalStackLayout Padding="24" Spacing="12" VerticalOptions="Center" HorizontalOptions="Center" MaximumWidthRequest="420">
+        <Label Text="Connect to your hub" Style="{StaticResource PageTitle}" HorizontalTextAlignment="Center" />
+        <Label Text="Enter the address of the Home Management hub and the key you sign in with."
+               Style="{StaticResource Caption}"
+               FontSize="14"
+               HorizontalTextAlignment="Center" />
+        <Button Text="Open settings" Command="{Binding OpenSettingsCommand}" HorizontalOptions="Center" />
+    </VerticalStackLayout>
+</ContentView>

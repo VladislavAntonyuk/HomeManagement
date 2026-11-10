@@ -1,17 +1,12 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿namespace HomeManagementClient;
 
-namespace HomeManagementClient
+public partial class App : Application
 {
-    public partial class App : Application
+    public App()
     {
-        public App()
-        {
-            InitializeComponent();
-        }
-
-        protected override Window CreateWindow(IActivationState? activationState)
-        {
-            return new Window(new AppShell());
-        }
+        InitializeComponent();
     }
+
+    protected override Window CreateWindow(IActivationState? activationState)
+        => new(new AppShell()) { Title = "Home Management" };
 }

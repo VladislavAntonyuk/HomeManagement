@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net11.0;net11.0-android</TargetFrameworks>
@@ -18,12 +18,16 @@
 		<SingleProject>true</SingleProject>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<!-- XAML is inflated by the source generator: compile time errors and no runtime XAML parsing -->
+		<MauiXamlInflator>SourceGen</MauiXamlInflator>
+		<!-- Compiled bindings also for bindings with Source -->
+		<MauiEnableXamlCBindingWithSourceCompilation>true</MauiEnableXamlCBindingWithSourceCompilation>
 
 		<!-- Display name -->
-		<ApplicationTitle>HomeManagementClient</ApplicationTitle>
+		<ApplicationTitle>Home Management</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.companyname.homemanagementclient</ApplicationId>
+		<ApplicationId>com.vladislavantonyuk.homemanagementclient</ApplicationId>
 
 		<!-- Versions -->
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
@@ -51,7 +55,6 @@
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
-		<MauiImage Update="Resources\Images\dotnet_bot.png" BaseSize="222,185" />
 
 		<!-- Custom Fonts -->
 		<MauiFont Include="Resources\Fonts\*" />
@@ -64,11 +67,19 @@
 		<!-- Map the 'Platforms/Gtk' directory to the GTK backend -->
 		<MauiPlatformSpecificFolder Include="Platforms\Gtk" TargetPlatformIdentifiers="" BackendIdentity="gtk" ActivationProperty="MauiActiveBackend" ActivationValue="gtk" />
 		<PackageReference Include="Platform.Maui.Linux.Gtk4" Version="0.6.0" />
+		<PackageReference Include="Platform.Maui.Linux.Gtk4.Essentials" Version="0.6.0" />
 	</ItemGroup>
 	
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="11.0.0-*" />
+		<PackageReference Include="CommunityToolkit.Maui" Version="16.0.0" />
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+		<PackageReference Include="Refit.HttpClientFactory" Version="16.4.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\HomeManagement.Shared\HomeManagement.Shared.csproj" />
 	</ItemGroup>
 
 </Project>

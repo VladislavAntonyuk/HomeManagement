@@ -186,13 +186,8 @@ public class HomeManagementMcpTools
             return null;
         }
 
-        var metrics = info.Metrics
-            .OrderBy(x => x.Key, StringComparer.Ordinal)
-            .Select(x =>
-            {
-                var (label, displayValue) = DeviceInfoFormatter.FormatMetric(x.Key, x.Value);
-                return new McpDeviceMetric(x.Key, x.Value, label, displayValue);
-            })
+        var metrics = DeviceInfoFormatter.FormatMetrics(info)
+            .Select(x => new McpDeviceMetric(x.Name, x.Value, x.Label, x.DisplayValue))
             .ToList();
         return new McpDeviceInfo(string.IsNullOrEmpty(info.Address) ? null : info.Address, metrics, telemetry.ReceivedAtUtc);
     }

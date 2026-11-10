@@ -3,6 +3,8 @@ using System.Text.RegularExpressions;
 
 namespace HomeManagement.Application.DeviceManagement;
 
+public sealed record FormattedMetric(string Name, string Value, string Label, string DisplayValue);
+
 /// <summary>
 /// Formats device presence and the metrics devices publish in their info telemetry for display.
 /// </summary>
@@ -75,6 +77,19 @@ public static partial class DeviceInfoFormatter
             _ => (ToLabel(name), value)
         };
     }
+
+    /// <summary>
+    /// Formats all metrics of the info a device reported, ordered by name.
+    /// </summary>
+    public static IReadOnlyList<FormattedMetric> FormatMetrics(Shared.DeviceInfo info)
+        => info.Metrics
+            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .Select(x =>
+            {
+                var (label, displayValue) = FormatMetric(x.Key, x.Value);
+                return new FormattedMetric(x.Key, x.Value, label, displayValue);
+            })
+            .ToList();
 
     private static string FormatBytes(double bytes) => bytes switch
     {

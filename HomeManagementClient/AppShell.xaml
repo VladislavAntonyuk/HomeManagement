@@ -1,11 +1,27 @@
-<Shell
-    x:Class="HomeManagementClient.AppShell"
-    xmlns:local="clr-namespace:HomeManagementClient"
-    Title="HomeManagementClient">
+<Shell x:Class="HomeManagementClient.AppShell"
+       Title="Home Management">
 
-    <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+    <TabBar>
+        <ShellContent Title="Dashboard"
+                      Icon="tab_dashboard.png"
+                      Route="dashboard"
+                      ContentTemplate="{DataTemplate DashboardPage}" />
+        <ShellContent Title="Devices"
+                      Icon="tab_devices.png"
+                      Route="devices"
+                      ContentTemplate="{DataTemplate DevicesPage}" />
+        <ShellContent Title="Workflows"
+                      Icon="tab_workflows.png"
+                      Route="workflows"
+                      ContentTemplate="{DataTemplate WorkflowsPage}" />
+        <ShellContent Title="Cameras"
+                      Icon="tab_cameras.png"
+                      Route="cameras"
+                      ContentTemplate="{DataTemplate CamerasPage}" />
+        <ShellContent Title="Settings"
+                      Icon="tab_settings.png"
+                      Route="settings"
+                      ContentTemplate="{DataTemplate SettingsPage}" />
+    </TabBar>
 
 </Shell>

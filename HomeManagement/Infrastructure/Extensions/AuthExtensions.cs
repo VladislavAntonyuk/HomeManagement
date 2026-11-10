@@ -1,4 +1,5 @@
 ﻿using HomeManagement.Application.Login;
+using HomeManagement.Infrastructure.Api;
 using HomeManagement.Infrastructure.Mcp;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -58,10 +59,21 @@ public static class AuthExtensions
             })
             .AddScheme<AuthenticationSchemeOptions, McpApiKeyAuthenticationHandler>(
                 McpApiKeyAuthenticationDefaults.AuthenticationScheme,
+                _ => { })
+            .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+                ApiAuthenticationDefaults.AuthenticationScheme,
                 _ => { });
 
         builder.Services.AddAuthorization(options =>
         {
+            // REST API: the app sends the API key, the Blazor UI may call it with its cookie
+            options.AddPolicy(ApiAuthenticationDefaults.PolicyName, policy =>
+            {
+                policy.AuthenticationSchemes.Add(ApiAuthenticationDefaults.AuthenticationScheme);
+                policy.AuthenticationSchemes.Add(CookieAuthenticationDefaults.AuthenticationScheme);
+                policy.RequireAuthenticatedUser();
+            });
+
             options.AddPolicy(McpApiKeyAuthenticationDefaults.PolicyName, policy =>
             {
                 policy.AuthenticationSchemes.Add(McpApiKeyAuthenticationDefaults.AuthenticationScheme);

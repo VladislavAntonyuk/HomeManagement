@@ -8,6 +8,7 @@ using ModelContextProtocol.Extensions.Apps;
 using MudBlazor.Services;
 using System.Text.Json.Serialization;
 using HomeManagement.Infrastructure;
+using HomeManagement.Infrastructure.Api;
 using HomeManagement.Infrastructure.Database;
 using HomeManagement.Infrastructure.Extensions;
 using HomeManagement.Infrastructure.Mcp;
@@ -71,6 +72,7 @@ app.UseAntiforgery();
 app.UseHttpFlv();
 app.MapStaticAssets();
 app.MapLogin();
+app.MapHomeApi();
 
 app.MapMcp("/mcp")
     .RequireAuthorization(McpApiKeyAuthenticationDefaults.PolicyName)

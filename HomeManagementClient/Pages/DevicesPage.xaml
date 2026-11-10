@@ -1,0 +1,113 @@
+<ContentPage x:Class="HomeManagementClient.Pages.DevicesPage"
+             x:Name="Page"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:DataType="DevicesViewModel"
+             Shell.NavBarIsVisible="False"
+             Title="Devices">
+
+    <ContentPage.Behaviors>
+        <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Appearing" Command="{Binding AppearingCommand}" />
+        <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Disappearing" Command="{Binding DisappearingCommand}" />
+    </ContentPage.Behaviors>
+
+    <Grid>
+        <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16,16,16,0" RowSpacing="12" IsVisible="{Binding IsConfigured}">
+            <Grid ColumnDefinitions="*,Auto">
+                <Label Text="Devices" Style="{StaticResource PageTitle}" />
+                <Label Grid.Column="1" Text="{Binding Summary}" Style="{StaticResource Caption}" VerticalOptions="Center" />
+            </Grid>
+
+            <SearchBar Grid.Row="1" Placeholder="Search devices" Text="{Binding SearchText}" />
+
+            <Border Grid.Row="2" Style="{StaticResource ErrorBanner}" IsVisible="{Binding HasError}">
+                <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
+            </Border>
+
+            <RefreshView Grid.Row="3" Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
+                <CollectionView ItemsSource="{Binding Devices}" SelectionMode="None">
+                    <CollectionView.ItemsLayout>
+                        <GridItemsLayout Orientation="Vertical" Span="{OnIdiom Phone=1, Default=2}" HorizontalItemSpacing="12" VerticalItemSpacing="12" />
+                    </CollectionView.ItemsLayout>
+
+                    <CollectionView.EmptyView>
+                        <Grid>
+                            <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" HorizontalOptions="Center" VerticalOptions="Center" />
+                            <Label Text="No devices" Style="{StaticResource Caption}" HorizontalOptions="Center" VerticalOptions="Center"
+                                   IsVisible="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
+                        </Grid>
+                    </CollectionView.EmptyView>
+
+                    <CollectionView.Footer>
+                        <BoxView HeightRequest="16" Color="Transparent" BackgroundColor="Transparent" />
+                    </CollectionView.Footer>
+
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="DeviceItemViewModel">
+                            <Border Style="{StaticResource Card}">
+                                <VerticalStackLayout Spacing="10">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <VerticalStackLayout Spacing="2">
+                                            <Label Text="{Binding Name}" Style="{StaticResource CardTitle}" />
+                                            <Label Text="{Binding DeviceId}" Style="{StaticResource Caption}" />
+                                        </VerticalStackLayout>
+                                        <Border Grid.Column="1" Style="{StaticResource Chip}"
+                                                BackgroundColor="{Binding Status, Converter={StaticResource PresenceStatusToColorConverter}}">
+                                            <Label Text="{Binding StatusText}" Style="{StaticResource ChipText}" />
+                                        </Border>
+                                    </Grid>
+
+                                    <Label Text="{Binding Description}" IsVisible="{Binding Description, Converter={StaticResource IsStringNotNullOrEmptyConverter}}" />
+
+                                    <HorizontalStackLayout Spacing="12">
+                                        <Label Text="{Binding LastSeen}" Style="{StaticResource Caption}" />
+                                        <Label Text="{Binding Address}" Style="{StaticResource Caption}"
+                                               IsVisible="{Binding Address, Converter={StaticResource IsStringNotNullOrEmptyConverter}}" />
+                                    </HorizontalStackLayout>
+
+                                    <!-- Info metrics the device reports, e.g. uptime and Wi-Fi signal -->
+                                    <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Metrics}"
+                                                IsVisible="{Binding Metrics, Converter={StaticResource IsListNotNullOrEmptyConverter}}">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="DeviceMetricDto">
+                                                <VerticalStackLayout Margin="0,0,16,4" Spacing="0">
+                                                    <Label Text="{Binding Label}" Style="{StaticResource Caption}" />
+                                                    <Label Text="{Binding DisplayValue}" FontSize="13" />
+                                                </VerticalStackLayout>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </FlexLayout>
+
+                                    <FlexLayout Wrap="Wrap" BindableLayout.ItemsSource="{Binding Actions}"
+                                                IsVisible="{Binding Actions, Converter={StaticResource IsListNotNullOrEmptyConverter}}">
+                                        <BindableLayout.ItemTemplate>
+                                            <DataTemplate x:DataType="DeviceActionItemViewModel">
+                                                <Grid Margin="0,0,8,8">
+                                                    <Button Text="{Binding Name}"
+                                                            Command="{Binding RunCommand}"
+                                                            Style="{StaticResource SecondaryButton}">
+                                                        <Button.Triggers>
+                                                            <DataTrigger TargetType="Button" Binding="{Binding IsReadOnly}" Value="False">
+                                                                <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}" />
+                                                                <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}" />
+                                                            </DataTrigger>
+                                                        </Button.Triggers>
+                                                    </Button>
+                                                    <ActivityIndicator IsRunning="{Binding RunCommand.IsRunning}"
+                                                                       IsVisible="{Binding RunCommand.IsRunning}"
+                                                                       HeightRequest="20" WidthRequest="20"
+                                                                       HorizontalOptions="Center" VerticalOptions="Center" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </BindableLayout.ItemTemplate>
+                                    </FlexLayout>
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </RefreshView>
+        </Grid>
+
+        <NotConfiguredView IsVisible="{Binding IsConfigured, Converter={StaticResource InvertedBoolConverter}}" />
+    </Grid>
+</ContentPage>

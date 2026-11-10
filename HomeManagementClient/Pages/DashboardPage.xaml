@@ -1,0 +1,110 @@
+<ContentPage x:Class="HomeManagementClient.Pages.DashboardPage"
+             x:Name="Page"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+             x:DataType="DashboardViewModel"
+             Shell.NavBarIsVisible="False"
+             Title="Dashboard">
+
+    <ContentPage.Behaviors>
+        <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Appearing" Command="{Binding AppearingCommand}" />
+        <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Disappearing" Command="{Binding DisappearingCommand}" />
+    </ContentPage.Behaviors>
+
+    <Grid>
+        <RefreshView Command="{Binding RefreshCommand}"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     IsVisible="{Binding IsConfigured}">
+            <ScrollView>
+                <VerticalStackLayout Padding="16" Spacing="16" MaximumWidthRequest="1100">
+
+                    <Label Text="Home" Style="{StaticResource PageTitle}" />
+
+                    <Border Style="{StaticResource ErrorBanner}" IsVisible="{Binding HasError}">
+                        <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
+                    </Border>
+
+                    <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" HorizontalOptions="Center" />
+
+                    <!-- Away mode -->
+                    <Border Style="{StaticResource Card}" IsVisible="{Binding Dashboard, Converter={StaticResource IsNotNullConverter}}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <VerticalStackLayout Spacing="4" VerticalOptions="Center">
+                                <Label Text="Away mode" Style="{StaticResource CardTitle}" />
+                                <Label Text="Cameras alert when they see a person." Style="{StaticResource Caption}" />
+                            </VerticalStackLayout>
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding AwayModeEnabled}"
+                                    IsEnabled="{Binding IsUpdatingAwayMode, Converter={StaticResource InvertedBoolConverter}}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Summary tiles: one column on phones, three side by side elsewhere -->
+                    <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='*,*,*'}"
+                          RowDefinitions="{OnIdiom Phone='Auto,Auto,Auto', Default='Auto'}"
+                          ColumnSpacing="12" RowSpacing="12"
+                          IsVisible="{Binding Dashboard, Converter={StaticResource IsNotNullConverter}}">
+
+                        <Border Style="{StaticResource Card}">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding GoToCommand}" CommandParameter="//devices" />
+                            </Border.GestureRecognizers>
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Devices" Style="{StaticResource Caption}" />
+                                <HorizontalStackLayout Spacing="6">
+                                    <Label Text="{Binding Dashboard.OnlineDevices}" Style="{StaticResource BigValue}" TextColor="{StaticResource StatusOnline}" />
+                                    <Label Text="{Binding Dashboard.TotalDevices, StringFormat='of {0} online'}" VerticalOptions="End" Margin="0,0,0,6" />
+                                </HorizontalStackLayout>
+                                <ProgressBar Progress="{Binding OnlineShare}" ProgressColor="{StaticResource StatusOnline}" />
+                                <HorizontalStackLayout Spacing="12">
+                                    <Label Text="{Binding Dashboard.OfflineDevices, StringFormat='{0} offline'}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusOffline}" />
+                                    <Label Text="{Binding Dashboard.NotRespondingDevices, StringFormat='{0} not responding'}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusWarning}" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Grid.Column="{OnIdiom Phone=0, Default=1}" Grid.Row="{OnIdiom Phone=1, Default=0}">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding GoToCommand}" CommandParameter="//workflows" />
+                            </Border.GestureRecognizers>
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Workflows" Style="{StaticResource Caption}" />
+                                <HorizontalStackLayout Spacing="6">
+                                    <Label Text="{Binding Dashboard.EnabledWorkflows}" Style="{StaticResource BigValue}" />
+                                    <Label Text="{Binding Dashboard.TotalWorkflows, StringFormat='of {0} enabled'}" VerticalOptions="End" Margin="0,0,0,6" />
+                                </HorizontalStackLayout>
+                                <Label Text="{Binding LastWorkflowRun, StringFormat='Last run {0}'}" Style="{StaticResource Caption}" />
+                            </VerticalStackLayout>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Grid.Column="{OnIdiom Phone=0, Default=2}" Grid.Row="{OnIdiom Phone=2, Default=0}">
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Hub" Style="{StaticResource Caption}" />
+                                <Label Text="{Binding Dashboard.Hub.MachineName}" Style="{StaticResource CardTitle}" />
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
+                                    <Label Text="Address" Style="{StaticResource Caption}" />
+                                    <Label Grid.Column="1" Text="{Binding Dashboard.Hub.LocalIp, TargetNullValue='-'}" />
+                                    <Label Grid.Row="1" Text="Uptime" Style="{StaticResource Caption}" />
+                                    <Label Grid.Row="1" Grid.Column="1" Text="{Binding HubUptime}" />
+                                    <Label Grid.Row="2" Text="Temperature" Style="{StaticResource Caption}" />
+                                    <Label Grid.Row="2" Grid.Column="1" Text="{Binding HubTemperature}" />
+                                    <Label Grid.Row="3" Text="System" Style="{StaticResource Caption}" />
+                                    <Label Grid.Row="3" Grid.Column="1" Text="{Binding Dashboard.Hub.OperatingSystem}" LineBreakMode="TailTruncation" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </Border>
+                    </Grid>
+
+                    <!-- Shortcuts -->
+                    <FlexLayout Wrap="Wrap" IsVisible="{Binding Dashboard, Converter={StaticResource IsNotNullConverter}}">
+                        <Button Text="Devices" Command="{Binding GoToCommand}" CommandParameter="//devices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
+                        <Button Text="Workflows" Command="{Binding GoToCommand}" CommandParameter="//workflows" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
+                        <Button Text="Cameras" Command="{Binding GoToCommand}" CommandParameter="//cameras" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
+                    </FlexLayout>
+                </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+
+        <NotConfiguredView IsVisible="{Binding IsConfigured, Converter={StaticResource InvertedBoolConverter}}" />
+    </Grid>
+</ContentPage>
