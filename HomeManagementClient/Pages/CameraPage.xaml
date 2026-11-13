@@ -14,17 +14,17 @@
     <Grid RowDefinitions="*,Auto">
         <Image Source="{Binding Frame}" Aspect="AspectFit" />
 
-        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" IsVisible="{Binding HasStatus}">
-            <ActivityIndicator IsRunning="{Binding HasStatus}" Color="White" />
+        <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12" IsVisible="{Status != null}">
+            <ActivityIndicator IsRunning="{Status != null}" Color="White" />
             <Label Text="{Binding Status}" TextColor="White" HorizontalTextAlignment="Center" Margin="24,0" />
         </VerticalStackLayout>
 
         <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Padding="16,8" BackgroundColor="#CC000000">
             <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
                 <Ellipse WidthRequest="10" HeightRequest="10" Fill="{StaticResource StatusOffline}" VerticalOptions="Center"
-                         IsVisible="{Binding HasStatus, Converter={StaticResource InvertedBoolConverter}}" />
+                         IsVisible="{Status == null}" />
                 <Label Text="LIVE" TextColor="White" FontFamily="OpenSansSemibold" VerticalOptions="Center"
-                       IsVisible="{Binding HasStatus, Converter={StaticResource InvertedBoolConverter}}" />
+                       IsVisible="{Status == null}" />
                 <Label Text="{Binding Fps}" TextColor="{StaticResource Gray300}" VerticalOptions="Center" />
             </HorizontalStackLayout>
             <Picker Grid.Column="1"

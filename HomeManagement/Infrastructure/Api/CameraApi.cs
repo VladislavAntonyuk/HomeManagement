@@ -5,9 +5,6 @@ using HomeManagement.Shared.Api;
 
 namespace HomeManagement.Infrastructure.Api;
 
-/// <summary>
-/// Exposes the cameras of Frigate to API clients, which cannot use the cookie protected cameras subdomain.
-/// </summary>
 public static partial class CameraApi
 {
     private const int DefaultHeight = 720;
@@ -49,9 +46,6 @@ public static partial class CameraApi
     private static Task<IResult> GetStreamAsync(string camera, int? height, int? fps, IHttpClientFactory httpClientFactory, HttpContext context)
         => ProxyAsync(camera, $"api/{camera}?h={ClampHeight(height)}&fps={Math.Clamp(fps ?? DefaultFps, 1, 30)}", httpClientFactory, context);
 
-    /// <summary>
-    /// Streams a Frigate resource of the camera, e.g. api/front/latest.jpg, to the client.
-    /// </summary>
     private static async Task<IResult> ProxyAsync(string camera, string path, IHttpClientFactory httpClientFactory, HttpContext context)
     {
         if (!CameraName().IsMatch(camera))
@@ -60,7 +54,6 @@ public static partial class CameraApi
         }
 
         var httpClient = httpClientFactory.CreateClient(FrigateStreamSync.HttpClientName);
-        // Infinite: an MJPEG stream lasts until the client closes it
         httpClient.Timeout = Timeout.InfiniteTimeSpan;
         context.Response.RegisterForDispose(httpClient);
 
@@ -90,7 +83,6 @@ public static partial class CameraApi
     private static IResult FrigateUnavailable()
         => TypedResults.Problem("Frigate is not available.", statusCode: StatusCodes.Status502BadGateway);
 
-    // Frigate camera names contain only letters, numbers, underscores and dashes
     [GeneratedRegex("^[A-Za-z0-9_-]+$")]
     private static partial Regex CameraName();
 }

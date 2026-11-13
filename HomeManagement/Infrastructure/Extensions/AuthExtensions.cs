@@ -66,7 +66,6 @@ public static class AuthExtensions
 
         builder.Services.AddAuthorization(options =>
         {
-            // REST API: the app sends the API key, the Blazor UI may call it with its cookie
             options.AddPolicy(ApiAuthenticationDefaults.PolicyName, policy =>
             {
                 policy.AuthenticationSchemes.Add(ApiAuthenticationDefaults.AuthenticationScheme);

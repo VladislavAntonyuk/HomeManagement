@@ -2,9 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace HomeManagementClient.Services;
 
-/// <summary>
-/// Address of the hub and the key the app signs in with. The key is kept in secure storage where the platform has one.
-/// </summary>
 public sealed class HubSettings(IPreferences preferences, ISecureStorage secureStorage)
 {
     private const string HubUrlKey = "HubUrl";
@@ -45,9 +42,6 @@ public sealed class HubSettings(IPreferences preferences, ISecureStorage secureS
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>
-    /// Accepts "host", "host:port" and full http(s) URLs.
-    /// </summary>
     public static bool TryParseHubUrl(string? value, out Uri uri)
     {
         uri = null!;
@@ -79,7 +73,6 @@ public sealed class HubSettings(IPreferences preferences, ISecureStorage secureS
         }
         catch (Exception)
         {
-            // No secure storage on this platform (e.g. Linux GTK, unpackaged Windows) or it cannot be read
             return preferences.Get<string?>(ApiKeyKey, null);
         }
     }

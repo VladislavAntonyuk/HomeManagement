@@ -1,24 +1,31 @@
 using CommunityToolkit.Maui.Alerts;
 using CommunityToolkit.Maui.Core;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace HomeManagementClient.Services;
 
-/// <summary>
-/// Shows short results as a toast, and failures and titled or longer results as an alert.
-/// </summary>
-public sealed class UserNotifier
+public sealed partial class UserNotifier : ObservableObject
 {
     private const int MaxToastLength = 80;
 
 #if GTK
-    private const bool CanShowToast = false;
+    public static bool UsesInlineResults => true;
 #else
-    private const bool CanShowToast = true;
+    public static bool UsesInlineResults => false;
 #endif
+
+    [ObservableProperty]
+    public partial string LastMessage { get; private set; } = string.Empty;
 
     public async Task ShowAsync(string message, bool isError = false, string? title = null)
     {
-        if (CanShowToast && !isError && title is null && message.Length <= MaxToastLength && !message.Contains('\n'))
+        if (UsesInlineResults)
+        {
+            ShowInline($"{title ?? (isError ? "Error" : "Done")}: {message}");
+            return;
+        }
+
+        if (!isError && title is null && message.Length <= MaxToastLength && !message.Contains('\n'))
         {
             try
             {
@@ -27,15 +34,28 @@ public sealed class UserNotifier
             }
             catch (Exception)
             {
-                // Toasts are not available here, fall back to an alert
             }
         }
 
         await Shell.Current.DisplayAlertAsync(title ?? (isError ? "Error" : "Done"), message, "OK");
     }
 
+    public void ShowProgress(string message)
+    {
+        if (UsesInlineResults)
+        {
+            ShowInline(message);
+        }
+    }
+
     public Task ShowErrorAsync(Exception exception) => ShowAsync(ApiErrors.ToMessage(exception), isError: true);
 
     public Task<bool> ConfirmAsync(string title, string message, string accept)
         => Shell.Current.DisplayAlertAsync(title, message, accept, "Cancel");
+
+    private void ShowInline(string message)
+    {
+        LastMessage = string.Join(" · ", message.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        Console.WriteLine(LastMessage);
+    }
 }

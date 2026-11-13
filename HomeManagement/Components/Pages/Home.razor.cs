@@ -1,11 +1,10 @@
 ﻿using HomeManagement.Application.AwayMode;
+using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Router;
 using HomeManagement.Components.Dialogs;
-using HomeManagement.Infrastructure.Database;
 using HomeManagement.Shared;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using System.Diagnostics;
 
@@ -14,7 +13,7 @@ namespace HomeManagement.Components.Pages;
 public partial class Home(
      ISnackbar snackbar,
      IRouterController routerController,
-     IDbContextFactory<HomeManagementDbContext> dbContextFactory,
+     DeviceService deviceService,
      AwayModeService awayModeService,
      IDialogService dialogService) : ComponentBase
 {
@@ -33,8 +32,7 @@ public partial class Home(
     protected override async Task OnInitializedAsync()
     {
         _localIp = NetworkManager.GetLocalIp();
-        await using var db = await dbContextFactory.CreateDbContextAsync();
-        _totalDevices = await db.Devices.CountAsync();
+        _totalDevices = (await deviceService.GetStatusSummaryAsync()).Total;
         _isAwayModeEnabled = await awayModeService.IsEnabledAsync();
     }
 

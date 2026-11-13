@@ -1,13 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<ResourceDictionary xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit">
+<ResourceDictionary>
 
-    <toolkit:InvertedBoolConverter x:Key="InvertedBoolConverter" />
-    <toolkit:IsStringNotNullOrEmptyConverter x:Key="IsStringNotNullOrEmptyConverter" />
-    <toolkit:IsListNotNullOrEmptyConverter x:Key="IsListNotNullOrEmptyConverter" />
-    <toolkit:IsNotNullConverter x:Key="IsNotNullConverter" />
     <PresenceStatusToColorConverter x:Key="PresenceStatusToColorConverter" />
 
-    <!-- Card surface -->
     <Style x:Key="Card" TargetType="Border">
         <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}" />
         <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray600}}" />
@@ -16,7 +11,6 @@
         <Setter Property="Padding" Value="16" />
     </Style>
 
-    <!-- Small rounded status pill -->
     <Style x:Key="Chip" TargetType="Border">
         <Setter Property="StrokeThickness" Value="0" />
         <Setter Property="StrokeShape" Value="RoundRectangle 10" />
@@ -61,7 +55,6 @@
         <Setter Property="FontSize" Value="13" />
     </Style>
 
-    <!-- Error shown above the page content, data stays visible below -->
     <Style x:Key="ErrorBanner" TargetType="Border">
         <Setter Property="BackgroundColor" Value="#FDECEA" />
         <Setter Property="Stroke" Value="{StaticResource StatusOffline}" />

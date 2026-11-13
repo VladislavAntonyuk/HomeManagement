@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HomeManagementClient.Services;
@@ -10,18 +9,15 @@ public sealed partial class CamerasViewModel(IHomeManagementApi api, UserNotifie
 {
     private const int SnapshotHeight = 360;
 
-    public ObservableCollection<CameraItemViewModel> Cameras { get; } = [];
+    [ObservableProperty]
+    public partial IReadOnlyList<CameraItemViewModel> Cameras { get; private set; } = [];
 
     protected override async Task LoadAsync(CancellationToken token)
     {
         var cameras = await api.GetCamerasAsync(token);
         if (!cameras.Select(x => x.Name).SequenceEqual(Cameras.Select(x => x.Name)))
         {
-            Cameras.Clear();
-            foreach (var camera in cameras)
-            {
-                Cameras.Add(new CameraItemViewModel(camera.Name));
-            }
+            Cameras = cameras.Select(x => new CameraItemViewModel(x.Name)).ToList();
         }
 
         await Task.WhenAll(Cameras.Select(x => LoadSnapshotAsync(x, token)));
@@ -63,11 +59,8 @@ public sealed partial class CameraItemViewModel(string name) : ObservableObject
     public partial ImageSource? Snapshot { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSnapshotError))]
     [NotifyPropertyChangedFor(nameof(UpdatedText))]
     public partial string? SnapshotError { get; set; }
-
-    public bool HasSnapshotError => SnapshotError is not null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(UpdatedText))]

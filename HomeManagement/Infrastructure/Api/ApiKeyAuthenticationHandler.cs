@@ -15,9 +15,6 @@ public static class ApiAuthenticationDefaults
     public const string PolicyName = "ApiPolicy";
 }
 
-/// <summary>
-/// Authenticates REST API clients (e.g. the HomeManagementClient app) by the same key users sign in with.
-/// </summary>
 public sealed class ApiKeyAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,

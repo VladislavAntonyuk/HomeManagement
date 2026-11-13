@@ -10,9 +10,6 @@ public sealed record StreamQuality(string Name, int Height, int Fps)
     public override string ToString() => Name;
 }
 
-/// <summary>
-/// Live view of one camera, played from the MJPEG stream the hub proxies from Frigate.
-/// </summary>
 public sealed partial class CameraViewModel(ICameraStreamApi streamApi) : ObservableObject, IQueryAttributable
 {
     public const string CameraQueryKey = "camera";
@@ -38,10 +35,7 @@ public sealed partial class CameraViewModel(ICameraStreamApi streamApi) : Observ
     public partial StreamQuality SelectedQuality { get; set; } = null!;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasStatus))]
     public partial string? Status { get; private set; } = "Connecting...";
-
-    public bool HasStatus => Status is not null;
 
     [ObservableProperty]
     public partial string Fps { get; private set; } = string.Empty;

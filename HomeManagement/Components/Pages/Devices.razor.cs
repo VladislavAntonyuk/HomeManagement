@@ -1,21 +1,15 @@
 ﻿using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Components.Dialogs;
-using HomeManagement.Infrastructure;
-using HomeManagement.Infrastructure.Database;
 using HomeManagement.Infrastructure.Database.Entities;
 using Microsoft.AspNetCore.Components;
-using Microsoft.EntityFrameworkCore;
 using MudBlazor;
-using System.Linq.Expressions;
 
 namespace HomeManagement.Components.Pages;
 
 public partial class Devices(
     ISnackbar snackbar,
-    IDbContextFactory<HomeManagementDbContext> dbContextFactory,
     IDialogService dialogService,
-    IDeviceActionExecutor deviceActionExecutor,
-    IDeviceHub deviceHub,
+    DeviceService deviceService,
     DeviceStateStore deviceStateStore,
     TimeProvider timeProvider) : ComponentBase, IDisposable
 {
@@ -38,30 +32,22 @@ public partial class Devices(
 
     private async Task<TableData<Device>> ServerReload(TableState state, CancellationToken token)
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
-        var query = dbContext.Devices.AsNoTracking()
-            .Include(d => d.Actions)
-            .AsQueryable();
-
-        var totalItems = await query.CountAsync(token);
-        query = ApplySorting(query, state.SortLabel, state.SortDirection);
-        var devices = await query.Skip(state.Page * state.PageSize).Take(state.PageSize).ToListAsync(token);
-
-        return new TableData<Device>() { TotalItems = totalItems, Items = devices };
-    }
-
-    private static IQueryable<Device> ApplySorting(IQueryable<Device> query, string? sortLabel, SortDirection stateSortDirection)
-    {
-        Expression<Func<Device, object?>> keySelector = sortLabel switch
+        var devices = (await deviceService.GetDevicesAsync(token)).Select(x => x.Device);
+        Func<Device, string> keySelector = state.SortLabel switch
         {
-            nameof(Device.DeviceId) => c => c.DeviceId,
-            nameof(Device.Name) => c => c.Name,
-            _ => c => c.Name
+            nameof(Device.DeviceId) => x => x.DeviceId,
+            _ => x => x.Name
         };
+        var sorted = (state.SortDirection == SortDirection.Descending
+                ? devices.OrderByDescending(keySelector, StringComparer.CurrentCultureIgnoreCase)
+                : devices.OrderBy(keySelector, StringComparer.CurrentCultureIgnoreCase))
+            .ToList();
 
-        return stateSortDirection == SortDirection.Descending
-            ? query.OrderByDescending(keySelector)
-            : query.OrderBy(keySelector);
+        return new TableData<Device>
+        {
+            TotalItems = sorted.Count,
+            Items = sorted.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList()
+        };
     }
 
     private bool? IsOnline(Device device) => deviceStateStore.IsOnline(device.DeviceId);
@@ -113,8 +99,8 @@ public partial class Devices(
 
         try
         {
-            var result = await deviceActionExecutor.ExecuteAsync(device, action);
-            var message = FormatMessage(result.Message);
+            var result = await deviceService.RunActionAsync(device.Id, action.Id);
+            var message = Shared.DeviceActionResultFormatter.Format(result.Message);
             snackbar.Add(message,
                 result.IsSuccess ? Severity.Success : Severity.Error,
                 options => options.RequireInteraction = true);
@@ -123,58 +109,6 @@ public partial class Devices(
         {
             _runningActions.Remove(key);
         }
-    }
-
-    private string FormatMessage(string resultMessage)
-    {
-        const int maxLength = 1000;
-        var message = resultMessage;
-        try
-        {
-            message = JsonFlattener.FlattenToString(resultMessage);
-        }
-        catch
-        {
-            // Ignore any exceptions and use the original message
-        }
-        if (message.Length > maxLength)
-        {
-            message = $"{message[..maxLength]}...";
-        }
-
-        return message;
-    }
-
-    private async Task<Dictionary<int, List<string>>> GetActionUsagesAsync(IReadOnlyCollection<int> actionIds)
-    {
-        if (actionIds.Count == 0)
-        {
-            return [];
-        }
-
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        var stepUsages = await dbContext.Set<WorkflowStep>()
-            .Where(s => s.DeviceActionId != null && actionIds.Contains(s.DeviceActionId.Value))
-            .Join(dbContext.Workflows, s => s.WorkflowId, w => w.Id, (s, w) => new { ActionId = s.DeviceActionId!.Value, w.Name })
-            .ToListAsync();
-        var conditionUsages = await dbContext.Set<WorkflowTriggerCondition>()
-            .Where(c => c.TriggerSourceActionId != null && actionIds.Contains(c.TriggerSourceActionId.Value))
-            .Join(dbContext.Workflows, c => c.WorkflowId, w => w.Id, (c, w) => new { ActionId = c.TriggerSourceActionId!.Value, w.Name })
-            .ToListAsync();
-
-        return stepUsages.Concat(conditionUsages)
-            .GroupBy(x => x.ActionId)
-            .ToDictionary(g => g.Key, g => g.Select(x => x.Name).Distinct().Order().ToList());
-    }
-
-    /// <returns>Names of the workflows with a <see cref="WorkflowTriggerType.DeviceStatus"/> condition on the device.</returns>
-    private async Task<List<string>> GetStatusUsagesAsync(int deviceId)
-    {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        return await dbContext.Workflows
-            .Where(w => w.TriggerConditions.Any(c => c.TriggerDeviceId == deviceId))
-            .Select(w => w.Name)
-            .ToListAsync();
     }
 
     private async Task Edit(Device device)
@@ -205,19 +139,8 @@ public partial class Devices(
         var model = (DeviceEditModel)result.Data!;
         try
         {
-            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Devices.AsTracking().FirstOrDefaultAsync(d => d.Id == device.Id);
-            if (existing is null)
-            {
-                snackbar.Add("Device not found.", Severity.Error);
-                return;
-            }
-
-            existing.Name = model.Name.Trim();
-            existing.Description = model.Description;
-            await dbContext.SaveChangesAsync();
-
-            snackbar.Add("Device updated.", Severity.Success);
+            var updated = await deviceService.UpdateAsync(device.Id, model.Name, model.Description);
+            snackbar.Add(updated.Message, updated.IsSuccess ? Severity.Success : Severity.Error);
             await _table.ReloadServerData();
         }
         catch (Exception ex)
@@ -228,8 +151,7 @@ public partial class Devices(
 
     private async Task Delete(Device device)
     {
-        var actionUsages = await GetActionUsagesAsync(device.Actions.Select(a => a.Id).ToList());
-        var usages = actionUsages.Values.SelectMany(x => x).Concat(await GetStatusUsagesAsync(device.Id)).Distinct().Order().ToList();
+        var usages = await deviceService.GetWorkflowUsagesAsync(device.Id);
         if (usages.Count > 0)
         {
             snackbar.Add($"'{device.Name}' is used by workflows: {string.Join(", ", usages)}. Remove it from those workflows first.", Severity.Warning);
@@ -246,18 +168,8 @@ public partial class Devices(
 
         try
         {
-            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Devices.AsTracking().FirstOrDefaultAsync(d => d.Id == device.Id);
-            if (existing is null)
-            {
-                snackbar.Add("Device not found in DB.", Severity.Warning);
-                return;
-            }
-
-            dbContext.Devices.Remove(existing);
-            await dbContext.SaveChangesAsync();
-            await deviceHub.ForgetDeviceAsync(device.DeviceId);
-            snackbar.Add($"Deleted {device.Name}.", Severity.Success);
+            var deleted = await deviceService.DeleteAsync(device.Id);
+            snackbar.Add(deleted.Message, deleted.IsSuccess ? Severity.Success : Severity.Warning);
             await _table.ReloadServerData();
         }
         catch (Exception ex)

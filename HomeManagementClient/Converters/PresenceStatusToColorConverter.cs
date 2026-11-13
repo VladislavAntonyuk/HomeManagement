@@ -4,9 +4,6 @@ using HomeManagement.Shared.Api;
 
 namespace HomeManagementClient.Converters;
 
-/// <summary>
-/// Colors a device presence: green online, red offline, amber not responding, gray unknown.
-/// </summary>
 public sealed class PresenceStatusToColorConverter : BaseConverterOneWay<DevicePresenceStatus, Color>
 {
     public override Color DefaultConvertReturnValue { get; set; } = Colors.Gray;

@@ -78,9 +78,6 @@ public static partial class DeviceInfoFormatter
         };
     }
 
-    /// <summary>
-    /// Formats all metrics of the info a device reported, ordered by name.
-    /// </summary>
     public static IReadOnlyList<FormattedMetric> FormatMetrics(Shared.DeviceInfo info)
         => info.Metrics
             .OrderBy(x => x.Key, StringComparer.Ordinal)

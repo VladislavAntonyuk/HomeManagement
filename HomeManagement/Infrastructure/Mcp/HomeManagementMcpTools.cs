@@ -1,8 +1,7 @@
-﻿using HomeManagement.Application.AwayMode;
+﻿using HomeManagement.Application;
+using HomeManagement.Application.AwayMode;
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Workflows;
-using HomeManagement.Infrastructure.Database;
-using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Extensions.Apps;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
@@ -53,95 +52,52 @@ public class HomeManagementMcpTools
     [McpAppUi(ResourceUri = DashboardUri)]
     [Description("Shows the home dashboard with away mode, devices and their actions, and workflows. The user can run actions and workflows from it.")]
     public static async Task<McpHomeDashboard> ShowHomeDashboard(
-        HomeManagementDbContext dbContext,
+        DeviceService deviceService,
+        WorkflowService workflowService,
         AwayModeService awayModeService,
-        DeviceStateStore deviceStateStore,
         CancellationToken token)
     {
         return new McpHomeDashboard(
             await awayModeService.IsEnabledAsync(token),
-            await GetDevicesAsync(dbContext, deviceStateStore, token),
-            await GetWorkflowsAsync(dbContext, token));
+            await GetDevicesAsync(deviceService, token),
+            await GetWorkflowsAsync(workflowService, token));
     }
 
     [McpServerTool(UseStructuredContent = true, ReadOnly = true)]
     [Description("Lists all devices with their status, when they were last seen, their info (address, uptime, signal and other metrics) and their actions")]
-    public static Task<List<McpDevice>> ListDevices(HomeManagementDbContext dbContext, DeviceStateStore deviceStateStore, CancellationToken token)
-        => GetDevicesAsync(dbContext, deviceStateStore, token);
+    public static Task<List<McpDevice>> ListDevices(DeviceService deviceService, CancellationToken token)
+        => GetDevicesAsync(deviceService, token);
 
     [McpServerTool(UseStructuredContent = true)]
     [Description("Runs an action of a device, both found by name")]
     public static async Task<McpOperationResult> RunAction(
         [Description("Device name")] string deviceName,
         [Description("Action name")] string action,
-        IDeviceActionExecutor deviceActionExecutor,
-        HomeManagementDbContext dbContext,
+        DeviceService deviceService,
         CancellationToken token)
-    {
-        var device = await dbContext.Devices.AsNoTracking()
-            .Include(x => x.Actions)
-            .FirstOrDefaultAsync(x => x.Name == deviceName, token);
-        if (device is null)
-        {
-            return new McpOperationResult(false, $"Device '{deviceName}' not found.");
-        }
-
-        var deviceAction = device.Actions.FirstOrDefault(x => x.Action == action);
-        if (deviceAction is null)
-        {
-            return new McpOperationResult(false, $"Action '{action}' not found on device '{deviceName}'.");
-        }
-
-        var result = await deviceActionExecutor.ExecuteAsync(device, deviceAction, token);
-        return new McpOperationResult(result.IsSuccess, result.Message);
-    }
+        => ToMcp(await deviceService.RunActionAsync(deviceName, action, token));
 
     [McpServerTool(UseStructuredContent = true, ReadOnly = true)]
     [Description("Lists all workflows with their triggers")]
-    public static Task<List<McpWorkflow>> ListWorkflows(HomeManagementDbContext dbContext, CancellationToken token)
-        => GetWorkflowsAsync(dbContext, token);
+    public static Task<List<McpWorkflow>> ListWorkflows(WorkflowService workflowService, CancellationToken token)
+        => GetWorkflowsAsync(workflowService, token);
 
     [McpServerTool(UseStructuredContent = true)]
     [Description("Runs a workflow by name now, regardless of its trigger conditions")]
     public static async Task<McpOperationResult> RunWorkflow(
         [Description("Workflow name")] string name,
-        IWorkflowRunner workflowRunner,
-        HomeManagementDbContext dbContext,
+        WorkflowService workflowService,
         CancellationToken token)
-    {
-        var workflow = await dbContext.Workflows.AsTracking().FirstOrDefaultAsync(x => x.Name == name, token);
-        if (workflow is null)
-        {
-            return new McpOperationResult(false, $"Workflow '{name}' not found.");
-        }
-
-        var result = await workflowRunner.RunAsync(workflow, token: token);
-        workflow.LastTriggeredAtUtc = DateTimeOffset.UtcNow;
-        await dbContext.SaveChangesAsync(token);
-
-        return result.IsSuccessful
-            ? new McpOperationResult(true, $"Workflow '{name}' executed, {result.ExecutedActions} step(s) run.")
-            : new McpOperationResult(false, $"Workflow '{name}' executed with errors: {string.Join(" | ", result.Errors)}");
-    }
+        => ToMcp(await workflowService.RunAsync(name, token));
 
     [McpServerTool(UseStructuredContent = true, Idempotent = true)]
     [Description("Enables or disables a workflow by name")]
     public static async Task<McpOperationResult> SetWorkflowEnabled(
         [Description("Workflow name")] string name,
         [Description("true to enable, false to disable")] bool enabled,
-        HomeManagementDbContext dbContext,
+        WorkflowService workflowService,
         CancellationToken token)
-    {
-        var workflow = await dbContext.Workflows.AsTracking().FirstOrDefaultAsync(x => x.Name == name, token);
-        if (workflow is null)
-        {
-            return new McpOperationResult(false, $"Workflow '{name}' not found.");
-        }
-
-        workflow.IsEnabled = enabled;
-        await dbContext.SaveChangesAsync(token);
-        return new McpOperationResult(true, $"Workflow '{name}' {(enabled ? "enabled" : "disabled")}.");
-    }
+        => ToMcp(await workflowService.SetEnabledAsync(name, enabled, token));
 
     [McpServerTool(UseStructuredContent = true, Idempotent = true)]
     [Description("Turns away mode on or off. In away mode cameras alert on detected people.")]
@@ -154,57 +110,28 @@ public class HomeManagementMcpTools
         return new McpOperationResult(true, $"Away mode {(enabled ? "enabled" : "disabled")}.");
     }
 
-    private static async Task<List<McpDevice>> GetDevicesAsync(HomeManagementDbContext dbContext, DeviceStateStore deviceStateStore, CancellationToken token)
-    {
-        var devices = await dbContext.Devices.AsNoTracking()
-            .Include(x => x.Actions)
-            .OrderBy(x => x.Name)
-            .ToListAsync(token);
+    private static McpOperationResult ToMcp(OperationResult result) => new(result.IsSuccess, result.Message);
 
-        return devices
-            .Select(d =>
-            {
-                var presence = deviceStateStore.GetPresence(d.DeviceId);
-                return new McpDevice(
-                    d.Name,
-                    d.DeviceId,
-                    presence?.IsOnline,
-                    DeviceInfoFormatter.FormatStatus(presence).ToLowerInvariant(),
-                    presence?.LastSeenUtc,
-                    d.Description,
-                    GetDeviceInfo(deviceStateStore, d.DeviceId),
-                    d.Actions.Select(a => new McpDeviceAction(a.Action, a.CommandType.ToString())).ToList());
-            })
+    private static async Task<List<McpDevice>> GetDevicesAsync(DeviceService deviceService, CancellationToken token)
+        => (await deviceService.GetDevicesAsync(token))
+            .Select(x => new McpDevice(
+                x.Device.Name,
+                x.Device.DeviceId,
+                x.Presence?.IsOnline,
+                DeviceInfoFormatter.FormatStatus(x.Presence).ToLowerInvariant(),
+                x.Presence?.LastSeenUtc,
+                x.Device.Description,
+                x.Info is null || x.InfoReceivedAtUtc is null
+                    ? null
+                    : new McpDeviceInfo(
+                        string.IsNullOrEmpty(x.Info.Address) ? null : x.Info.Address,
+                        x.Metrics.Select(m => new McpDeviceMetric(m.Name, m.Value, m.Label, m.DisplayValue)).ToList(),
+                        x.InfoReceivedAtUtc.Value),
+                x.Device.Actions.Select(a => new McpDeviceAction(a.Action, a.CommandType.ToString())).ToList()))
             .ToList();
-    }
 
-    private static McpDeviceInfo? GetDeviceInfo(DeviceStateStore deviceStateStore, string deviceId)
-    {
-        if (deviceStateStore.GetInfo(deviceId) is not { } info
-            || deviceStateStore.GetTelemetry(deviceId, Shared.DeviceTopics.InfoKey) is not { } telemetry)
-        {
-            return null;
-        }
-
-        var metrics = DeviceInfoFormatter.FormatMetrics(info)
-            .Select(x => new McpDeviceMetric(x.Name, x.Value, x.Label, x.DisplayValue))
-            .ToList();
-        return new McpDeviceInfo(string.IsNullOrEmpty(info.Address) ? null : info.Address, metrics, telemetry.ReceivedAtUtc);
-    }
-
-    private static async Task<List<McpWorkflow>> GetWorkflowsAsync(HomeManagementDbContext dbContext, CancellationToken token)
-    {
-        var workflows = await dbContext.Workflows.AsNoTracking()
-            .Include(x => x.TriggerConditions)
-            .ThenInclude(x => x.TriggerSourceAction)
-            .ThenInclude(x => x!.Device)
-            .Include(x => x.TriggerConditions)
-            .ThenInclude(x => x.TriggerDevice)
-            .Include(x => x.Steps)
-            .OrderBy(x => x.Name)
-            .ToListAsync(token);
-
-        return workflows
+    private static async Task<List<McpWorkflow>> GetWorkflowsAsync(WorkflowService workflowService, CancellationToken token)
+        => (await workflowService.GetWorkflowsAsync(token))
             .Select(w => new McpWorkflow(
                 w.Name,
                 w.Description,
@@ -214,5 +141,4 @@ public class HomeManagementMcpTools
                 w.Steps.Count,
                 w.LastTriggeredAtUtc))
             .ToList();
-    }
 }

@@ -6,9 +6,6 @@ namespace HomeManagementClient.Services;
 
 public static class ApiErrors
 {
-    /// <summary>
-    /// Turns a failed hub call into a message for the user.
-    /// </summary>
     public static string ToMessage(Exception exception) => exception switch
     {
         HubNotConfiguredException e => e.Message,

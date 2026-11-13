@@ -10,70 +10,86 @@
         <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Disappearing" Command="{Binding DisappearingCommand}" />
     </ContentPage.Behaviors>
 
+    <ContentPage.Resources>
+        <PlatformTemplateSelector x:Key="WorkflowTemplateSelector">
+            <PlatformTemplateSelector.Default>
+                <DataTemplate x:DataType="WorkflowItemViewModel">
+                    <Border Style="{StaticResource Card}">
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6">
+                            <Label Text="{Binding Name}" Style="{StaticResource CardTitle}" VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding IsEnabled}"
+                                    IsEnabled="{!IsUpdating}"
+                                    VerticalOptions="Center" />
+
+                            <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Description}"
+                                   IsVisible="{Description != null}" />
+
+                            <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                                <Label Text="When" Style="{StaticResource Caption}" FontSize="13" />
+                                <Label Grid.Column="1" Text="{Binding Trigger}" FontSize="13" />
+                            </Grid>
+
+                            <Label Grid.Row="3" Text="{Binding Details}" Style="{StaticResource Caption}" VerticalOptions="Center" />
+                            <Button Grid.Row="3" Grid.Column="1"
+                                    Text="Run now"
+                                    Command="{Binding RunCommand}"
+                                    Style="{StaticResource SecondaryButton}" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </PlatformTemplateSelector.Default>
+
+            <PlatformTemplateSelector.Linux>
+                <DataTemplate x:DataType="WorkflowItemViewModel">
+                    <Border Style="{StaticResource Card}">
+                        <VerticalStackLayout Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <Label Text="{Binding Name}" Style="{StaticResource CardTitle}" />
+                                <Label Grid.Column="1" Text="{Binding EnabledText}" Style="{StaticResource Caption}" VerticalOptions="Center" />
+                            </Grid>
+                            <Label Text="{Binding TriggerText}" FontSize="13" />
+                            <Label Text="{Binding SummaryText}" Style="{StaticResource Caption}" />
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                <Button Text="{Binding ToggleText}" Command="{Binding ToggleEnabledCommand}" />
+                                <Button Grid.Column="1" Text="Run now" Command="{Binding RunCommand}" />
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </PlatformTemplateSelector.Linux>
+        </PlatformTemplateSelector>
+    </ContentPage.Resources>
+
     <Grid>
-        <Grid RowDefinitions="Auto,Auto,*" Padding="16,16,16,0" RowSpacing="12" IsVisible="{Binding IsConfigured}">
+        <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16,16,16,0" RowSpacing="12" IsVisible="{Binding IsConfigured}">
             <Grid ColumnDefinitions="*,Auto">
                 <Label Text="Workflows" Style="{StaticResource PageTitle}" />
                 <Label Grid.Column="1" Text="{Binding Summary}" Style="{StaticResource Caption}" VerticalOptions="Center" />
             </Grid>
 
-            <Border Grid.Row="1" Style="{StaticResource ErrorBanner}" IsVisible="{Binding HasError}">
+            <Border Grid.Row="1" Style="{StaticResource ErrorBanner}" IsVisible="{ErrorMessage != null}">
                 <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
             </Border>
 
-            <RefreshView Grid.Row="2" Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
-                <CollectionView ItemsSource="{Binding Workflows}" SelectionMode="None">
+            <Label Grid.Row="2" Text="{Binding Notifier.LastMessage}" Style="{StaticResource Caption}" HeightRequest="20" IsVisible="{x:Static UserNotifier.UsesInlineResults}" />
+
+            <RefreshView Grid.Row="3" Command="{Binding RefreshCommand}" IsRefreshing="{Binding IsRefreshing}">
+                <CollectionView x:Name="ItemsList" ItemsSource="{Binding Workflows}"
+                            ItemTemplate="{StaticResource WorkflowTemplateSelector}"
+                            EmptyView="{IsLoading ? 'Loading...' : 'No workflows'}" SelectionMode="None">
                     <CollectionView.ItemsLayout>
                         <LinearItemsLayout Orientation="Vertical" ItemSpacing="12" />
                     </CollectionView.ItemsLayout>
-
-                    <CollectionView.EmptyView>
-                        <Grid>
-                            <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" HorizontalOptions="Center" VerticalOptions="Center" />
-                            <Label Text="No workflows" Style="{StaticResource Caption}" HorizontalOptions="Center" VerticalOptions="Center"
-                                   IsVisible="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}" />
-                        </Grid>
-                    </CollectionView.EmptyView>
 
                     <CollectionView.Footer>
                         <BoxView HeightRequest="16" Color="Transparent" BackgroundColor="Transparent" />
                     </CollectionView.Footer>
 
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate x:DataType="WorkflowItemViewModel">
-                            <Border Style="{StaticResource Card}">
-                                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="6">
-                                    <Label Text="{Binding Name}" Style="{StaticResource CardTitle}" VerticalOptions="Center" />
-                                    <Switch Grid.Column="1"
-                                            IsToggled="{Binding IsEnabled}"
-                                            IsEnabled="{Binding IsUpdating, Converter={StaticResource InvertedBoolConverter}}"
-                                            VerticalOptions="Center" />
-
-                                    <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Description}"
-                                           IsVisible="{Binding Description, Converter={StaticResource IsStringNotNullOrEmptyConverter}}" />
-
-                                    <Label Grid.Row="2" Grid.ColumnSpan="2" FontSize="13">
-                                        <Label.FormattedText>
-                                            <FormattedString>
-                                                <Span Text="When " Style="{StaticResource Caption}" />
-                                                <Span Text="{Binding Trigger}" />
-                                            </FormattedString>
-                                        </Label.FormattedText>
-                                    </Label>
-
-                                    <Label Grid.Row="3" Text="{Binding Details}" Style="{StaticResource Caption}" VerticalOptions="Center" />
-                                    <Button Grid.Row="3" Grid.Column="1"
-                                            Text="Run now"
-                                            Command="{Binding RunCommand}"
-                                            Style="{StaticResource SecondaryButton}" />
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
                 </CollectionView>
             </RefreshView>
         </Grid>
 
-        <NotConfiguredView IsVisible="{Binding IsConfigured, Converter={StaticResource InvertedBoolConverter}}" />
+        <NotConfiguredView IsVisible="{!IsConfigured}" />
     </Grid>
 </ContentPage>

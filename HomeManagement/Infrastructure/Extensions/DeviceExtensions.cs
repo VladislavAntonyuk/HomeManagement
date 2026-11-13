@@ -14,6 +14,7 @@ public static class DeviceExtensions
         builder.Services.AddSingleton<DeviceHub>();
         builder.Services.AddSingleton<IDeviceHub>(sp => sp.GetRequiredService<DeviceHub>());
         builder.Services.AddSingleton<IDeviceActionExecutor, DeviceActionExecutor>();
+        builder.Services.AddSingleton<DeviceService>();
         builder.Services.AddHostedService<DevicePresenceMonitor>();
     }
 }

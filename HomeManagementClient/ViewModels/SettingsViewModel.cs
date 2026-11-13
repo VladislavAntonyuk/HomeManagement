@@ -15,13 +15,10 @@ public sealed partial class SettingsViewModel(HubSettings settings, IHomeManagem
     public partial string? ApiKey { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasConnectionStatus))]
     public partial string? ConnectionStatus { get; private set; }
 
     [ObservableProperty]
     public partial bool IsConnected { get; private set; }
-
-    public bool HasConnectionStatus => ConnectionStatus is not null;
 
     public string AppVersion => $"{AppInfo.Current.Name} {AppInfo.Current.VersionString}";
 

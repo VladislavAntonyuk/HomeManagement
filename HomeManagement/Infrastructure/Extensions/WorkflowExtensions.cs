@@ -9,6 +9,7 @@ public static class WorkflowExtensions
         builder.Services.Configure<WorkflowAutomationOptions>(builder.Configuration.GetSection("WorkflowAutomation"));
         builder.Services.AddHostedService<WorkflowTriggerService>();
         builder.Services.AddSingleton<IWorkflowRunner, WorkflowRunner>();
+        builder.Services.AddSingleton<WorkflowService>();
         builder.Services.AddSingleton<IWorkflowTriggerPreviewService, WorkflowTriggerPreviewService>();
     }
 }

@@ -21,7 +21,6 @@ public static class MauiProgram
             .UseMauiAppLinuxGtk4<App>()
 #else
             .UseMauiApp<App>()
-            // The toolkit has no Linux GTK platform code, its XAML behaviors and converters work without it
             .UseMauiCommunityToolkit(options => options.SetShouldEnableSnackbarOnWindows(true))
 #endif
             .ConfigureFonts(fonts =>
@@ -45,7 +44,6 @@ public static class MauiProgram
         builder.Services.AddSingleton<UserNotifier>();
         builder.Services.AddHubApi();
 
-        // Tab pages get their routes from AppShell, pushed pages register theirs
         builder.Services.AddTransient<DashboardPage, DashboardViewModel>();
         builder.Services.AddTransient<DevicesPage, DevicesViewModel>();
         builder.Services.AddTransient<WorkflowsPage, WorkflowsViewModel>();
@@ -66,7 +64,6 @@ public static class MauiProgram
             })
         };
 
-        // The real address is set per request by HubConnectionHandler from the settings
         var placeholderAddress = new Uri("http://home-management.local");
 
         services.AddTransient<HubConnectionHandler>();
@@ -82,7 +79,6 @@ public static class MauiProgram
             .ConfigureHttpClient(client =>
             {
                 client.BaseAddress = placeholderAddress;
-                // A live stream lasts until the page closes it
                 client.Timeout = Timeout.InfiniteTimeSpan;
             })
             .AddHttpMessageHandler<HubConnectionHandler>();

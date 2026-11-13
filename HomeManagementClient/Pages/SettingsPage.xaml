@@ -32,7 +32,7 @@
 
                     <Button Text="Save and connect" Command="{Binding SaveCommand}" Margin="0,8,0,0" />
 
-                    <Label Text="{Binding ConnectionStatus}" IsVisible="{Binding HasConnectionStatus}" Style="{StaticResource ErrorText}">
+                    <Label Text="{Binding ConnectionStatus}" IsVisible="{ConnectionStatus != null}" Style="{StaticResource ErrorText}">
                         <Label.Triggers>
                             <DataTrigger TargetType="Label" Binding="{Binding IsConnected}" Value="True">
                                 <Setter Property="TextColor" Value="{StaticResource StatusOnline}" />

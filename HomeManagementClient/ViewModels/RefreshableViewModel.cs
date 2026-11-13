@@ -4,33 +4,28 @@ using HomeManagementClient.Services;
 
 namespace HomeManagementClient.ViewModels;
 
-/// <summary>
-/// Loads its data when the page appears and keeps it fresh while the page is visible.
-/// </summary>
 public abstract partial class RefreshableViewModel(UserNotifier notifier, HubSettings settings) : ObservableObject
 {
     private CancellationTokenSource? _visibleCts;
     private IDispatcherTimer? _timer;
 
-    protected UserNotifier Notifier { get; } = notifier;
+    public UserNotifier Notifier { get; } = notifier;
 
-    /// <summary>
-    /// How often the data is reloaded while visible, or null to load only on appear and pull to refresh.
-    /// </summary>
+#if GTK
+    protected virtual TimeSpan? AutoRefreshInterval => null;
+#else
     protected virtual TimeSpan? AutoRefreshInterval => TimeSpan.FromSeconds(10);
+#endif
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasError))]
-    public partial string? ErrorMessage { get; set; }
+    public partial int LoadVersion { get; private set; }
 
-    public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
+    [ObservableProperty]
+    public partial string? ErrorMessage { get; set; }
 
     [ObservableProperty]
     public partial bool IsRefreshing { get; set; }
 
-    /// <summary>
-    /// True until the first load finished, to show a loading indicator instead of empty content.
-    /// </summary>
     [ObservableProperty]
     public partial bool IsLoading { get; set; } = true;
 
@@ -111,16 +106,15 @@ public abstract partial class RefreshableViewModel(UserNotifier notifier, HubSet
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            // Page was hidden
         }
         catch (Exception e)
         {
-            // A failed refresh keeps the last data and shows the error above it
             ErrorMessage = ApiErrors.ToMessage(e);
         }
         finally
         {
             IsLoading = false;
+            LoadVersion++;
         }
     }
 }

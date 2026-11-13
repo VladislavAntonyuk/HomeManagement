@@ -4,10 +4,22 @@ using HomeManagementClient.Services;
 
 namespace HomeManagementClient.ViewModels;
 
+public enum DashboardTileKind
+{
+    Devices,
+    Workflows,
+    Hub
+}
+
+public sealed record DashboardTile(DashboardTileKind Kind, DashboardViewModel Dashboard);
+
 public sealed partial class DashboardViewModel(IHomeManagementApi api, UserNotifier notifier, HubSettings settings)
     : RefreshableViewModel(notifier, settings)
 {
     private bool _isApplyingServerState;
+
+    [ObservableProperty]
+    public partial IReadOnlyList<DashboardTile> Tiles { get; private set; } = [];
 
     [ObservableProperty]
     public partial DashboardDto? Dashboard { get; set; }
@@ -24,15 +36,17 @@ public sealed partial class DashboardViewModel(IHomeManagementApi api, UserNotif
 
     public string LastWorkflowRun => DisplayFormatter.FormatAgo(Dashboard?.LastWorkflowRunAtUtc);
 
-    /// <summary>
-    /// Share of online devices, 0..1, for the progress bar.
-    /// </summary>
     public double OnlineShare => Dashboard is { TotalDevices: > 0 } d ? (double)d.OnlineDevices / d.TotalDevices : 0;
 
     protected override async Task LoadAsync(CancellationToken token)
     {
         var dashboard = await api.GetDashboardAsync(token);
         Dashboard = dashboard;
+        if (Tiles.Count == 0)
+        {
+            Tiles = Enum.GetValues<DashboardTileKind>().Select(x => new DashboardTile(x, this)).ToList();
+        }
+
         if (!IsUpdatingAwayMode)
         {
             _isApplyingServerState = true;

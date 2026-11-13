@@ -3,9 +3,6 @@ using Refit;
 
 namespace HomeManagementClient.Services;
 
-/// <summary>
-/// REST API of the Home Management hub.
-/// </summary>
 public interface IHomeManagementApi
 {
     [Get(ApiRoutes.Dashboard)]
@@ -36,14 +33,8 @@ public interface IHomeManagementApi
     Task<Stream> GetCameraSnapshotAsync(string camera, int? height, CancellationToken token = default);
 }
 
-/// <summary>
-/// Long running camera streams, on a client without a request timeout.
-/// </summary>
 public interface ICameraStreamApi
 {
-    /// <summary>
-    /// MJPEG stream (multipart/x-mixed-replace) of the camera.
-    /// </summary>
     [Get(ApiRoutes.CameraStream)]
     Task<Stream> GetCameraStreamAsync(string camera, int? height, int? fps, CancellationToken token = default);
 }

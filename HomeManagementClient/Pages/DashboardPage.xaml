@@ -10,42 +10,14 @@
         <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Disappearing" Command="{Binding DisappearingCommand}" />
     </ContentPage.Behaviors>
 
-    <Grid>
-        <RefreshView Command="{Binding RefreshCommand}"
-                     IsRefreshing="{Binding IsRefreshing}"
-                     IsVisible="{Binding IsConfigured}">
-            <ScrollView>
-                <VerticalStackLayout Padding="16" Spacing="16" MaximumWidthRequest="1100">
-
-                    <Label Text="Home" Style="{StaticResource PageTitle}" />
-
-                    <Border Style="{StaticResource ErrorBanner}" IsVisible="{Binding HasError}">
-                        <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
-                    </Border>
-
-                    <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" HorizontalOptions="Center" />
-
-                    <!-- Away mode -->
-                    <Border Style="{StaticResource Card}" IsVisible="{Binding Dashboard, Converter={StaticResource IsNotNullConverter}}">
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                            <VerticalStackLayout Spacing="4" VerticalOptions="Center">
-                                <Label Text="Away mode" Style="{StaticResource CardTitle}" />
-                                <Label Text="Cameras alert when they see a person." Style="{StaticResource Caption}" />
-                            </VerticalStackLayout>
-                            <Switch Grid.Column="1"
-                                    IsToggled="{Binding AwayModeEnabled}"
-                                    IsEnabled="{Binding IsUpdatingAwayMode, Converter={StaticResource InvertedBoolConverter}}"
-                                    VerticalOptions="Center" />
-                        </Grid>
-                    </Border>
-
-                    <!-- Summary tiles: one column on phones, three side by side elsewhere -->
-                    <Grid ColumnDefinitions="{OnIdiom Phone='*', Default='*,*,*'}"
-                          RowDefinitions="{OnIdiom Phone='Auto,Auto,Auto', Default='Auto'}"
-                          ColumnSpacing="12" RowSpacing="12"
-                          IsVisible="{Binding Dashboard, Converter={StaticResource IsNotNullConverter}}">
-
-                        <Border Style="{StaticResource Card}">
+    <ContentPage.Resources>
+        <DashboardTileTemplateSelector x:Key="TileTemplateSelector">
+            <DashboardTileTemplateSelector.Devices>
+                <DataTemplate x:DataType="DashboardTile">
+                    <ContentView>
+                        <Border Style="{StaticResource Card}"
+                                BindingContext="{Binding Dashboard, x:DataType=DashboardTile}"
+                                x:DataType="DashboardViewModel">
                             <Border.GestureRecognizers>
                                 <TapGestureRecognizer Command="{Binding GoToCommand}" CommandParameter="//devices" />
                             </Border.GestureRecognizers>
@@ -53,17 +25,25 @@
                                 <Label Text="Devices" Style="{StaticResource Caption}" />
                                 <HorizontalStackLayout Spacing="6">
                                     <Label Text="{Binding Dashboard.OnlineDevices}" Style="{StaticResource BigValue}" TextColor="{StaticResource StatusOnline}" />
-                                    <Label Text="{Binding Dashboard.TotalDevices, StringFormat='of {0} online'}" VerticalOptions="End" Margin="0,0,0,6" />
+                                    <Label Text="{$'of {Dashboard?.TotalDevices} online'}" VerticalOptions="End" Margin="0,0,0,6" />
                                 </HorizontalStackLayout>
                                 <ProgressBar Progress="{Binding OnlineShare}" ProgressColor="{StaticResource StatusOnline}" />
                                 <HorizontalStackLayout Spacing="12">
-                                    <Label Text="{Binding Dashboard.OfflineDevices, StringFormat='{0} offline'}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusOffline}" />
-                                    <Label Text="{Binding Dashboard.NotRespondingDevices, StringFormat='{0} not responding'}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusWarning}" />
+                                    <Label Text="{$'{Dashboard?.OfflineDevices} offline'}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusOffline}" />
+                                    <Label Text="{$'{Dashboard?.NotRespondingDevices} not responding'}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusWarning}" />
                                 </HorizontalStackLayout>
                             </VerticalStackLayout>
                         </Border>
+                    </ContentView>
+                </DataTemplate>
+            </DashboardTileTemplateSelector.Devices>
 
-                        <Border Style="{StaticResource Card}" Grid.Column="{OnIdiom Phone=0, Default=1}" Grid.Row="{OnIdiom Phone=1, Default=0}">
+            <DashboardTileTemplateSelector.Workflows>
+                <DataTemplate x:DataType="DashboardTile">
+                    <ContentView>
+                        <Border Style="{StaticResource Card}"
+                                BindingContext="{Binding Dashboard, x:DataType=DashboardTile}"
+                                x:DataType="DashboardViewModel">
                             <Border.GestureRecognizers>
                                 <TapGestureRecognizer Command="{Binding GoToCommand}" CommandParameter="//workflows" />
                             </Border.GestureRecognizers>
@@ -71,13 +51,21 @@
                                 <Label Text="Workflows" Style="{StaticResource Caption}" />
                                 <HorizontalStackLayout Spacing="6">
                                     <Label Text="{Binding Dashboard.EnabledWorkflows}" Style="{StaticResource BigValue}" />
-                                    <Label Text="{Binding Dashboard.TotalWorkflows, StringFormat='of {0} enabled'}" VerticalOptions="End" Margin="0,0,0,6" />
+                                    <Label Text="{$'of {Dashboard?.TotalWorkflows} enabled'}" VerticalOptions="End" Margin="0,0,0,6" />
                                 </HorizontalStackLayout>
-                                <Label Text="{Binding LastWorkflowRun, StringFormat='Last run {0}'}" Style="{StaticResource Caption}" />
+                                <Label Text="{$'Last run {LastWorkflowRun}'}" Style="{StaticResource Caption}" />
                             </VerticalStackLayout>
                         </Border>
+                    </ContentView>
+                </DataTemplate>
+            </DashboardTileTemplateSelector.Workflows>
 
-                        <Border Style="{StaticResource Card}" Grid.Column="{OnIdiom Phone=0, Default=2}" Grid.Row="{OnIdiom Phone=2, Default=0}">
+            <DashboardTileTemplateSelector.Hub>
+                <DataTemplate x:DataType="DashboardTile">
+                    <ContentView>
+                        <Border Style="{StaticResource Card}"
+                                BindingContext="{Binding Dashboard, x:DataType=DashboardTile}"
+                                x:DataType="DashboardViewModel">
                             <VerticalStackLayout Spacing="8">
                                 <Label Text="Hub" Style="{StaticResource Caption}" />
                                 <Label Text="{Binding Dashboard.Hub.MachineName}" Style="{StaticResource CardTitle}" />
@@ -93,18 +81,52 @@
                                 </Grid>
                             </VerticalStackLayout>
                         </Border>
-                    </Grid>
+                    </ContentView>
+                </DataTemplate>
+            </DashboardTileTemplateSelector.Hub>
+        </DashboardTileTemplateSelector>
+    </ContentPage.Resources>
 
-                    <!-- Shortcuts -->
-                    <FlexLayout Wrap="Wrap" IsVisible="{Binding Dashboard, Converter={StaticResource IsNotNullConverter}}">
-                        <Button Text="Devices" Command="{Binding GoToCommand}" CommandParameter="//devices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
-                        <Button Text="Workflows" Command="{Binding GoToCommand}" CommandParameter="//workflows" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
-                        <Button Text="Cameras" Command="{Binding GoToCommand}" CommandParameter="//cameras" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
-                    </FlexLayout>
+    <Grid>
+        <RefreshView Command="{Binding RefreshCommand}"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     IsVisible="{Binding IsConfigured}">
+            <ScrollView>
+                <VerticalStackLayout Spacing="16" Padding="16,16,16,0">
+                    <Label Text="Home" Style="{StaticResource PageTitle}" />
+
+                    <Border Style="{StaticResource ErrorBanner}" IsVisible="{ErrorMessage != null}">
+                        <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
+                    </Border>
+
+                    <Border Style="{StaticResource Card}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <VerticalStackLayout Spacing="4" VerticalOptions="Center">
+                                <Label Text="Away mode" Style="{StaticResource CardTitle}" />
+                                <Label Text="Cameras alert when they see a person." Style="{StaticResource Caption}" />
+                            </VerticalStackLayout>
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding AwayModeEnabled}"
+                                    IsEnabled="{!IsUpdatingAwayMode}"
+                                    VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
+
+                    <StaticItemsView ItemsSource="{Binding Tiles}"
+                                     Version="{Binding LoadVersion}"
+                                     ItemTemplate="{StaticResource TileTemplateSelector}"
+                                     MinItemWidth="300"
+                                     BottomPadding="0" />
+
+                    <HorizontalStackLayout Spacing="8" Padding="0,0,0,16">
+                        <Button Text="Devices" Command="{Binding GoToCommand}" CommandParameter="//devices" Style="{StaticResource SecondaryButton}" />
+                        <Button Text="Workflows" Command="{Binding GoToCommand}" CommandParameter="//workflows" Style="{StaticResource SecondaryButton}" />
+                        <Button Text="Cameras" Command="{Binding GoToCommand}" CommandParameter="//cameras" Style="{StaticResource SecondaryButton}" />
+                    </HorizontalStackLayout>
                 </VerticalStackLayout>
             </ScrollView>
         </RefreshView>
 
-        <NotConfiguredView IsVisible="{Binding IsConfigured, Converter={StaticResource InvertedBoolConverter}}" />
+        <NotConfiguredView IsVisible="{!IsConfigured}" />
     </Grid>
 </ContentPage>

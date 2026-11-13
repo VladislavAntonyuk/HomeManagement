@@ -1,19 +1,17 @@
-﻿using HomeManagement.Application.Workflows;
+﻿using HomeManagement.Application.DeviceManagement;
+using HomeManagement.Application.Workflows;
 using HomeManagement.Components.Dialogs;
-using HomeManagement.Infrastructure.Database;
 using Microsoft.AspNetCore.Components;
-using Microsoft.EntityFrameworkCore;
 using MudBlazor;
-using System.Linq.Expressions;
 using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Components.Pages;
 
 public partial class Workflows(
     ISnackbar snackbar,
-    IDbContextFactory<HomeManagementDbContext> dbContextFactory,
     IDialogService dialogService,
-    IWorkflowRunner workflowRunner) : ComponentBase
+    WorkflowService workflowService,
+    DeviceService deviceService) : ComponentBase
 {
     private MudTable<Workflow> _table = null!;
     private readonly HashSet<string> _runningWorkflows = new(StringComparer.Ordinal);
@@ -24,39 +22,22 @@ public partial class Workflows(
 
     private async Task<TableData<Workflow>> ServerReload(TableState state, CancellationToken token)
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
-        var query = dbContext.Workflows
-            .AsNoTracking()
-            .Include(w => w.TriggerConditions)
-            .ThenInclude(c => c.TriggerSourceAction)
-            .ThenInclude(a => a!.Device)
-            .Include(w => w.TriggerConditions)
-            .ThenInclude(c => c.TriggerDevice)
-            .Include(w => w.Steps.OrderBy(s => s.Order))
-            .ThenInclude(s => s.DeviceAction)
-            .ThenInclude(a => a!.Device)
-            .AsQueryable();
-
-        var totalItems = await query.CountAsync(token);
-        query = ApplySorting(query, state.SortLabel, state.SortDirection);
-
-        var workflows = await query.Skip(state.Page * state.PageSize).Take(state.PageSize).ToListAsync(token);
-
-        return new TableData<Workflow> { TotalItems = totalItems, Items = workflows };
-    }
-
-    private static IQueryable<Workflow> ApplySorting(IQueryable<Workflow> query, string? sortLabel, SortDirection direction)
-    {
-        Expression<Func<Workflow, object?>> keySelector = sortLabel switch
+        var workflows = await workflowService.GetWorkflowsAsync(token);
+        IEnumerable<Workflow> sorted = state.SortLabel switch
         {
-            nameof(Workflow.ConditionOperator) => x => x.ConditionOperator,
-            nameof(Workflow.Name) => x => x.Name,
-            _ => x => x.Name
+            nameof(Workflow.ConditionOperator) => state.SortDirection == SortDirection.Descending
+                ? workflows.OrderByDescending(x => x.ConditionOperator)
+                : workflows.OrderBy(x => x.ConditionOperator),
+            _ => state.SortDirection == SortDirection.Descending
+                ? workflows.OrderByDescending(x => x.Name, StringComparer.CurrentCultureIgnoreCase)
+                : workflows.OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase)
         };
 
-        return direction == SortDirection.Descending
-            ? query.OrderByDescending(keySelector)
-            : query.OrderBy(keySelector);
+        return new TableData<Workflow>
+        {
+            TotalItems = workflows.Count,
+            Items = sorted.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList()
+        };
     }
 
     private static string GetTriggerSummary(Workflow workflow) => WorkflowConditionFormatter.FormatTrigger(workflow);
@@ -87,11 +68,8 @@ public partial class Workflows(
 
         try
         {
-            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            dbContext.Workflows.Add(MapToEntity(model));
-            await dbContext.SaveChangesAsync();
-
-            snackbar.Add($"Workflow '{model.Name}' added.", Severity.Success);
+            var added = await workflowService.AddAsync(MapToEntity(model));
+            snackbar.Add(added.Message, Severity.Success);
             await _table.ReloadServerData();
         }
         catch (Exception ex)
@@ -163,30 +141,8 @@ public partial class Workflows(
 
         try
         {
-            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Workflows
-                .AsTracking()
-                .Include(x => x.TriggerConditions)
-                .Include(x => x.Steps)
-                .FirstOrDefaultAsync(x => x.Id == workflow.Id);
-            if (existing is null)
-            {
-                snackbar.Add("Workflow not found.", Severity.Error);
-                return;
-            }
-
-            var updated = MapToEntity(model);
-            existing.Name = updated.Name;
-            existing.Description = updated.Description;
-            existing.IsEnabled = updated.IsEnabled;
-            existing.ConditionOperator = updated.ConditionOperator;
-            existing.RepeatWhileMatched = updated.RepeatWhileMatched;
-            existing.TriggerConditions = updated.TriggerConditions;
-            existing.Steps = updated.Steps;
-            existing.LastConditionMatched = null;
-            await dbContext.SaveChangesAsync();
-
-            snackbar.Add("Workflow updated.", Severity.Success);
+            var updated = await workflowService.UpdateAsync(workflow.Id, MapToEntity(model));
+            snackbar.Add(updated.Message, updated.IsSuccess ? Severity.Success : Severity.Error);
             await _table.ReloadServerData();
         }
         catch (Exception ex)
@@ -204,23 +160,14 @@ public partial class Workflows(
 
         try
         {
-            var result = await workflowRunner.RunAsync(workflow);
-
-            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Workflows.FirstOrDefaultAsync(x => x.Id == workflow.Id);
-            if (existing is not null)
+            var result = await workflowService.RunAsync(workflow.Id);
+            if (result.IsSuccess)
             {
-                existing.LastTriggeredAtUtc = DateTimeOffset.UtcNow;
-                await dbContext.SaveChangesAsync();
-            }
-
-            if (result.IsSuccessful)
-            {
-                snackbar.Add($"Workflow '{workflow.Name}' executed. Actions run: {result.ExecutedActions}.", Severity.Success);
+                snackbar.Add(result.Message, Severity.Success);
             }
             else
             {
-                snackbar.Add($"Workflow '{workflow.Name}' executed with errors: {string.Join(" | ", result.Errors)}", Severity.Warning, options => options.RequireInteraction = true);
+                snackbar.Add(result.Message, Severity.Warning, options => options.RequireInteraction = true);
             }
         }
         catch (Exception ex)
@@ -243,18 +190,8 @@ public partial class Workflows(
 
         try
         {
-            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-            var existing = await dbContext.Workflows.FirstOrDefaultAsync(x => x.Id == workflow.Id);
-            if (existing is null)
-            {
-                snackbar.Add("Workflow not found in DB.", Severity.Warning);
-                return;
-            }
-
-            dbContext.Workflows.Remove(existing);
-            await dbContext.SaveChangesAsync();
-
-            snackbar.Add($"Deleted workflow '{workflow.Name}'.", Severity.Success);
+            var deleted = await workflowService.DeleteAsync(workflow.Id);
+            snackbar.Add(deleted.Message, deleted.IsSuccess ? Severity.Success : Severity.Warning);
             await _table.ReloadServerData();
         }
         catch (Exception ex)
@@ -276,8 +213,7 @@ public partial class Workflows(
 
     private async Task<Dictionary<string, List<string>>> BuildAvailableActionsAsync()
     {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        var devices = await dbContext.Devices.AsNoTracking().Include(d => d.Actions).ToListAsync();
+        var devices = (await deviceService.GetDevicesAsync()).Select(x => x.Device).ToList();
 
         _deviceIds = devices.ToDictionary(d => d.Name, d => d.Id, StringComparer.Ordinal);
         _actionIds = devices

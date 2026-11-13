@@ -2,10 +2,6 @@ using HomeManagement.Shared.Api;
 
 namespace HomeManagementClient.Services;
 
-/// <summary>
-/// Sends every API request to the hub currently configured in <see cref="HubSettings"/> and signs it with the API key,
-/// so changing the settings takes effect without recreating the Refit clients.
-/// </summary>
 public sealed class HubConnectionHandler(HubSettings settings) : DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

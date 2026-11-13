@@ -2,9 +2,6 @@ using System.Text.Json.Serialization;
 
 namespace HomeManagement.Shared.Api;
 
-/// <summary>
-/// Routes and headers of the hub REST API used by clients such as the HomeManagementClient app.
-/// </summary>
 public static class ApiRoutes
 {
     public const string ApiKeyHeader = "X-API-Key";
@@ -21,9 +18,6 @@ public static class ApiRoutes
     public const string CameraStream = "/api/cameras/{camera}/stream";
 }
 
-/// <summary>
-/// Presence of a device as the hub sees it.
-/// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<DevicePresenceStatus>))]
 public enum DevicePresenceStatus
 {
@@ -56,10 +50,6 @@ public sealed record DashboardDto(
 
 public sealed record DeviceActionDto(int Id, string Name, CommandType CommandType);
 
-/// <param name="Name">Metric name as the device reports it, e.g. UptimeSeconds.</param>
-/// <param name="Value">Raw value.</param>
-/// <param name="Label">Readable name, e.g. Uptime.</param>
-/// <param name="DisplayValue">Readable value, e.g. 1 d 2 h.</param>
 public sealed record DeviceMetricDto(string Name, string Value, string Label, string DisplayValue);
 
 public sealed record DeviceDto(

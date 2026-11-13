@@ -377,9 +377,15 @@
     </Style>
     -->
 
-    <Style TargetType="Page" ApplyToDerivedTypes="True">
+    <Style x:Key="BasePageStyle" TargetType="Page">
         <Setter Property="Padding" Value="0"/>
         <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource PageLight}, Dark={StaticResource PageDark}}" />
+    </Style>
+
+    <Style TargetType="Page" ApplyToDerivedTypes="True" BasedOn="{StaticResource BasePageStyle}" />
+
+    <Style TargetType="ContentPage" ApplyToDerivedTypes="True" BasedOn="{StaticResource BasePageStyle}">
+        <Setter Property="SafeAreaEdges" Value="Container"/>
     </Style>
 
     <Style TargetType="Shell" ApplyToDerivedTypes="True">

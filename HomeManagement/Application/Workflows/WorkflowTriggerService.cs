@@ -128,7 +128,7 @@ public class WorkflowTriggerService(
                 continue;
             }
 
-            var (evaluation, triggerContext) = await EvaluateTriggerAsync(workflow, tick, token);
+            var (evaluation, hasEvent, triggerContext) = await EvaluateTriggerAsync(workflow, tick, token);
             if (evaluation is not { } isMatched)
             {
                 // A device status is not known yet, e.g. right after the hub started. Keep the previous state, so the workflow does not run again.
@@ -138,7 +138,8 @@ public class WorkflowTriggerService(
             var wasMatched = workflow.LastConditionMatched == true;
             workflow.LastConditionMatched = isMatched;
 
-            if (!isMatched || (wasMatched && !workflow.RepeatWhileMatched))
+            // An event, e.g. a device going offline, runs the workflow even when the conditions also matched on the previous check.
+            if (!isMatched || (wasMatched && !workflow.RepeatWhileMatched && !hasEvent))
             {
                 continue;
             }
@@ -185,8 +186,11 @@ public class WorkflowTriggerService(
         }
     }
 
-    /// <returns>Whether the conditions match, or null when the result depends on a condition that cannot be evaluated yet.</returns>
-    private async Task<(bool? IsMatched, WorkflowExecutionContext Context)> EvaluateTriggerAsync(
+    /// <returns>
+    /// Whether the conditions match, or null when the result depends on a condition that cannot be evaluated yet,
+    /// and whether a matching condition is an event that happened since the previous check.
+    /// </returns>
+    private async Task<(bool? IsMatched, bool HasEvent, WorkflowExecutionContext Context)> EvaluateTriggerAsync(
         Workflow workflow,
         TriggerTick tick,
         CancellationToken token)
@@ -194,41 +198,44 @@ public class WorkflowTriggerService(
         var conditions = workflow.TriggerConditions;
         if (conditions.Count == 0)
         {
-            return (false, WorkflowExecutionContext.Empty);
+            return (false, false, WorkflowExecutionContext.Empty);
         }
 
         var contextValues = new Dictionary<string, string?>(StringComparer.Ordinal);
-        var results = new List<bool?>(conditions.Count);
+        var results = new List<ConditionEvaluationResult>(conditions.Count);
 
         for (var i = 0; i < conditions.Count; i++)
         {
             var condition = conditions[i];
             var evaluation = await EvaluateConditionAsync(condition, tick, token);
-            results.Add(evaluation.IsMatched);
-
-            contextValues[$"Trigger[{i}].Type"] = condition.TriggerType.ToString();
-            var deviceName = condition.TriggerDevice?.Name ?? condition.TriggerSourceAction?.Device.Name;
-            var expectedValue = condition.TriggerDeviceStatus?.ToString() ?? condition.TriggerExpectedValue;
-            contextValues[$"Trigger[{i}].Device"] = deviceName;
-            contextValues[$"Trigger[{i}].Property"] = condition.TriggerPropertyPath;
-            contextValues[$"Trigger[{i}].Expected"] = expectedValue;
-            contextValues[$"Trigger[{i}].Current"] = evaluation.CurrentValue;
-
-            if (i == 0)
-            {
-                contextValues["Trigger.Device"] = deviceName;
-                contextValues["Trigger.Property"] = condition.TriggerPropertyPath;
-                contextValues["Trigger.Expected"] = expectedValue;
-                contextValues["Trigger.Current"] = evaluation.CurrentValue;
-            }
+            results.Add(evaluation);
+            AddContextValues(contextValues, $"Trigger[{i}]", condition, evaluation);
         }
 
-        // Three-valued logic: an unknown condition decides the result only when the known conditions do not.
-        bool? isMatched = workflow.ConditionOperator is WorkflowConditionOperator.Or
-            ? results.Contains(true) ? true : results.Contains(null) ? null : false
-            : results.Contains(false) ? false : results.Contains(null) ? null : true;
+        // {Trigger.*} describes the first matching condition, e.g. which status a device went to when either status runs the workflow.
+        var triggerIndex = Math.Max(0, results.FindIndex(x => x.IsMatched == true));
+        AddContextValues(contextValues, "Trigger", conditions[triggerIndex], results[triggerIndex]);
 
-        return (isMatched, new WorkflowExecutionContext(contextValues));
+        // Three-valued logic: an unknown condition decides the result only when the known conditions do not.
+        var matches = results.Select(x => x.IsMatched).ToList();
+        bool? isMatched = workflow.ConditionOperator is WorkflowConditionOperator.Or
+            ? matches.Contains(true) ? true : matches.Contains(null) ? null : false
+            : matches.Contains(false) ? false : matches.Contains(null) ? null : true;
+
+        return (isMatched, results.Any(x => x is { IsMatched: true, IsEvent: true }), new WorkflowExecutionContext(contextValues));
+    }
+
+    private static void AddContextValues(
+        Dictionary<string, string?> contextValues,
+        string prefix,
+        WorkflowTriggerCondition condition,
+        ConditionEvaluationResult evaluation)
+    {
+        contextValues[$"{prefix}.Type"] = condition.TriggerType.ToString();
+        contextValues[$"{prefix}.Device"] = condition.TriggerDevice?.Name ?? condition.TriggerSourceAction?.Device.Name;
+        contextValues[$"{prefix}.Property"] = condition.TriggerPropertyPath;
+        contextValues[$"{prefix}.Expected"] = condition.TriggerDeviceStatus?.ToString() ?? condition.TriggerExpectedValue;
+        contextValues[$"{prefix}.Current"] = evaluation.CurrentValue;
     }
 
     private async Task<ConditionEvaluationResult> EvaluateConditionAsync(
@@ -364,9 +371,18 @@ public class WorkflowTriggerService(
             null => null
         };
 
-        return status is null
-            ? new ConditionEvaluationResult(null, null)
-            : new ConditionEvaluationResult(status == expectedStatus, status.ToString());
+        if (status is null)
+        {
+            return new ConditionEvaluationResult(null, null);
+        }
+
+        // The condition is an event: it matches once, when the device changes to the expected status.
+        // LastConditionMatched keeps whether the device had that status at the previous check. Null means it was never checked,
+        // e.g. a new workflow, which only records the status, so saving a workflow does not run it.
+        var hasStatus = status == expectedStatus;
+        var hadStatus = condition.LastConditionMatched;
+        condition.LastConditionMatched = hasStatus;
+        return new ConditionEvaluationResult(hasStatus && hadStatus == false, status.ToString(), IsEvent: true);
     }
 
     private async Task<ConditionEvaluationResult> EvaluateDeviceResultConditionAsync(
@@ -494,7 +510,8 @@ public class WorkflowTriggerService(
         => TimeSpan.FromSeconds(Math.Max(5, options.CheckIntervalSeconds));
 
     /// <param name="IsMatched">Whether the condition matches, or null when it cannot be evaluated yet.</param>
-    private record ConditionEvaluationResult(bool? IsMatched, string? CurrentValue);
+    /// <param name="IsEvent">The condition matches only at the check right after something happened, not for as long as a state lasts.</param>
+    private record ConditionEvaluationResult(bool? IsMatched, string? CurrentValue, bool IsEvent = false);
 
     private sealed record TriggerTick(
         DateTimeOffset LocalNow,

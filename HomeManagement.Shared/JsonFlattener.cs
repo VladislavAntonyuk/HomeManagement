@@ -1,7 +1,7 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 
-namespace HomeManagement.Infrastructure;
+namespace HomeManagement.Shared;
 
 public static class JsonFlattener
 {

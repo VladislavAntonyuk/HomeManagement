@@ -54,7 +54,6 @@ public sealed partial class DevicesViewModel(IHomeManagementApi api, UserNotifie
             .OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
-        // Update in place so the list keeps its scroll position and running actions
         for (var i = Devices.Count - 1; i >= 0; i--)
         {
             if (!filtered.Contains(Devices[i]))
@@ -115,10 +114,34 @@ public sealed partial class DeviceItemViewModel : ObservableObject
     public partial string? Address { get; private set; }
 
     [ObservableProperty]
-    public partial IReadOnlyList<DeviceMetricDto> Metrics { get; private set; } = [];
+    public partial IReadOnlyList<DeviceMetricViewModel> Metrics { get; private set; } = [];
+
+    public const int ActionsPerRow = 3;
 
     [ObservableProperty]
     public partial IReadOnlyList<DeviceActionItemViewModel> Actions { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial IReadOnlyList<DeviceActionRow> ActionRows { get; private set; } = [];
+
+    [ObservableProperty]
+    public partial string SummaryText { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string MetricsText { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial DeviceActionItemViewModel? SelectedAction { get; set; }
+
+    [RelayCommand]
+    private async Task RunSelectedActionAsync()
+    {
+        if ((SelectedAction ?? Actions.FirstOrDefault()) is { } action)
+        {
+            _notifier.ShowProgress($"{Name}: {action.Name}: running...");
+            await action.RunCommand.ExecuteAsync(null);
+        }
+    }
 
     public void Update(DeviceDto device)
     {
@@ -129,14 +152,25 @@ public sealed partial class DeviceItemViewModel : ObservableObject
         StatusText = DisplayFormatter.FormatStatus(device.Status);
         LastSeen = $"Last seen {DisplayFormatter.FormatAgo(device.LastSeenUtc)}";
         Address = device.Address;
-        if (!Metrics.SequenceEqual(device.Metrics))
+        SummaryText = Address is null ? LastSeen : $"{LastSeen} · {Address}";
+        MetricsText = string.Join(" · ", device.Metrics.Select(x => $"{x.Label} {x.DisplayValue}"));
+        if (Metrics.Select(x => x.Name).SequenceEqual(device.Metrics.Select(x => x.Name)))
         {
-            Metrics = device.Metrics;
+            for (var i = 0; i < Metrics.Count; i++)
+            {
+                Metrics[i].Update(device.Metrics[i]);
+            }
+        }
+        else
+        {
+            Metrics = device.Metrics.Select(x => new DeviceMetricViewModel(x)).ToList();
         }
 
         if (!Actions.Select(x => (x.Id, x.Name, x.CommandType)).SequenceEqual(device.Actions.Select(x => (x.Id, x.Name, x.CommandType))))
         {
-            Actions = device.Actions.Select(x => new DeviceActionItemViewModel(this, x, _api, _notifier)).ToList();
+            Actions = device.Actions.Select((x, i) => new DeviceActionItemViewModel(this, x, _api, _notifier, i % ActionsPerRow)).ToList();
+            ActionRows = Actions.Chunk(ActionsPerRow).Select(x => new DeviceActionRow(x)).ToList();
+            SelectedAction = Actions.FirstOrDefault();
         }
     }
 
@@ -146,21 +180,23 @@ public sealed partial class DeviceItemViewModel : ObservableObject
            || Description?.Contains(text, StringComparison.CurrentCultureIgnoreCase) == true;
 }
 
+public sealed record DeviceActionRow(IReadOnlyList<DeviceActionItemViewModel> Actions);
+
 public sealed partial class DeviceActionItemViewModel(
     DeviceItemViewModel device,
     DeviceActionDto action,
     IHomeManagementApi api,
-    UserNotifier notifier) : ObservableObject
+    UserNotifier notifier,
+    int column) : ObservableObject
 {
     public int Id => action.Id;
+
+    public int Column => column;
 
     public string Name => action.Name;
 
     public CommandType CommandType => action.CommandType;
 
-    /// <summary>
-    /// Get actions read the last value the device reported, Post actions send a command.
-    /// </summary>
     public bool IsReadOnly => action.CommandType == CommandType.Get;
 
     [RelayCommand]
@@ -169,18 +205,42 @@ public sealed partial class DeviceActionItemViewModel(
         try
         {
             var result = await api.RunDeviceActionAsync(device.Id, action.Id);
+            var message = DeviceActionResultFormatter.Format(result.Message);
             if (IsReadOnly && result.IsSuccess)
             {
-                await notifier.ShowAsync(result.Message, title: $"{device.Name}: {action.Name}");
+                await notifier.ShowAsync(message, title: $"{device.Name}: {action.Name}");
             }
             else
             {
-                await notifier.ShowAsync(result.Message, !result.IsSuccess);
+                await notifier.ShowAsync(message, !result.IsSuccess, UserNotifier.UsesInlineResults ? $"{device.Name}: {action.Name}" : null);
             }
         }
         catch (Exception e)
         {
             await notifier.ShowErrorAsync(e);
         }
+    }
+}
+
+public sealed partial class DeviceMetricViewModel : ObservableObject
+{
+    public DeviceMetricViewModel(DeviceMetricDto metric)
+    {
+        Name = metric.Name;
+        Update(metric);
+    }
+
+    public string Name { get; }
+
+    [ObservableProperty]
+    public partial string Label { get; private set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string DisplayValue { get; private set; } = string.Empty;
+
+    public void Update(DeviceMetricDto metric)
+    {
+        Label = metric.Label;
+        DisplayValue = metric.DisplayValue;
     }
 }

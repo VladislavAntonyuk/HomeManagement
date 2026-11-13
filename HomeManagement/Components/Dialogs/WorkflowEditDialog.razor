@@ -115,7 +115,7 @@
                                 }
                             </MudSelect>
                         </MudStack>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Runs as soon as the device changes to this status. Matches while it stays so, e.g. for AND with other conditions.</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Runs once each time the device changes to this status. Use OR with the other status to be told about both.</MudText>
                     }
                     else if (condition.TriggerType is WorkflowTriggerType.DeviceResult)
                     {
