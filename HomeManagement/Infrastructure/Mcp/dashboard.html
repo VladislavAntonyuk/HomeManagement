@@ -199,6 +199,10 @@
             return node;
         }
 
+        function resultMessage(result) {
+            return result.displayMessage ?? result.message ?? result.text ?? "Done";
+        }
+
         function showResult(container, isSuccess, message) {
             container.className = "result " + (isSuccess ? "success" : "error");
             container.textContent = message;
@@ -210,7 +214,7 @@
             button.textContent = label + "...";
             try {
                 const result = await callTool(toolName, args);
-                const message = result.message ?? result.text ?? "Done";
+                const message = resultMessage(result);
                 if (refreshAfter) {
                     await refresh();
                     showResult(document.getElementById("status"), result.isSuccess !== false, message);
@@ -323,7 +327,7 @@
                     checkbox.disabled = true;
                     try {
                         const response = await callTool("set_workflow_enabled", { name: workflow.name, enabled: checkbox.checked });
-                        showResult(result, response.isSuccess !== false, response.message ?? "Done");
+                        showResult(result, response.isSuccess !== false, resultMessage(response));
                     } catch (error) {
                         checkbox.checked = !checkbox.checked;
                         showResult(result, false, error.message);
@@ -380,7 +384,7 @@
             checkbox.disabled = true;
             try {
                 const result = await callTool("set_away_mode", { enabled: checkbox.checked });
-                showResult(status, result.isSuccess !== false, result.message ?? "Done");
+                showResult(status, result.isSuccess !== false, resultMessage(result));
             } catch (error) {
                 checkbox.checked = !checkbox.checked;
                 showResult(status, false, error.message);

@@ -2,6 +2,7 @@
 using HomeManagement.Application.AwayMode;
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Workflows;
+using HomeManagement.Shared;
 using ModelContextProtocol.Extensions.Apps;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
@@ -41,7 +42,15 @@ public record McpWorkflow(
 
 public record McpHomeDashboard(bool AwayModeEnabled, IReadOnlyList<McpDevice> Devices, IReadOnlyList<McpWorkflow> Workflows);
 
-public record McpOperationResult(bool IsSuccess, string Message);
+/// <param name="Message">Raw result, e.g. the JSON the device replied with.</param>
+/// <param name="DisplayMessage">Readable result, e.g. the device JSON flattened to "key: value" lines.</param>
+public record McpOperationResult(bool IsSuccess, string Message, string DisplayMessage)
+{
+    public McpOperationResult(bool isSuccess, string message)
+        : this(isSuccess, message, DeviceActionResultFormatter.Format(message))
+    {
+    }
+}
 
 [McpServerToolType]
 public class HomeManagementMcpTools
