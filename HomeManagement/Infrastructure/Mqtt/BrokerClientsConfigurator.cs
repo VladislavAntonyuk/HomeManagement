@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HomeManagement.Application.DeviceManagement;
-using HomeManagement.Infrastructure.IpCameras;
+using HomeManagement.DeviceSdk;
+using HomeManagement.DeviceSdk.Mqtt;
 using HomeManagement.Shared;
 using Microsoft.Extensions.Options;
 using MQTTnet.Formatter;
@@ -9,7 +10,7 @@ using Silverback.Messaging.Messages;
 
 namespace HomeManagement.Infrastructure.Mqtt;
 
-public class BrokerClientsConfigurator(IOptions<MqttOptions> mqttOptions) : IBrokerClientsConfigurator
+public class BrokerClientsConfigurator(IOptions<MqttOptions> mqttOptions, IConfiguration configuration) : IBrokerClientsConfigurator
 {
     public void Configure(BrokerClientsConfigurationBuilder builder)
     {
@@ -17,36 +18,7 @@ public class BrokerClientsConfigurator(IOptions<MqttOptions> mqttOptions) : IBro
         builder
             .AddMqttClients(clients =>
             {
-                clients.ConnectViaTcp(settings.Host, settings.Port);
-                if (!string.IsNullOrEmpty(settings.Username))
-                {
-                    clients.WithCredentials(settings.Username, settings.Password);
-                }
-
-                clients.AddClient(client => client
-                    .WithClientId("frigate-client")
-                    .UseProtocolVersion(MqttProtocolVersion.V500)
-                    .Consume(endpoint => endpoint
-                        .ConsumeFrom("frigate/events")
-                        .DeserializeJson(serializer => serializer.Configure(o =>
-                        {
-                            o.PropertyNameCaseInsensitive = true;
-                            o.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
-                        }).UseModel<FrigateEventMessage>().IgnoreMessageTypeHeader())
-                        .WithAtLeastOnceQoS()
-                        .OnError(policy => policy.Retry(3).ThenSkip()))
-                    .Consume(endpoint => endpoint
-                        .ConsumeFrom(FrigateAvailability.Topic)
-                        .ConsumeStrings(serializer => serializer.UseDiscriminator<FrigateAvailability>())
-                        .WithAtLeastOnceQoS())
-                    .Produce<StringMessage<FrigateProfile>>(endpoint => endpoint
-                        .ProduceTo(FrigateProfile.SetTopic)
-                        .ProduceStrings()
-                        .WithAtLeastOnceQoS())
-                    .Produce<StringMessage<FrigateCameraEnabled>>(endpoint => endpoint
-                        .ProduceToDynamicTopic()
-                        .ProduceStrings()
-                        .WithAtLeastOnceQoS()));
+                clients.ConnectViaConnectionString(configuration.GetConnectionString("mqtt"));
 
                 clients.AddClient(client => client
                     .WithClientId(settings.ClientId)

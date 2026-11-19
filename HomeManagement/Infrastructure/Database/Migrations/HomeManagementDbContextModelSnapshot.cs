@@ -15,12 +15,12 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261105164729_DeviceStatusTrigger";
+    public override string LastMigrationId => "20261118161441_WorkflowConditionOrder";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
-        modelBuilder.HasAnnotation("ProductVersion", "11.0.0-rc.3.26522.148");
+        modelBuilder.HasAnnotation("ProductVersion", "11.0.0");
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.AppSetting", b =>
             {
@@ -193,6 +193,9 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
 
                 b.Property<DateTime?>("LastTriggerDateLocal")
                     .HasColumnType("TEXT");
+
+                b.Property<int>("Order")
+                    .HasColumnType("INTEGER");
 
                 b.Property<DateOnly?>("TriggerDate")
                     .HasColumnType("TEXT");

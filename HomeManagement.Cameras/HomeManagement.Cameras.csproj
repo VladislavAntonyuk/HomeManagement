@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net11.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="LiveStreamingServerNet" Version="0.33.1" />
+		<PackageReference Include="LiveStreamingServerNet.Flv" Version="0.33.1" />
+		<PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="11.0.0" />
+		<ProjectReference Include="..\HomeManagement.DeviceSdk\HomeManagement.DeviceSdk.csproj" />
+	</ItemGroup>
+
+</Project>

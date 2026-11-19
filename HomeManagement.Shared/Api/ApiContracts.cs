@@ -7,7 +7,6 @@ public static class ApiRoutes
     public const string ApiKeyHeader = "X-API-Key";
 
     public const string Dashboard = "/api/dashboard";
-    public const string AwayMode = "/api/away-mode";
     public const string Devices = "/api/devices";
     public const string DeviceAction = "/api/devices/{deviceId}/actions/{actionId}";
     public const string Workflows = "/api/workflows";
@@ -38,7 +37,6 @@ public sealed record SetEnabledRequest(bool Enabled);
 public sealed record HubInfoDto(string MachineName, string? LocalIp, string OperatingSystem, long UptimeSeconds, double? TemperatureCelsius);
 
 public sealed record DashboardDto(
-    bool AwayModeEnabled,
     int TotalDevices,
     int OnlineDevices,
     int OfflineDevices,

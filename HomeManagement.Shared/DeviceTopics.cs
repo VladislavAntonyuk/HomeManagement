@@ -44,7 +44,7 @@ public static class DeviceTopics
     public static string Status(string deviceId) => $"{Root}/{deviceId}/{StatusSegment}";
 
     /// <summary>
-    /// Retained latest value of a <see cref="CommandType.Get"/> action.
+    /// Retained latest value of a <see cref="CommandType.Get"/> or <see cref="CommandType.Event"/> action.
     /// </summary>
     public static string Telemetry(string deviceId, string key) => $"{Root}/{deviceId}/{TelemetrySegment}/{key}";
 

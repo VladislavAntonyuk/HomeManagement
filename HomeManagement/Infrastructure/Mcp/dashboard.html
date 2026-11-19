@@ -89,7 +89,6 @@
 <body>
     <header>
         <h1>Home</h1>
-        <label class="switch"><input type="checkbox" id="away-mode" disabled /> Away mode</label>
         <button id="refresh" type="button" disabled>Refresh</button>
     </header>
     <div id="status" class="result"></div>
@@ -352,9 +351,6 @@
                 return;
             }
 
-            const awayMode = document.getElementById("away-mode");
-            awayMode.checked = !!dashboard.awayModeEnabled;
-            awayMode.disabled = false;
             document.getElementById("refresh").disabled = false;
             renderDevices(dashboard.devices ?? []);
             renderWorkflows(dashboard.workflows ?? []);
@@ -375,21 +371,6 @@
                 showResult(status, false, error.message);
             } finally {
                 button.disabled = false;
-            }
-        });
-
-        document.getElementById("away-mode").addEventListener("change", async event => {
-            const checkbox = event.currentTarget;
-            const status = document.getElementById("status");
-            checkbox.disabled = true;
-            try {
-                const result = await callTool("set_away_mode", { enabled: checkbox.checked });
-                showResult(status, result.isSuccess !== false, resultMessage(result));
-            } catch (error) {
-                checkbox.checked = !checkbox.checked;
-                showResult(status, false, error.message);
-            } finally {
-                checkbox.disabled = false;
             }
         });
 

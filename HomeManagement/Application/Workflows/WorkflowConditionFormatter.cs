@@ -5,6 +5,11 @@ namespace HomeManagement.Application.Workflows;
 
 public static class WorkflowConditionFormatter
 {
+    /// <summary>
+    /// Describes a workflow without trigger conditions, which runs only when someone runs it.
+    /// </summary>
+    public const string ManualTrigger = "Run manually";
+
     public static readonly IReadOnlyList<WorkflowComparisonOperator> DateOperators =
     [
         WorkflowComparisonOperator.Equal,
@@ -83,7 +88,7 @@ public static class WorkflowConditionFormatter
     {
         if (workflow.TriggerConditions.Count == 0)
         {
-            return "No conditions";
+            return ManualTrigger;
         }
 
         var delimiter = workflow.ConditionOperator is WorkflowConditionOperator.Or ? " OR " : " AND ";

@@ -1,6 +1,6 @@
-﻿using HomeManagement.Application.Login;
+using HomeManagement.Application.Login;
 using HomeManagement.Components;
-using LiveStreamingServerNet.Flv.Installer;
+using HomeManagement.Cameras;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +14,8 @@ using HomeManagement.Infrastructure.Extensions;
 using HomeManagement.Infrastructure.Mcp;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 builder.AddDatabase();
 
@@ -48,6 +50,8 @@ builder.Services.AddMcpServer()
 
 var app = builder.Build();
 
+app.MapDefaultEndpoints();
+
 using (var scope = app.Services.CreateScope())
 {
     var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<HomeManagementDbContext>>();
@@ -69,7 +73,7 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
-app.UseHttpFlv();
+app.UseCameras();
 app.MapStaticAssets();
 app.MapLogin();
 app.MapHomeApi();

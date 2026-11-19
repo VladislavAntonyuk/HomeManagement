@@ -2,7 +2,7 @@ namespace HomeManagement.Shared;
 
 /// <summary>
 /// An action a device exposes.
-/// <see cref="CommandType.Get"/> actions are read from telemetry published to <see cref="DeviceTopics.Telemetry"/>.
+/// <see cref="CommandType.Get"/> and <see cref="CommandType.Event"/> actions are read from telemetry published to <see cref="DeviceTopics.Telemetry"/>.
 /// <see cref="CommandType.Post"/> actions are executed through <see cref="DeviceTopics.Command"/>.
 /// </summary>
 /// <param name="Action">Display name of the action.</param>

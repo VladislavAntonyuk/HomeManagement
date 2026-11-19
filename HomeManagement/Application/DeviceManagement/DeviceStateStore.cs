@@ -32,6 +32,11 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
     /// </summary>
     public event Action? DevicesChanged;
 
+    /// <summary>
+    /// Raised when a device reports a telemetry value that differs from the previous one.
+    /// </summary>
+    public event Action? TelemetryChanged;
+
     public bool? IsOnline(string deviceId) => GetPresence(deviceId)?.IsOnline;
 
     public DevicePresence? GetPresence(string deviceId)
@@ -112,18 +117,26 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
     public void SetTelemetry(string deviceId, string key, string? payload)
     {
         var state = Touch(deviceId, out var changed);
+        bool valueChanged;
         if (string.IsNullOrEmpty(payload))
         {
-            state.Telemetry.TryRemove(key, out _);
+            valueChanged = state.Telemetry.TryRemove(key, out _);
         }
         else
         {
+            var previous = state.Telemetry.TryGetValue(key, out var current) ? current.Payload : null;
             state.Telemetry[key] = new DeviceTelemetry(payload, timeProvider.GetUtcNow());
+            valueChanged = previous != payload;
         }
 
         if (changed)
         {
             StatusChanged?.Invoke();
+        }
+
+        if (valueChanged)
+        {
+            TelemetryChanged?.Invoke();
         }
     }
 

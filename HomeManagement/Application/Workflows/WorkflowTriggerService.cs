@@ -23,28 +23,35 @@ public class WorkflowTriggerService(
 
     private readonly ConcurrentDictionary<int, Task> _runningWorkflows = new();
 
+    // When the last event each condition handled arrived, so every event runs the workflow once.
+    // A condition starts from the time it is first checked, so a workflow created later does not run for an old event.
+    // Devices do not retain events, so the hub never receives an old one again after it restarts.
+    private readonly ConcurrentDictionary<int, DateTimeOffset> _handledEventTimes = new();
+
     // Holds at most one pending change, so a burst of changes, e.g. the retained statuses after a reconnect, causes at most two checks.
-    private readonly Channel<bool> _statusChanges = Channel.CreateBounded<bool>(
+    private readonly Channel<bool> _deviceChanges = Channel.CreateBounded<bool>(
         new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        deviceStateStore.StatusChanged += OnDeviceStatusChanged;
+        deviceStateStore.StatusChanged += OnDeviceChanged;
+        deviceStateStore.TelemetryChanged += OnDeviceChanged;
         try
         {
             await RunLoopAsync(stoppingToken);
         }
         finally
         {
-            deviceStateStore.StatusChanged -= OnDeviceStatusChanged;
+            deviceStateStore.StatusChanged -= OnDeviceChanged;
+            deviceStateStore.TelemetryChanged -= OnDeviceChanged;
         }
     }
 
-    private void OnDeviceStatusChanged() => _statusChanges.Writer.TryWrite(true);
+    private void OnDeviceChanged() => _deviceChanges.Writer.TryWrite(true);
 
     /// <summary>
-    /// Checks all workflows every <see cref="WorkflowAutomationOptions.CheckIntervalSeconds"/>, and the workflows with
-    /// <see cref="WorkflowTriggerType.DeviceStatus"/> conditions as soon as a device status changes, so short outages are not missed.
+    /// Checks all workflows every <see cref="WorkflowAutomationOptions.CheckIntervalSeconds"/>, and the workflows with device conditions
+    /// as soon as a device status or telemetry value changes, so short outages are not missed and events are handled right away.
     /// </summary>
     private async Task RunLoopAsync(CancellationToken stoppingToken)
     {
@@ -62,7 +69,7 @@ public class WorkflowTriggerService(
             {
                 try
                 {
-                    await ProcessWorkflowsAsync(options, deviceStatusOnly: !isFullCheck, stoppingToken);
+                    await ProcessWorkflowsAsync(options, deviceChangesOnly: !isFullCheck, stoppingToken);
                 }
                 catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
                 {
@@ -70,12 +77,12 @@ public class WorkflowTriggerService(
                 }
             }
 
-            isFullCheck = !await WaitForDeviceStatusChangeAsync(nextFullCheck - timeProvider.GetUtcNow(), stoppingToken);
+            isFullCheck = !await WaitForDeviceChangeAsync(nextFullCheck - timeProvider.GetUtcNow(), stoppingToken);
         }
     }
 
-    /// <returns>True when a device status changed before <paramref name="timeout"/> elapsed.</returns>
-    private async Task<bool> WaitForDeviceStatusChangeAsync(TimeSpan timeout, CancellationToken token)
+    /// <returns>True when a device status or telemetry value changed before <paramref name="timeout"/> elapsed.</returns>
+    private async Task<bool> WaitForDeviceChangeAsync(TimeSpan timeout, CancellationToken token)
     {
         if (timeout > TimeSpan.Zero)
         {
@@ -83,7 +90,7 @@ public class WorkflowTriggerService(
             timeoutSource.CancelAfter(timeout);
             try
             {
-                await _statusChanges.Reader.WaitToReadAsync(timeoutSource.Token);
+                await _deviceChanges.Reader.WaitToReadAsync(timeoutSource.Token);
             }
             catch (OperationCanceledException) when (!token.IsCancellationRequested)
             {
@@ -91,10 +98,10 @@ public class WorkflowTriggerService(
             }
         }
 
-        return _statusChanges.Reader.TryRead(out _);
+        return _deviceChanges.Reader.TryRead(out _);
     }
 
-    private async Task ProcessWorkflowsAsync(WorkflowAutomationOptions options, bool deviceStatusOnly, CancellationToken token)
+    private async Task ProcessWorkflowsAsync(WorkflowAutomationOptions options, bool deviceChangesOnly, CancellationToken token)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
         var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
@@ -107,15 +114,15 @@ public class WorkflowTriggerService(
 
         var query = dbContext.Workflows
             .AsTracking()
-            .Include(x => x.TriggerConditions)
+            .Include(x => x.TriggerConditions.OrderBy(c => c.Order))
             .ThenInclude(x => x.TriggerSourceAction)
             .ThenInclude(x => x!.Device)
             .Include(x => x.TriggerConditions)
             .ThenInclude(x => x.TriggerDevice)
-            .Where(x => x.IsEnabled);
-        if (deviceStatusOnly)
+            .Where(x => x.IsEnabled && x.TriggerConditions.Any());
+        if (deviceChangesOnly)
         {
-            query = query.Where(x => x.TriggerConditions.Any(c => c.TriggerType == WorkflowTriggerType.DeviceStatus));
+            query = query.Where(x => x.TriggerConditions.Any(c => c.TriggerType == WorkflowTriggerType.DeviceStatus || c.TriggerType == WorkflowTriggerType.DeviceResult));
         }
 
         var workflows = await query.ToListAsync(token);
@@ -139,7 +146,9 @@ public class WorkflowTriggerService(
             workflow.LastConditionMatched = isMatched;
 
             // An event, e.g. a device going offline, runs the workflow even when the conditions also matched on the previous check.
-            if (!isMatched || (wasMatched && !workflow.RepeatWhileMatched && !hasEvent))
+            // Repeating while matched happens only on the regular check, not on every device change.
+            var repeats = workflow.RepeatWhileMatched && !deviceChangesOnly;
+            if (!isMatched || (wasMatched && !repeats && !hasEvent))
             {
                 continue;
             }
@@ -236,6 +245,15 @@ public class WorkflowTriggerService(
         contextValues[$"{prefix}.Property"] = condition.TriggerPropertyPath;
         contextValues[$"{prefix}.Expected"] = condition.TriggerDeviceStatus?.ToString() ?? condition.TriggerExpectedValue;
         contextValues[$"{prefix}.Current"] = evaluation.CurrentValue;
+        if (evaluation.Result is { } result)
+        {
+            // {Trigger.Result} is the whole value, {Trigger.Result.snapshotUrl} one of its properties.
+            contextValues[$"{prefix}.Result"] = result;
+            foreach (var property in JsonValueReader.GetProperties(result).Where(x => x.Path.StartsWith("$.", StringComparison.Ordinal)))
+            {
+                contextValues[$"{prefix}.Result.{property.Path[2..]}"] = property.SampleValue;
+            }
+        }
     }
 
     private async Task<ConditionEvaluationResult> EvaluateConditionAsync(
@@ -419,8 +437,29 @@ public class WorkflowTriggerService(
             condition.TriggerExpectedValue,
             expectedType);
 
+        if (sourceAction.CommandType == Shared.CommandType.Event)
+        {
+            // An event matches only at the check right after it arrived, never for as long as it stays the last value.
+            var receivedAtUtc = deviceStateStore.GetTelemetry(sourceAction.Device.DeviceId, sourceAction.Command)?.ReceivedAtUtc;
+            isMatched = IsNewEvent(condition.Id, receivedAtUtc) && isMatched;
+            condition.LastConditionMatched = isMatched;
+            return new ConditionEvaluationResult(isMatched, currentValue, IsEvent: true, Result: execution.RawResponse);
+        }
+
         condition.LastConditionMatched = isMatched;
-        return new ConditionEvaluationResult(isMatched, currentValue);
+        return new ConditionEvaluationResult(isMatched, currentValue, Result: execution.RawResponse);
+    }
+
+    private bool IsNewEvent(int conditionId, DateTimeOffset? receivedAtUtc)
+    {
+        var handledAtUtc = _handledEventTimes.GetOrAdd(conditionId, _ => timeProvider.GetUtcNow());
+        if (receivedAtUtc is not { } received || received <= handledAtUtc)
+        {
+            return false;
+        }
+
+        _handledEventTimes[conditionId] = received;
+        return true;
     }
 
     private async Task<DeviceActionExecutionResult> ExecuteSourceActionAsync(
@@ -511,7 +550,8 @@ public class WorkflowTriggerService(
 
     /// <param name="IsMatched">Whether the condition matches, or null when it cannot be evaluated yet.</param>
     /// <param name="IsEvent">The condition matches only at the check right after something happened, not for as long as a state lasts.</param>
-    private record ConditionEvaluationResult(bool? IsMatched, string? CurrentValue, bool IsEvent = false);
+    /// <param name="Result">The device value the condition read, e.g. the JSON of a detection.</param>
+    private record ConditionEvaluationResult(bool? IsMatched, string? CurrentValue, bool IsEvent = false, string? Result = null);
 
     private sealed record TriggerTick(
         DateTimeOffset LocalNow,

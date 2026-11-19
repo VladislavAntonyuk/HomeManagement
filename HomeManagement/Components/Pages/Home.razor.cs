@@ -1,5 +1,4 @@
-﻿using HomeManagement.Application.AwayMode;
-using HomeManagement.Application.DeviceManagement;
+﻿using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Router;
 using HomeManagement.Components.Dialogs;
 using HomeManagement.Shared;
@@ -14,7 +13,6 @@ public partial class Home(
      ISnackbar snackbar,
      IRouterController routerController,
      DeviceService deviceService,
-     AwayModeService awayModeService,
      IDialogService dialogService) : ComponentBase
 {
 
@@ -26,14 +24,11 @@ public partial class Home(
     private string? _networkData;
     private string? _cpuInfo;
     private string? _ramInfo;
-    private bool _isAwayModeEnabled;
-    private bool _isUpdatingAwayMode;
 
     protected override async Task OnInitializedAsync()
     {
         _localIp = NetworkManager.GetLocalIp();
         _totalDevices = (await deviceService.GetStatusSummaryAsync()).Total;
-        _isAwayModeEnabled = await awayModeService.IsEnabledAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -301,26 +296,6 @@ public partial class Home(
         if (e.Key == "Enter")
         {
             await RunTerminalCommand();
-        }
-    }
-
-    private async Task OnAwayModeChanged(bool isEnabled)
-    {
-        _isUpdatingAwayMode = true;
-
-        try
-        {
-            await awayModeService.SetEnabledAsync(isEnabled);
-            _isAwayModeEnabled = isEnabled;
-            snackbar.Add($"Away mode {(isEnabled ? "enabled" : "disabled")}.", Severity.Success);
-        }
-        catch (Exception e)
-        {
-            snackbar.Add($"Error updating away mode: {e.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isUpdatingAwayMode = false;
         }
     }
 

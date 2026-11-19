@@ -1,5 +1,4 @@
 ﻿using HomeManagement.Application;
-using HomeManagement.Application.AwayMode;
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Workflows;
 using HomeManagement.Shared;
@@ -40,7 +39,7 @@ public record McpWorkflow(
     int Steps,
     DateTimeOffset? LastTriggeredAtUtc);
 
-public record McpHomeDashboard(bool AwayModeEnabled, IReadOnlyList<McpDevice> Devices, IReadOnlyList<McpWorkflow> Workflows);
+public record McpHomeDashboard(IReadOnlyList<McpDevice> Devices, IReadOnlyList<McpWorkflow> Workflows);
 
 /// <param name="Message">Raw result, e.g. the JSON the device replied with.</param>
 /// <param name="DisplayMessage">Readable result, e.g. the device JSON flattened to "key: value" lines.</param>
@@ -59,15 +58,13 @@ public class HomeManagementMcpTools
 
     [McpServerTool(UseStructuredContent = true, ReadOnly = true)]
     [McpAppUi(ResourceUri = DashboardUri)]
-    [Description("Shows the home dashboard with away mode, devices and their actions, and workflows. The user can run actions and workflows from it.")]
+    [Description("Shows the home dashboard with devices and their actions, and workflows. The user can run actions and workflows from it.")]
     public static async Task<McpHomeDashboard> ShowHomeDashboard(
         DeviceService deviceService,
         WorkflowService workflowService,
-        AwayModeService awayModeService,
         CancellationToken token)
     {
         return new McpHomeDashboard(
-            await awayModeService.IsEnabledAsync(token),
             await GetDevicesAsync(deviceService, token),
             await GetWorkflowsAsync(workflowService, token));
     }
@@ -107,17 +104,6 @@ public class HomeManagementMcpTools
         WorkflowService workflowService,
         CancellationToken token)
         => ToMcp(await workflowService.SetEnabledAsync(name, enabled, token));
-
-    [McpServerTool(UseStructuredContent = true, Idempotent = true)]
-    [Description("Turns away mode on or off. In away mode cameras alert on detected people.")]
-    public static async Task<McpOperationResult> SetAwayMode(
-        [Description("true to turn away mode on, false to turn it off")] bool enabled,
-        AwayModeService awayModeService,
-        CancellationToken token)
-    {
-        await awayModeService.SetEnabledAsync(enabled, token);
-        return new McpOperationResult(true, $"Away mode {(enabled ? "enabled" : "disabled")}.");
-    }
 
     private static McpOperationResult ToMcp(OperationResult result) => new(result.IsSuccess, result.Message);
 

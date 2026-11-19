@@ -255,7 +255,7 @@ public partial class Workflows(
 
     private Workflow MapToEntity(WorkflowEditModel model)
     {
-        var triggerConditions = model.TriggerConditions.Select(x =>
+        var triggerConditions = model.TriggerConditions.Select((x, index) =>
         {
             var isDate = x.TriggerType is WorkflowTriggerType.Date;
             var isTime = x.TriggerType is WorkflowTriggerType.Time;
@@ -265,6 +265,7 @@ public partial class Workflows(
 
             return new WorkflowTriggerCondition
             {
+                Order = index,
                 TriggerType = x.TriggerType,
                 TriggerOperator = isDate || isTime || isDeviceResult ? x.TriggerOperator : null,
                 TriggerDate = isDate ? x.TriggerDate : null,

@@ -31,10 +31,17 @@
             </MudStack>
         </MudTd>
         <MudTd DataLabel="Logic">
-            <MudStack Spacing="0">
-                <MudText Typo="Typo.body2">@context.ConditionOperator</MudText>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">@(context.RepeatWhileMatched ? "Repeats while matched" : "Once per match")</MudText>
-            </MudStack>
+            @if (context.TriggerConditions.Count == 0)
+            {
+                <MudText Typo="Typo.body2">Manual</MudText>
+            }
+            else
+            {
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.body2">@context.ConditionOperator</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@(context.RepeatWhileMatched ? "Repeats while matched" : "Once per match")</MudText>
+                </MudStack>
+            }
         </MudTd>
         <MudTd DataLabel="Enabled">
             <MudChip T="string" Color="@(context.IsEnabled ? Color.Success : Color.Default)" Variant="Variant.Filled">@(context.IsEnabled ? "Yes" : "No")</MudChip>

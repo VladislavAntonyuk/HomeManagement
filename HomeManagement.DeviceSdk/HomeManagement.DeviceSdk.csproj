@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net11.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Silverback.Integration.MQTT" Version="5.9.0" />
+		<ProjectReference Include="..\HomeManagement.Shared\HomeManagement.Shared.csproj" />
+	</ItemGroup>
+
+</Project>

@@ -69,9 +69,9 @@ sudo systemctl enable avahi-cameras.service
 
 
 
-REST API for the HomeManagementClient app:
+REST API for the HomeManagement.Client app:
 All endpoints are under /api and need the header X-API-Key with the Auth:Key value (the key you sign in with), or the sign-in cookie.
 The routes are in HomeManagement.Shared/Api/ApiContracts.cs, which the app also uses.
-GET /api/dashboard, PUT /api/away-mode, GET /api/devices, POST /api/devices/{deviceId}/actions/{actionId}.
+GET /api/dashboard, GET /api/devices, POST /api/devices/{deviceId}/actions/{actionId}.
 GET /api/workflows, POST /api/workflows/{workflowId}/run, PUT /api/workflows/{workflowId}/enabled.
 GET /api/cameras, GET /api/cameras/{camera}/snapshot?height=, GET /api/cameras/{camera}/stream?height=&fps= (MJPEG proxied from Frigate).

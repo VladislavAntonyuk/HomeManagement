@@ -15,7 +15,7 @@ public sealed class WorkflowService(
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(token);
         return await db.Workflows
-            .Include(x => x.TriggerConditions)
+            .Include(x => x.TriggerConditions.OrderBy(c => c.Order))
             .ThenInclude(x => x.TriggerSourceAction)
             .ThenInclude(x => x!.Device)
             .Include(x => x.TriggerConditions)

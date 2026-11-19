@@ -1,0 +1,39 @@
+services:
+  mqtt:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - /home/orangepi/Projects/mosquitto/config:/mosquitto/config
+      - /home/orangepi/Projects/mosquitto/data:/mosquitto/data
+      - /home/orangepi/Projects/mosquitto/log:/mosquitto/log
+
+  frigate:
+    container_name: frigate
+    privileged: true
+    restart: unless-stopped
+    image: ghcr.io/blakeblackshear/frigate:stable-rk
+    shm_size: "384mb"
+    depends_on:
+      - mqtt
+    security_opt:
+      - apparmor=unconfined
+      - systempaths=unconfined
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/dma_heap:/dev/dma_heap
+      - /dev/rga:/dev/rga
+      - /dev/mpp_service:/dev/mpp_service
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /sys:/sys:ro
+      - /home/orangepi/Projects/frigate/config:/config
+      - /media/orangepi/MyPassport/frigate:/media/frigate
+      - type: tmpfs
+        target: /tmp/cache
+        tmpfs:
+          size: 400000000 # 400 MB RAM cache limit for 4GB system
+    ports:
+      - "127.0.0.1:5000:5000" # Internal Web UI for YARP Proxy

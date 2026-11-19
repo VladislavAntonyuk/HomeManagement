@@ -1,5 +1,4 @@
 using HomeManagement.Application;
-using HomeManagement.Application.AwayMode;
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Workflows;
 using HomeManagement.Shared;
@@ -20,7 +19,6 @@ public static class HomeApi
             .WithTags("Home Management API");
 
         api.MapGet(ApiRoutes.Dashboard, GetDashboardAsync);
-        api.MapPut(ApiRoutes.AwayMode, SetAwayModeAsync);
         api.MapGet(ApiRoutes.Devices, GetDevicesAsync);
         api.MapPost(ApiRoutes.DeviceAction, RunDeviceActionAsync);
         api.MapGet(ApiRoutes.Workflows, GetWorkflowsAsync);
@@ -32,13 +30,11 @@ public static class HomeApi
     private static async Task<DashboardDto> GetDashboardAsync(
         DeviceService deviceService,
         WorkflowService workflowService,
-        AwayModeService awayModeService,
         CancellationToken token)
     {
         var devices = await deviceService.GetStatusSummaryAsync(token);
         var workflows = await workflowService.GetSummaryAsync(token);
         return new DashboardDto(
-            await awayModeService.IsEnabledAsync(token),
             devices.Total,
             devices.Online,
             devices.Offline,
@@ -47,15 +43,6 @@ public static class HomeApi
             workflows.Enabled,
             workflows.LastRunAtUtc,
             GetHubInfo());
-    }
-
-    private static async Task<OperationResultDto> SetAwayModeAsync(
-        SetEnabledRequest request,
-        AwayModeService awayModeService,
-        CancellationToken token)
-    {
-        await awayModeService.SetEnabledAsync(request.Enabled, token);
-        return new OperationResultDto(true, $"Away mode {(request.Enabled ? "enabled" : "disabled")}.");
     }
 
     private static async Task<List<DeviceDto>> GetDevicesAsync(DeviceService deviceService, CancellationToken token)

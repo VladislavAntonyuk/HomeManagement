@@ -1,9 +1,10 @@
 # Device protocol
 
-Devices talk to Home Management only through the MQTT broker.
+Devices talk to Home Management only through the MQTT broker, like devices of Azure IoT Hub.
+The hub and a device never know about each other: a device only knows the broker and its own topics, and the hub only knows what devices publish there.
 Devices do not expose HTTP endpoints, and the hub never connects to a device directly.
 Any device that follows the topics below appears on the Devices page, in workflows and in the MCP tools.
-`HomeManagementDeviceApi` is the reference implementation, and the topic names are in `HomeManagement.Shared/DeviceTopics.cs`.
+`HomeManagement.DeviceSdk` implements the protocol for .NET devices, and the topic names are in `HomeManagement.Shared/DeviceTopics.cs`.
 
 ## Topics
 
@@ -14,7 +15,7 @@ Use the same value as the MQTT client id.
 |---|---|---|---|
 | `home/devices/{deviceId}/twin` | device to hub | yes | Device name and actions as JSON |
 | `home/devices/{deviceId}/status` | device to hub | yes | `online` or `offline` |
-| `home/devices/{deviceId}/telemetry/{key}` | device to hub | yes | Latest value of a `Get` action, any text or JSON |
+| `home/devices/{deviceId}/telemetry/{key}` | device to hub | `Get`: yes, `Event`: no | Value of a `Get` action, or an occurrence of an `Event` action, any text or JSON |
 | `home/devices/{deviceId}/commands/{key}` | hub to device | no | Command request |
 | `home/hub/{hubId}/responses` | device to hub | no | Command response as JSON |
 
@@ -26,7 +27,8 @@ All messages use QoS 1.
 2. Subscribe to `home/devices/{deviceId}/commands/#` if the device has `Post` actions.
 3. Publish the twin, then `online` to the status topic, both retained.
 4. Publish the `info` telemetry right away and then at the heartbeat interval announced in the twin.
-5. Publish other telemetry, retained, whenever a value changes and at a regular interval.
+5. Publish the values of `Get` actions, retained, whenever a value changes and at a regular interval.
+   Publish `Event` actions, not retained, when they happen.
 6. On a clean shutdown, publish `offline` to the status topic before disconnecting, because the broker only sends the last will on an unexpected disconnect.
 
 ## Twin
@@ -44,7 +46,11 @@ All messages use QoS 1.
 
 `command` is the key used in the telemetry or command topic.
 `heartbeatIntervalSeconds` is optional and says how often the device publishes its `info` telemetry; the hub assumes 60 seconds when it is missing.
-`Get` actions are read from the latest telemetry value, so the hub never waits for the device to answer them.
+`Get` actions are state, read from the latest telemetry value, so the hub never waits for the device to answer them.
+A workflow condition on a `Get` action matches for as long as the value does.
+`Event` actions are telemetry that reports something that happened, e.g. a detected person.
+Publish events without the retain flag, so the broker never sends an old event again, e.g. to the hub after it restarts.
+A workflow condition on an `Event` action matches once for every event, right when it arrives; include an id, so the hub sees two equal events as a change right away.
 `Post` actions are sent to the device as commands.
 
 The hub adds a device when its twin first arrives and updates the actions every time the twin changes.
@@ -94,8 +100,10 @@ QoS 1 can deliver a request twice, so ignore a correlation data value that was a
 
 ## Implementations
 
-- `HomeManagementDeviceApi`: .NET devices such as the Orange Pi camera, with Silverback.
-- `ESP8266/libraries/DeviceApi`: ESP8266 and ESP32 sketches, with H4AsyncMQTT (see `ESP8266/README.md` and `ESP32/README.md`).
+- `HomeManagement.DeviceSdk`: the .NET device library, with Silverback. A device implements `IDeviceHandler` (its actions, commands and readings) and calls `AddDeviceAgent<THandler>`.
+- `HomeManagement.Devices.ProcessDevice`: .NET devices such as the Orange Pi camera, whose actions run processes configured in `CommandsSettings`.
+- `HomeManagement.Cameras`: the camera module of the hub, which exposes Frigate as a device (see below).
+- `Devices/ESP8266/libraries/DeviceApi`: ESP8266 and ESP32 sketches, with H4AsyncMQTT (see `Devices/ESP8266/README.md` and `Devices/ESP32/README.md`).
 
 Every device connects to the broker itself with MQTT v5; no device relays messages for another one.
 
@@ -104,13 +112,48 @@ Every device connects to the broker itself with MQTT v5; no device relays messag
 A sensor that has nothing to execute only needs the twin with `Get` actions, the status with its last will, and the telemetry topics.
 It does not subscribe to anything.
 
-## Frigate cameras
+## Cameras module and Frigate
 
-Frigate cameras are not devices.
-The hub enables a Frigate camera while the RTMP stream it reads is published to the hub, and disables it when the stream stops.
-It finds the stream of each camera in the Frigate configuration (`/api/config`), either as an `rtmp://` input or as a go2rtc restream of one.
+Frigate is part of the hub, but the hub core does not know about it.
+The `HomeManagement.Cameras` module runs in the hub process and talks to the hub core only through the broker, as the device `frigate-module`, the same way an Azure IoT Edge module runs on its gateway.
+It has its own MQTT clients: the device client `frigate-module`, and `home-management-frigate` for the Frigate topics.
+Neither may be `frigate`, which is the client id Frigate itself uses by default: the broker allows one connection per client id.
+
+The `Frigate` device has these actions, built from the cameras and profiles in the Frigate configuration (`/api/config`):
+
+| Action | Type | Value or effect |
+|---|---|---|
+| `State` | Get | `{ "available": true, "profile": "away" }`, from `frigate/available` and `frigate/profile/state` |
+| `Detection` | Event | `{ "id", "camera", "label", "score", "snapshotUrl" }` for every new object Frigate tracks, from `frigate/events` |
+| `{camera} State` | Get | `{ "enabled": true, "recording": false, "clip": false, "clipEventId": null }`, from `frigate/{camera}/enabled/state`, `frigate/{camera}/recordings/state` and the clips in progress |
+| `Start Recording {camera}`, `Stop Recording {camera}` | Post | `ON` or `OFF` to `frigate/{camera}/recordings/set`: switches recording by the camera's `record` configuration, e.g. continuous or only around detections |
+| `Start Clip {camera}`, `Stop Clip {camera}` | Post | Records on demand: creates a Frigate manual event with the label `manual` (`POST /api/events/{camera}/manual/create`) and ends it (`PUT /api/events/{id}/end`) |
+| `Profile {name}`, `Profile None` | Post | the profile name or `none` to `frigate/profile/set` |
+
+The actions are read again every time Frigate reports `online`, so a new camera or profile shows up without restarting the hub.
+Frigate only turns recording on over MQTT for cameras that have `record.enabled: true` in its configuration.
+A clip ends by itself after `Cameras:ClipMaxSeconds` (one hour by default), so a clip whose Stop Clip never comes, e.g. because the hub restarted, does not record forever.
+Frigate keeps a clip like an alert, by the `record.alerts.retain` setting of the camera.
+Activating a profile clears the recording switches, so switch the profile before you start or stop recording.
+
+The module also runs the RTMP server cameras publish to, on port 1935, with the stream key from `Auth:StreamKey`.
+It enables a Frigate camera while the RTMP stream it reads is published, and disables it when the stream stops.
+It finds the stream of each camera in the Frigate configuration, either as an `rtmp://` input or as a go2rtc restream of one.
 The sync runs on every stream start and stop, and every time Frigate reports `online` on `frigate/available`.
 Cameras that do not read from the hub are not changed.
+
+The module uses the hub's `Mqtt` section, and a `Cameras` section can override it, e.g. `"Cameras": { "Device": { "Mqtt": { "Username": "frigate-module", "Password": "..." } } }`.
+
+## Away mode with workflows
+
+There is no away mode switch: create workflows for it on the Workflows page, so you choose what happens.
+
+- **Leave home**, with the Manual trigger: `Frigate` › `Profile Away`, then `LiveCamera` › `Start LiveCamera`, then `Frigate` › `Start Recording {camera}`.
+- **Arrive home**, with the Manual trigger: `Frigate` › `Stop Recording {camera}`, `LiveCamera` › `Stop LiveCamera`, `Frigate` › `Profile None`.
+- **Person alert**, with these conditions in this order: `Frigate` › `Detection` › `label` equals `person`, then `Frigate` › `State` › `profile` equals `away`.
+  Add a Notify step with a message such as `Person on {Trigger[0].Result.camera}: {Trigger[0].Result.snapshotUrl}`.
+
+A Notify message can use every property of the value a device condition read, as `{Trigger.Result.<property>}` for the first matching condition or `{Trigger[0].Result.<property>}` for a given one.
 
 ## Broker
 
@@ -146,6 +189,12 @@ topic readwrite #
 
 user frigate
 topic readwrite frigate/#
+
+# Only needed when the cameras module has its own login instead of the hub's one.
+user frigate-module
+topic readwrite frigate/#
+topic readwrite home/devices/frigate-module/#
+pattern write home/hub/+/responses
 
 # Every device may only use its own topics. %c is the client id, which must be the device id.
 pattern readwrite home/devices/%c/#

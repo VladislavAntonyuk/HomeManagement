@@ -1,0 +1,7 @@
+[assembly: XmlnsDefinition("http://schemas.microsoft.com/dotnet/maui/global", "HomeManagement.Client")]
+[assembly: XmlnsDefinition("http://schemas.microsoft.com/dotnet/maui/global", "HomeManagement.Client.Pages")]
+[assembly: XmlnsDefinition("http://schemas.microsoft.com/dotnet/maui/global", "HomeManagement.Client.ViewModels")]
+[assembly: XmlnsDefinition("http://schemas.microsoft.com/dotnet/maui/global", "HomeManagement.Client.Converters")]
+[assembly: XmlnsDefinition("http://schemas.microsoft.com/dotnet/maui/global", "HomeManagement.Shared.Api", AssemblyName = "HomeManagement.Shared")]
+[assembly: XmlnsDefinition("http://schemas.microsoft.com/dotnet/maui/global", "HomeManagement.Client.Controls")]
+[assembly: XmlnsDefinition("http://schemas.microsoft.com/dotnet/maui/global", "HomeManagement.Client.Services")]

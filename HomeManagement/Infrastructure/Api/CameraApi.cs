@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using HomeManagement.Infrastructure.IpCameras;
+using HomeManagement.Infrastructure.Extensions;
 using HomeManagement.Shared.Api;
 
 namespace HomeManagement.Infrastructure.Api;
@@ -21,7 +21,7 @@ public static partial class CameraApi
     {
         try
         {
-            using var httpClient = httpClientFactory.CreateClient(FrigateStreamSync.HttpClientName);
+            using var httpClient = httpClientFactory.CreateClient(LiveCameraExtensions.FrigateHttpClientName);
             await using var stream = await httpClient.GetStreamAsync("api/config", token);
             using var config = await JsonDocument.ParseAsync(stream, cancellationToken: token);
             var cameras = config.RootElement.TryGetProperty("cameras", out var element) && element.ValueKind == JsonValueKind.Object
@@ -53,7 +53,7 @@ public static partial class CameraApi
             return TypedResults.NotFound();
         }
 
-        var httpClient = httpClientFactory.CreateClient(FrigateStreamSync.HttpClientName);
+        var httpClient = httpClientFactory.CreateClient(LiveCameraExtensions.FrigateHttpClientName);
         httpClient.Timeout = Timeout.InfiniteTimeSpan;
         context.Response.RegisterForDispose(httpClient);
 

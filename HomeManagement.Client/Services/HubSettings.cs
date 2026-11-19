@@ -1,0 +1,91 @@
+using System.Diagnostics.CodeAnalysis;
+
+namespace HomeManagement.Client.Services;
+
+public sealed class HubSettings(IPreferences preferences, ISecureStorage secureStorage)
+{
+    private const string HubUrlKey = "HubUrl";
+    private const string ApiKeyKey = "HubApiKey";
+
+    public const string DefaultHubUrl = "http://home-management.local";
+
+    private bool _isLoaded;
+
+    public event EventHandler? Changed;
+
+    public Uri? HubUri { get; private set; }
+
+    public string? ApiKey { get; private set; }
+
+    [MemberNotNullWhen(true, nameof(HubUri), nameof(ApiKey))]
+    public bool IsConfigured => HubUri is not null && !string.IsNullOrEmpty(ApiKey);
+
+    public async Task LoadAsync()
+    {
+        if (_isLoaded)
+        {
+            return;
+        }
+
+        HubUri = TryParseHubUrl(preferences.Get<string?>(HubUrlKey, null), out var uri) ? uri : null;
+        ApiKey = await ReadApiKeyAsync();
+        _isLoaded = true;
+    }
+
+    public async Task SaveAsync(Uri hubUri, string apiKey)
+    {
+        preferences.Set(HubUrlKey, hubUri.ToString());
+        await WriteApiKeyAsync(apiKey);
+        HubUri = hubUri;
+        ApiKey = apiKey;
+        _isLoaded = true;
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public static bool TryParseHubUrl(string? value, out Uri uri)
+    {
+        uri = null!;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var text = value.Trim();
+        if (!text.Contains("://", StringComparison.Ordinal))
+        {
+            text = $"http://{text}";
+        }
+
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var parsed) || parsed.Scheme is not ("http" or "https"))
+        {
+            return false;
+        }
+
+        uri = new UriBuilder(parsed) { Path = "/", Query = string.Empty, Fragment = string.Empty }.Uri;
+        return true;
+    }
+
+    private async Task<string?> ReadApiKeyAsync()
+    {
+        try
+        {
+            return await secureStorage.GetAsync(ApiKeyKey);
+        }
+        catch (Exception)
+        {
+            return preferences.Get<string?>(ApiKeyKey, null);
+        }
+    }
+
+    private async Task WriteApiKeyAsync(string apiKey)
+    {
+        try
+        {
+            await secureStorage.SetAsync(ApiKeyKey, apiKey);
+        }
+        catch (Exception)
+        {
+            preferences.Set(ApiKeyKey, apiKey);
+        }
+    }
+}

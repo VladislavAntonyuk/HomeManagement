@@ -1,0 +1,137 @@
+version: 0.18-0
+
+mqtt:
+  host: mqtt
+  port: 1883
+  topic_prefix: frigate
+
+go2rtc:
+  streams:
+    garden:
+      - ffmpeg:rtmp://192.168.50.151:1935/live/garden?password=PASSWORD_HERE#video=copy#audio=aac#audio=opus
+    garden-zero-2w:
+      - ffmpeg:rtmp://192.168.50.151:1935/live/garden-zero-2w?password=PASSWORD_HERE#video=copy#audio=aac#audio=opus
+
+detectors:
+  rknn:
+    type: rknn
+    num_cores: 3
+
+ffmpeg:
+  hwaccel_args: preset-rkmpp
+
+profiles:
+  away:
+    friendly_name: Away
+  default:
+    friendly_name: Default
+
+cameras:
+  garden:
+    enabled: true
+    live:
+      streams:
+        Main Stream: garden
+    ffmpeg:
+      output_args:
+        record: preset-record-generic-audio-copy
+      inputs:
+        - path: rtsp://127.0.0.1:8554/garden
+          input_args: -avoid_negative_ts make_zero -fflags nobuffer -flags 
+            low_delay
+          roles:
+            - detect
+            - record
+
+    objects:
+      track:
+        - person
+
+    snapshots:
+      enabled: true
+      timestamp: true
+      bounding_box: true
+      crop: false
+      retain:
+        default: 7
+
+    record:
+      enabled: true
+      alerts:
+        pre_capture: 3
+        post_capture: 3
+        retain:
+          days: 7
+          mode: active_objects
+      detections:
+        pre_capture: 3
+        post_capture: 3
+        retain:
+          days: 7
+          mode: active_objects
+
+    profiles:
+      away:
+        record:
+          enabled: true
+        snapshots:
+          enabled: true
+      default:
+        record:
+          enabled: false
+        snapshots:
+          enabled: false
+
+        detect:
+          enabled: false
+    detect:
+      enabled: true
+  garden-zero-2w:
+    enabled: false
+    live:
+      streams:
+        Main Stream: garden-zero-2w
+
+    ffmpeg:
+      output_args:
+        record: preset-record-generic-audio-copy
+      inputs:
+        - path: rtsp://127.0.0.1:8554/garden-zero-2w
+          input_args: -avoid_negative_ts make_zero -fflags nobuffer -flags 
+            low_delay
+          roles:
+            - detect
+            - record
+
+    detect:
+      enabled: true
+      width: 640
+      height: 480
+      fps: 5
+
+    objects:
+      track:
+        - person
+
+    snapshots:
+      enabled: true
+      timestamp: true
+      bounding_box: true
+      crop: false
+      retain:
+        default: 7
+
+    record:
+      enabled: true
+      alerts:
+        pre_capture: 3
+        post_capture: 3
+        retain:
+          days: 7
+          mode: active_objects
+      detections:
+        pre_capture: 3
+        post_capture: 3
+        retain:
+          days: 7
+          mode: active_objects

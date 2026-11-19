@@ -6,6 +6,11 @@ public class WorkflowTriggerCondition
 {
     public int Id { get; init; }
 
+    /// <summary>
+    /// Position of the condition in the workflow. The first matching condition fills the {Trigger.*} placeholders.
+    /// </summary>
+    public int Order { get; set; }
+
     public WorkflowTriggerType TriggerType { get; set; } = WorkflowTriggerType.Manual;
 
     public DateOnly? TriggerDate { get; set; }

@@ -46,11 +46,6 @@ public partial class WorkflowEditDialog
 
     protected override void OnParametersSet()
     {
-        if (Model.TriggerConditions.Count == 0)
-        {
-            Model.TriggerConditions.Add(CreateTimeCondition());
-        }
-
         if (Model.Steps.Count == 0)
         {
             Model.Steps.Add(new WorkflowStepEditModel { StepType = WorkflowStepType.DeviceAction });
@@ -74,13 +69,6 @@ public partial class WorkflowEditDialog
         await _form.ValidateAsync();
         if (!_form.IsValid)
         {
-            _saving = false;
-            return;
-        }
-
-        if (Model.TriggerConditions.Count == 0)
-        {
-            _saveError = "Add at least one trigger condition.";
             _saving = false;
             return;
         }
@@ -378,6 +366,21 @@ public partial class WorkflowEditDialog
             GetState(condition).NumberExpectedValue = value;
             condition.TriggerExpectedValue = value?.ToString(CultureInfo.InvariantCulture);
         }
+    }
+
+    private void MoveCondition(int index, int offset) => Move(Model.TriggerConditions, index, offset);
+
+    private void MoveStep(int index, int offset) => Move(Model.Steps, index, offset);
+
+    private static void Move<T>(List<T> items, int index, int offset)
+    {
+        var target = index + offset;
+        if (index < 0 || index >= items.Count || target < 0 || target >= items.Count)
+        {
+            return;
+        }
+
+        (items[index], items[target]) = (items[target], items[index]);
     }
 
     private void AddStep()
