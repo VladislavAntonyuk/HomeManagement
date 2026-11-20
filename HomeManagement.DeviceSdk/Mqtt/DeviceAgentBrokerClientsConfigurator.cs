@@ -38,7 +38,7 @@ public sealed class DeviceAgentBrokerClientsConfigurator(IOptions<DeviceAgentOpt
                 .Produce<DeviceTwin>(endpoint => endpoint
                     .ProduceTo(DeviceTopics.Twin(deviceId))
                     .Retain()
-                    .SerializeAsJson(serializer => serializer.Configure(ConfigureJson))
+                    .SerializeAsJson(serializer => serializer.Configure(DeviceProtocolJson.Configure))
                     .WithAtLeastOnceQoS())
                 .Produce<StringMessage<DeviceStatusPayload>>(endpoint => endpoint
                     .ProduceTo(DeviceTopics.Status(deviceId))
@@ -57,14 +57,8 @@ public sealed class DeviceAgentBrokerClientsConfigurator(IOptions<DeviceAgentOpt
                     .WithAtLeastOnceQoS())
                 .Produce<DeviceCommandResponse>(endpoint => endpoint
                     .ProduceToDynamicTopic()
-                    .SerializeAsJson(serializer => serializer.Configure(ConfigureJson))
+                    .SerializeAsJson(serializer => serializer.Configure(DeviceProtocolJson.Configure))
                     .WithAtLeastOnceQoS()));
         });
-    }
-
-    private static void ConfigureJson(JsonSerializerOptions options)
-    {
-        options.PropertyNameCaseInsensitive = true;
-        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
     }
 }

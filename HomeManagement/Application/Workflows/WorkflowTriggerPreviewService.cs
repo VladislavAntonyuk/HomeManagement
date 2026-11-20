@@ -1,63 +1,43 @@
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Infrastructure.Database;
-using Microsoft.EntityFrameworkCore;
 using HomeManagement.Infrastructure.Database.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace HomeManagement.Application.Workflows;
 
-public interface IWorkflowTriggerPreviewService
-{
-    Task<WorkflowTriggerPreviewResult> PreviewAsync(string deviceName, string actionName, CancellationToken token = default);
-}
-
 public record WorkflowTriggerPropertyOption(string Path, WorkflowTriggerValueType ValueType, string? SampleValue);
 
-public record WorkflowTriggerPreviewResult(
-    bool IsSuccess,
-    string? Error,
-    string? RawResponse,
-    IReadOnlyList<WorkflowTriggerPropertyOption> Properties);
+/// <param name="Error">Why the action could not be read, or null when it was.</param>
+public record WorkflowTriggerPreview(string? Error, string? RawResponse, IReadOnlyList<WorkflowTriggerPropertyOption> Properties)
+{
+    public bool IsSuccess => Error is null;
+}
 
+/// <summary>
+/// Reads the current value of a device action, so the workflow editor can offer its JSON properties for a trigger.
+/// </summary>
 public class WorkflowTriggerPreviewService(
     IDbContextFactory<HomeManagementDbContext> dbContextFactory,
-    IDeviceActionExecutor deviceActionExecutor) : IWorkflowTriggerPreviewService
+    DeviceActionExecutor deviceActionExecutor)
 {
-    public async Task<WorkflowTriggerPreviewResult> PreviewAsync(string deviceName, string actionName, CancellationToken token = default)
+    public async Task<WorkflowTriggerPreview> PreviewAsync(int actionId, CancellationToken token = default)
     {
-        if (string.IsNullOrWhiteSpace(deviceName))
-        {
-            return new WorkflowTriggerPreviewResult(false, "Device is required.", null, []);
-        }
-
-        if (string.IsNullOrWhiteSpace(actionName))
-        {
-            return new WorkflowTriggerPreviewResult(false, "Action is required.", null, []);
-        }
-
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
-        var device = await dbContext.Devices
-            .AsNoTracking()
-            .Include(x => x.Actions)
-            .FirstOrDefaultAsync(x => x.Name == deviceName, token);
-
-        if (device is null)
+        if (await dbContext.Set<DeviceAction>().Include(x => x.Device).FirstOrDefaultAsync(x => x.Id == actionId, token) is not { } action)
         {
-            return new WorkflowTriggerPreviewResult(false, $"Device '{deviceName}' not found.", null, []);
+            return new WorkflowTriggerPreview("The action no longer exists.", null, []);
         }
 
-        var action = device.Actions.FirstOrDefault(x => string.Equals(x.Action, actionName, StringComparison.Ordinal));
-        if (action is null)
-        {
-            return new WorkflowTriggerPreviewResult(false, $"Action '{actionName}' not found on device '{deviceName}'.", null, []);
-        }
-
-        var execution = await deviceActionExecutor.ExecuteAsync(device, action, token);
+        var execution = await deviceActionExecutor.ExecuteAsync(action.Device, action, token);
         if (!execution.IsSuccess)
         {
-            return new WorkflowTriggerPreviewResult(false, execution.Message, execution.RawResponse, []);
+            return new WorkflowTriggerPreview(execution.Message, execution.RawResponse, []);
         }
 
         var response = execution.RawResponse ?? execution.Message;
-        return new WorkflowTriggerPreviewResult(true, null, response, JsonValueReader.GetProperties(response));
+        var properties = JsonValueReader.GetProperties(response);
+        return properties.Count == 0
+            ? new WorkflowTriggerPreview("No comparable values found in the response.", response, [])
+            : new WorkflowTriggerPreview(null, response, properties);
     }
 }

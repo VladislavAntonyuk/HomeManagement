@@ -1,4 +1,3 @@
-using HomeManagement.Application.Login;
 using HomeManagement.Components;
 using HomeManagement.Cameras;
 using Microsoft.AspNetCore.Components;
@@ -6,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol.Extensions.Apps;
 using MudBlazor.Services;
-using System.Text.Json.Serialization;
 using HomeManagement.Infrastructure;
 using HomeManagement.Infrastructure.Api;
 using HomeManagement.Infrastructure.Database;
@@ -20,7 +18,6 @@ builder.AddServiceDefaults();
 builder.AddDatabase();
 
 builder.Services.AddMudServices();
-builder.Services.AddHybridCache();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -33,13 +30,7 @@ builder.AddInternetWatchdog();
 builder.AddLiveCamera();
 builder.AddWorkflow();
 
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
-
-builder.Services.ConfigureHttpJsonOptions(options =>
-{
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
-});
 
 builder.Services.AddMcpServer()
     .WithHttpTransport()
@@ -52,10 +43,8 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 
-using (var scope = app.Services.CreateScope())
+await using (var dbContext = await app.Services.GetRequiredService<IDbContextFactory<HomeManagementDbContext>>().CreateDbContextAsync())
 {
-    var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<HomeManagementDbContext>>();
-    await using var dbContext = await dbContextFactory.CreateDbContextAsync();
     await dbContext.Database.MigrateAsync();
 }
 
@@ -79,15 +68,12 @@ app.MapLogin();
 app.MapHomeApi();
 
 app.MapMcp("/mcp")
-    .RequireAuthorization(McpApiKeyAuthenticationDefaults.PolicyName)
+    .RequireAuthorization(ApiAuthenticationDefaults.McpPolicyName)
     .WithMetadata(new SkipStatusCodePagesAttribute());
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
-    .WithBrowserOptions(options =>
-    {
-        options.AddAutoPause();
-    })
-    .RequireHost([AppHosts.MainHost, .. builder.Configuration.GetSection("UiHosts").Get<string[]>()!]);
+    .WithBrowserOptions(options => options.AddAutoPause())
+    .RequireHost([AppHosts.MainHost, .. builder.Configuration.GetSection("UiHosts").Get<string[]>() ?? []]);
 
 app.MapReverseProxy();
 

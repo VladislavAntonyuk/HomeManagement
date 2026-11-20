@@ -18,13 +18,14 @@ public sealed class FrigateStreamSync(
     ILogger<FrigateStreamSync> logger) : IRtmpServerStreamEventHandler
 {
     private readonly HashSet<string> _activeStreams = new(StringComparer.Ordinal);
+    private readonly Lock _activeStreamsLock = new();
     private readonly SemaphoreSlim _syncLock = new(1, 1);
 
     public int GetOrder() => 0;
 
     public ValueTask OnRtmpStreamPublishedAsync(IEventContext context, uint clientId, string streamPath, IReadOnlyDictionary<string, string> streamArguments)
     {
-        lock (_activeStreams)
+        lock (_activeStreamsLock)
         {
             _activeStreams.Add(FrigateCameraStreams.NormalizeStreamPath(streamPath));
         }
@@ -36,7 +37,7 @@ public sealed class FrigateStreamSync(
 
     public ValueTask OnRtmpStreamUnpublishedAsync(IEventContext context, uint clientId, string streamPath)
     {
-        lock (_activeStreams)
+        lock (_activeStreamsLock)
         {
             _activeStreams.Remove(FrigateCameraStreams.NormalizeStreamPath(streamPath));
         }
@@ -73,9 +74,9 @@ public sealed class FrigateStreamSync(
         try
         {
             string[] activeStreams;
-            lock (_activeStreams)
+            lock (_activeStreamsLock)
             {
-                activeStreams = _activeStreams.ToArray();
+                activeStreams = [.. _activeStreams];
             }
 
             await using var scope = serviceScopeFactory.CreateAsyncScope();

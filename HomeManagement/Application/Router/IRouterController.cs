@@ -2,7 +2,9 @@ namespace HomeManagement.Application.Router;
 
 public interface IRouterController
 {
-    public Task<RouterResponse> Reboot();
-    public Task<RouterResponse> RebootModem();
-    public Task<RouterResponse> SetLeds(bool enabled);
+    Task<OperationResult> RebootAsync(CancellationToken token = default);
+
+    Task<OperationResult> RebootModemAsync(CancellationToken token = default);
+
+    Task<OperationResult> SetLedsAsync(bool enabled, CancellationToken token = default);
 }

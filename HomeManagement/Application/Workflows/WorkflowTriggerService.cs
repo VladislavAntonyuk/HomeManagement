@@ -1,19 +1,20 @@
 ﻿using System.Collections.Concurrent;
+using System.Globalization;
+using System.Threading.Channels;
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Infrastructure.Database;
+using HomeManagement.Infrastructure.Database.Entities;
+using HomeManagement.Shared.Api;
 using Innovative.SolarCalculator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using System.Globalization;
-using System.Threading.Channels;
-using HomeManagement.Infrastructure.Database.Entities;
 
 namespace HomeManagement.Application.Workflows;
 
 public class WorkflowTriggerService(
     IDbContextFactory<HomeManagementDbContext> dbContextFactory,
-    IWorkflowRunner workflowRunner,
-    IDeviceActionExecutor deviceActionExecutor,
+    WorkflowRunner workflowRunner,
+    DeviceActionExecutor deviceActionExecutor,
     DeviceStateStore deviceStateStore,
     IOptionsMonitor<WorkflowAutomationOptions> optionsMonitor,
     TimeProvider timeProvider,
@@ -23,14 +24,16 @@ public class WorkflowTriggerService(
 
     private readonly ConcurrentDictionary<int, Task> _runningWorkflows = new();
 
-    // When the last event each condition handled arrived, so every event runs the workflow once.
-    // A condition starts from the time it is first checked, so a workflow created later does not run for an old event.
+    // When the last event each trigger handled arrived, so every event runs the workflow once.
+    // A trigger starts from the time it is first checked, so a workflow created later does not run for an old event.
     // Devices do not retain events, so the hub never receives an old one again after it restarts.
     private readonly ConcurrentDictionary<int, DateTimeOffset> _handledEventTimes = new();
 
     // Holds at most one pending change, so a burst of changes, e.g. the retained statuses after a reconnect, causes at most two checks.
     private readonly Channel<bool> _deviceChanges = Channel.CreateBounded<bool>(
         new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
+
+    private TimeZoneInfo? _timeZone;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -101,33 +104,39 @@ public class WorkflowTriggerService(
         return _deviceChanges.Reader.TryRead(out _);
     }
 
+    private TimeZoneInfo GetTimeZone(string id)
+    {
+        if (_timeZone?.Id != id)
+        {
+            _timeZone = TimeZoneInfo.FindSystemTimeZoneById(id);
+        }
+
+        return _timeZone;
+    }
+
     private async Task ProcessWorkflowsAsync(WorkflowAutomationOptions options, bool deviceChangesOnly, CancellationToken token)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
-        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
-        var nowUtc = DateTimeOffset.UtcNow;
+        var timeZone = GetTimeZone(options.TimeZoneId);
+        var nowUtc = timeProvider.GetUtcNow();
         var tick = new TriggerTick(
-            TimeZoneInfo.ConvertTime(nowUtc, timeZoneInfo),
-            timeZoneInfo,
+            TimeZoneInfo.ConvertTime(nowUtc, timeZone),
+            timeZone,
             options,
             TimeSpan.FromTicks(Math.Max(MinAtTimeGracePeriod.Ticks, GetCheckInterval(options).Ticks * 3)));
 
         var query = dbContext.Workflows
             .AsTracking()
-            .Include(x => x.TriggerConditions.OrderBy(c => c.Order))
-            .ThenInclude(x => x.TriggerSourceAction)
-            .ThenInclude(x => x!.Device)
-            .Include(x => x.TriggerConditions)
-            .ThenInclude(x => x.TriggerDevice)
-            .Where(x => x.IsEnabled && x.TriggerConditions.Any());
+            .WithTriggers()
+            .Where(x => x.IsEnabled && x.Triggers.Any());
         if (deviceChangesOnly)
         {
-            query = query.Where(x => x.TriggerConditions.Any(c => c.TriggerType == WorkflowTriggerType.DeviceStatus || c.TriggerType == WorkflowTriggerType.DeviceResult));
+            query = query.Where(x => x.Triggers.Any(t => t is DeviceStatusTrigger || t is DeviceResultTrigger));
         }
 
         var workflows = await query.ToListAsync(token);
 
-        var runs = new List<(Workflow Workflow, WorkflowExecutionContext Context)>();
+        List<(Workflow Workflow, IReadOnlyDictionary<string, string?> Placeholders)> runs = [];
         foreach (var workflow in workflows)
         {
             if (_runningWorkflows.ContainsKey(workflow.Id))
@@ -135,17 +144,17 @@ public class WorkflowTriggerService(
                 continue;
             }
 
-            var (evaluation, hasEvent, triggerContext) = await EvaluateTriggerAsync(workflow, tick, token);
+            var (evaluation, hasEvent, placeholders) = await EvaluateTriggersAsync(workflow, tick, token);
             if (evaluation is not { } isMatched)
             {
                 // A device status is not known yet, e.g. right after the hub started. Keep the previous state, so the workflow does not run again.
                 continue;
             }
 
-            var wasMatched = workflow.LastConditionMatched == true;
-            workflow.LastConditionMatched = isMatched;
+            var wasMatched = workflow.WasMatched == true;
+            workflow.WasMatched = isMatched;
 
-            // An event, e.g. a device going offline, runs the workflow even when the conditions also matched on the previous check.
+            // An event, e.g. a device going offline, runs the workflow even when the triggers also matched on the previous check.
             // Repeating while matched happens only on the regular check, not on every device change.
             var repeats = workflow.RepeatWhileMatched && !deviceChangesOnly;
             if (!isMatched || (wasMatched && !repeats && !hasEvent))
@@ -154,20 +163,20 @@ public class WorkflowTriggerService(
             }
 
             workflow.LastTriggeredAtUtc = nowUtc;
-            runs.Add((workflow, triggerContext));
+            runs.Add((workflow, placeholders));
         }
 
         await dbContext.SaveChangesAsync(token);
 
-        foreach (var (workflow, context) in runs)
+        foreach (var (workflow, placeholders) in runs)
         {
-            StartRun(workflow, context, token);
+            StartRun(workflow, placeholders, token);
         }
     }
 
-    private void StartRun(Workflow workflow, WorkflowExecutionContext context, CancellationToken token)
+    private void StartRun(Workflow workflow, IReadOnlyDictionary<string, string?> placeholders, CancellationToken token)
     {
-        var run = RunAsync(workflow, context, token);
+        var run = RunAsync(workflow, placeholders, token);
         _runningWorkflows[workflow.Id] = run;
         _ = run.ContinueWith(
             _ => _runningWorkflows.TryRemove(new KeyValuePair<int, Task>(workflow.Id, run)),
@@ -176,11 +185,11 @@ public class WorkflowTriggerService(
             TaskScheduler.Default);
     }
 
-    private async Task RunAsync(Workflow workflow, WorkflowExecutionContext context, CancellationToken token)
+    private async Task RunAsync(Workflow workflow, IReadOnlyDictionary<string, string?> placeholders, CancellationToken token)
     {
         try
         {
-            var result = await workflowRunner.RunAsync(workflow, context, token);
+            var result = await workflowRunner.RunAsync(workflow, placeholders, token);
             if (!result.IsSuccessful)
             {
                 logger.LogWarning(
@@ -196,175 +205,154 @@ public class WorkflowTriggerService(
     }
 
     /// <returns>
-    /// Whether the conditions match, or null when the result depends on a condition that cannot be evaluated yet,
-    /// and whether a matching condition is an event that happened since the previous check.
+    /// Whether the triggers match, or null when the result depends on a trigger that cannot be evaluated yet,
+    /// whether a matching trigger is an event that happened since the previous check, and the {Trigger.*} placeholders.
     /// </returns>
-    private async Task<(bool? IsMatched, bool HasEvent, WorkflowExecutionContext Context)> EvaluateTriggerAsync(
+    private async Task<(bool? IsMatched, bool HasEvent, IReadOnlyDictionary<string, string?> Placeholders)> EvaluateTriggersAsync(
         Workflow workflow,
         TriggerTick tick,
         CancellationToken token)
     {
-        var conditions = workflow.TriggerConditions;
-        if (conditions.Count == 0)
+        Dictionary<string, string?> placeholders = new(StringComparer.Ordinal);
+        var triggers = workflow.Triggers;
+        if (triggers.Count == 0)
         {
-            return (false, false, WorkflowExecutionContext.Empty);
+            return (false, false, placeholders);
         }
 
-        var contextValues = new Dictionary<string, string?>(StringComparer.Ordinal);
-        var results = new List<ConditionEvaluationResult>(conditions.Count);
-
-        for (var i = 0; i < conditions.Count; i++)
+        List<TriggerEvaluation> results = [with(capacity: triggers.Count)];
+        foreach (var (index, trigger) in triggers.Index())
         {
-            var condition = conditions[i];
-            var evaluation = await EvaluateConditionAsync(condition, tick, token);
+            var evaluation = await EvaluateAsync(trigger, tick, token);
             results.Add(evaluation);
-            AddContextValues(contextValues, $"Trigger[{i}]", condition, evaluation);
+            AddPlaceholders(placeholders, $"Trigger[{index}]", trigger, evaluation);
         }
 
-        // {Trigger.*} describes the first matching condition, e.g. which status a device went to when either status runs the workflow.
+        // {Trigger.*} describes the first matching trigger, e.g. which status a device went to when either status runs the workflow.
         var triggerIndex = Math.Max(0, results.FindIndex(x => x.IsMatched == true));
-        AddContextValues(contextValues, "Trigger", conditions[triggerIndex], results[triggerIndex]);
+        AddPlaceholders(placeholders, "Trigger", triggers[triggerIndex], results[triggerIndex]);
 
-        // Three-valued logic: an unknown condition decides the result only when the known conditions do not.
+        // Three-valued logic: an unknown trigger decides the result only when the known triggers do not.
         var matches = results.Select(x => x.IsMatched).ToList();
         bool? isMatched = workflow.ConditionOperator is WorkflowConditionOperator.Or
             ? matches.Contains(true) ? true : matches.Contains(null) ? null : false
             : matches.Contains(false) ? false : matches.Contains(null) ? null : true;
 
-        return (isMatched, results.Any(x => x is { IsMatched: true, IsEvent: true }), new WorkflowExecutionContext(contextValues));
+        return (isMatched, results.Any(x => x is { IsMatched: true, IsEvent: true }), placeholders);
     }
 
-    private static void AddContextValues(
-        Dictionary<string, string?> contextValues,
-        string prefix,
-        WorkflowTriggerCondition condition,
-        ConditionEvaluationResult evaluation)
+    private static void AddPlaceholders(Dictionary<string, string?> placeholders, string prefix, WorkflowTrigger trigger, TriggerEvaluation evaluation)
     {
-        contextValues[$"{prefix}.Type"] = condition.TriggerType.ToString();
-        contextValues[$"{prefix}.Device"] = condition.TriggerDevice?.Name ?? condition.TriggerSourceAction?.Device.Name;
-        contextValues[$"{prefix}.Property"] = condition.TriggerPropertyPath;
-        contextValues[$"{prefix}.Expected"] = condition.TriggerDeviceStatus?.ToString() ?? condition.TriggerExpectedValue;
-        contextValues[$"{prefix}.Current"] = evaluation.CurrentValue;
+        placeholders[$"{prefix}.Type"] = trigger switch
+        {
+            DateTrigger => "Date",
+            TimeTrigger => "Time",
+            DeviceResultTrigger => "DeviceResult",
+            DeviceStatusTrigger => "DeviceStatus"
+        };
+        placeholders[$"{prefix}.Device"] = trigger switch
+        {
+            DeviceStatusTrigger status => status.Device.Name,
+            DeviceResultTrigger deviceResult => deviceResult.DeviceAction.Device.Name,
+            DateTrigger or TimeTrigger => null
+        };
+        placeholders[$"{prefix}.Property"] = (trigger as DeviceResultTrigger)?.PropertyPath;
+        placeholders[$"{prefix}.Expected"] = trigger switch
+        {
+            DeviceStatusTrigger status => status.ExpectedStatus.ToString(),
+            DeviceResultTrigger deviceResult => deviceResult.ExpectedValue,
+            DateTrigger or TimeTrigger => null
+        };
+        placeholders[$"{prefix}.Current"] = evaluation.CurrentValue;
         if (evaluation.Result is { } result)
         {
             // {Trigger.Result} is the whole value, {Trigger.Result.snapshotUrl} one of its properties.
-            contextValues[$"{prefix}.Result"] = result;
+            placeholders[$"{prefix}.Result"] = result;
             foreach (var property in JsonValueReader.GetProperties(result).Where(x => x.Path.StartsWith("$.", StringComparison.Ordinal)))
             {
-                contextValues[$"{prefix}.Result.{property.Path[2..]}"] = property.SampleValue;
+                placeholders[$"{prefix}.Result.{property.Path[2..]}"] = property.SampleValue;
             }
         }
     }
 
-    private async Task<ConditionEvaluationResult> EvaluateConditionAsync(
-        WorkflowTriggerCondition condition,
-        TriggerTick tick,
-        CancellationToken token)
+    private async Task<TriggerEvaluation> EvaluateAsync(WorkflowTrigger trigger, TriggerTick tick, CancellationToken token) => trigger switch
     {
-        return condition.TriggerType switch
-        {
-            WorkflowTriggerType.Date => EvaluateDateCondition(condition, tick.LocalNow),
-            WorkflowTriggerType.Time => EvaluateTimeCondition(condition, tick),
-            WorkflowTriggerType.DeviceResult => await EvaluateDeviceResultConditionAsync(condition, tick, token),
-            WorkflowTriggerType.DeviceStatus => EvaluateDeviceStatusCondition(condition),
-            _ => new ConditionEvaluationResult(false, null)
-        };
-    }
+        DateTrigger date => EvaluateDate(date, tick.LocalNow),
+        TimeTrigger time => EvaluateTime(time, tick),
+        DeviceResultTrigger deviceResult => await EvaluateDeviceResultAsync(deviceResult, tick, token),
+        DeviceStatusTrigger deviceStatus => EvaluateDeviceStatus(deviceStatus)
+    };
 
-    private static ConditionEvaluationResult EvaluateDateCondition(WorkflowTriggerCondition condition, DateTimeOffset localNow)
+    private static string FormatDate(DateTimeOffset localNow) => DateOnly.FromDateTime(localNow.DateTime).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    private static string FormatTime(DateTimeOffset localNow) => TimeOnly.FromDateTime(localNow.DateTime).ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+
+    private static TriggerEvaluation EvaluateDate(DateTrigger trigger, DateTimeOffset localNow)
     {
         var today = DateOnly.FromDateTime(localNow.DateTime);
-        var currentValue = today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        if (condition.TriggerDate is not { } date || condition.TriggerOperator is not { } comparisonOperator)
+        var isMatched = trigger.Operator switch
         {
-            return new ConditionEvaluationResult(false, currentValue);
-        }
-
-        var isMatched = comparisonOperator switch
-        {
-            WorkflowComparisonOperator.Equal => today == date,
-            WorkflowComparisonOperator.NotEqual => today != date,
-            WorkflowComparisonOperator.GreaterThan => today > date,
-            WorkflowComparisonOperator.GreaterThanOrEqual => today >= date,
-            WorkflowComparisonOperator.LessThan => today < date,
-            WorkflowComparisonOperator.LessThanOrEqual => today <= date,
-            WorkflowComparisonOperator.Between => condition.TriggerDateTo is { } dateTo && today >= date && today <= dateTo,
-            WorkflowComparisonOperator.NotBetween => condition.TriggerDateTo is { } dateTo && (today < date || today > dateTo),
-            _ => false
+            WorkflowComparisonOperator.Between => trigger.DateTo is { } to && today >= trigger.Date && today <= to,
+            WorkflowComparisonOperator.NotBetween => trigger.DateTo is { } to && (today < trigger.Date || today > to),
+            var op => Compare(op, today, trigger.Date)
         };
 
-        return new ConditionEvaluationResult(isMatched, currentValue);
+        return new TriggerEvaluation(isMatched, FormatDate(localNow));
     }
 
-    private static ConditionEvaluationResult EvaluateTimeCondition(WorkflowTriggerCondition condition, TriggerTick tick)
+    private static TriggerEvaluation EvaluateTime(TimeTrigger trigger, TriggerTick tick)
     {
         var localNow = tick.LocalNow;
         var now = TimeOnly.FromDateTime(localNow.DateTime);
-        var currentValue = now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
-        var from = ResolveTime(condition.TriggerTimeReference, condition.TriggerTime, condition.TriggerTimeOffsetMinutes, tick);
-        if (from is null || condition.TriggerOperator is not { } comparisonOperator)
-        {
-            return new ConditionEvaluationResult(false, currentValue);
-        }
+        var currentValue = FormatTime(localNow);
+        var from = Resolve(trigger.From, tick);
 
-        if (comparisonOperator is WorkflowComparisonOperator.Equal)
+        switch (trigger.Operator)
         {
-            var elapsed = now - from.Value;
-            var occurrenceDate = (localNow.DateTime - elapsed).Date;
-            if (elapsed >= tick.AtTimeGracePeriod || condition.LastTriggerDateLocal == occurrenceDate)
+            case WorkflowComparisonOperator.Equal:
             {
-                return new ConditionEvaluationResult(false, currentValue);
+                // "At": matches once per day, within the grace period after the time.
+                var elapsed = now - from;
+                var occurrenceDate = (localNow.DateTime - elapsed).Date;
+                if (elapsed >= tick.AtTimeGracePeriod || trigger.LastMatchedDate == occurrenceDate)
+                {
+                    return new TriggerEvaluation(false, currentValue);
+                }
+
+                trigger.LastMatchedDate = occurrenceDate;
+                return new TriggerEvaluation(true, currentValue);
             }
 
-            condition.LastTriggerDateLocal = occurrenceDate;
-            return new ConditionEvaluationResult(true, currentValue);
-        }
-
-        if (comparisonOperator is WorkflowComparisonOperator.Between or WorkflowComparisonOperator.NotBetween)
-        {
-            var to = ResolveTime(condition.TriggerTimeToReference, condition.TriggerTimeTo, condition.TriggerTimeToOffsetMinutes, tick);
-            if (to is null)
+            case WorkflowComparisonOperator.Between or WorkflowComparisonOperator.NotBetween:
             {
-                return new ConditionEvaluationResult(false, currentValue);
+                if (trigger.To is not { } toPoint)
+                {
+                    return new TriggerEvaluation(false, currentValue);
+                }
+
+                // The range may wrap around midnight, e.g. between sunset and sunrise.
+                var to = Resolve(toPoint, tick);
+                var isInRange = from <= to ? now >= from && now < to : now >= from || now < to;
+                return new TriggerEvaluation(trigger.Operator is WorkflowComparisonOperator.Between ? isInRange : !isInRange, currentValue);
             }
 
-            // The range may wrap around midnight, e.g. between sunset and sunrise.
-            var isInRange = from.Value <= to.Value
-                ? now >= from.Value && now < to.Value
-                : now >= from.Value || now < to.Value;
+            case var op and not WorkflowComparisonOperator.NotEqual:
+                return new TriggerEvaluation(Compare(op, now, from), currentValue);
 
-            return new ConditionEvaluationResult(
-                comparisonOperator is WorkflowComparisonOperator.Between ? isInRange : !isInRange,
-                currentValue);
+            default:
+                return new TriggerEvaluation(false, currentValue);
         }
-
-        var isMatched = comparisonOperator switch
-        {
-            WorkflowComparisonOperator.GreaterThan => now > from.Value,
-            WorkflowComparisonOperator.GreaterThanOrEqual => now >= from.Value,
-            WorkflowComparisonOperator.LessThan => now < from.Value,
-            WorkflowComparisonOperator.LessThanOrEqual => now <= from.Value,
-            _ => false
-        };
-
-        return new ConditionEvaluationResult(isMatched, currentValue);
     }
 
-    private static TimeOnly? ResolveTime(
-        WorkflowTimeReference? reference,
-        TimeOnly? fixedTime,
-        int? offsetMinutes,
-        TriggerTick tick)
+    private static TimeOnly Resolve(TimePoint point, TriggerTick tick)
     {
-        var time = reference switch
+        var time = point.Reference switch
         {
-            WorkflowTimeReference.Fixed => fixedTime,
-            WorkflowTimeReference.Sunrise or WorkflowTimeReference.Sunset
-                => TimeOnly.FromDateTime(GetSunEventLocal(reference.Value, tick)),
-            _ => null
+            WorkflowTimeReference.Sunrise or WorkflowTimeReference.Sunset => TimeOnly.FromDateTime(GetSunEventLocal(point.Reference, tick)),
+            _ => point.FixedTime.GetValueOrDefault()
         };
 
-        return time?.AddMinutes(offsetMinutes ?? 0);
+        return time.AddMinutes(point.OffsetMinutes);
     }
 
     private static DateTime GetSunEventLocal(WorkflowTimeReference reference, TriggerTick tick)
@@ -375,172 +363,119 @@ public class WorkflowTriggerService(
         return TimeZoneInfo.ConvertTimeFromUtc(sunEvent.ToUniversalTime(), tick.TimeZone);
     }
 
-    private ConditionEvaluationResult EvaluateDeviceStatusCondition(WorkflowTriggerCondition condition)
+    private TriggerEvaluation EvaluateDeviceStatus(DeviceStatusTrigger trigger)
     {
-        if (condition.TriggerDevice is not { } device || condition.TriggerDeviceStatus is not { } expectedStatus)
+        DeviceStatus? status = deviceStateStore.GetPresence(trigger.Device.DeviceId).Status switch
         {
-            return new ConditionEvaluationResult(false, null);
-        }
-
-        DeviceStatus? status = deviceStateStore.IsOnline(device.DeviceId) switch
-        {
-            true => DeviceStatus.Online,
-            false => DeviceStatus.Offline,
-            null => null
+            DevicePresenceStatus.Online => DeviceStatus.Online,
+            DevicePresenceStatus.Offline or DevicePresenceStatus.NotResponding => DeviceStatus.Offline,
+            _ => null
         };
 
         if (status is null)
         {
-            return new ConditionEvaluationResult(null, null);
+            return new TriggerEvaluation(null, null);
         }
 
-        // The condition is an event: it matches once, when the device changes to the expected status.
-        // LastConditionMatched keeps whether the device had that status at the previous check. Null means it was never checked,
-        // e.g. a new workflow, which only records the status, so saving a workflow does not run it.
-        var hasStatus = status == expectedStatus;
-        var hadStatus = condition.LastConditionMatched;
-        condition.LastConditionMatched = hasStatus;
-        return new ConditionEvaluationResult(hasStatus && hadStatus == false, status.ToString(), IsEvent: true);
+        // The trigger is an event: it matches once, when the device changes to the expected status.
+        // HadStatus is null before the first check, e.g. for a new workflow, which only records the status, so saving a workflow does not run it.
+        var hasStatus = status == trigger.ExpectedStatus;
+        var hadStatus = trigger.HadStatus;
+        trigger.HadStatus = hasStatus;
+        return new TriggerEvaluation(hasStatus && hadStatus == false, status.ToString(), IsEvent: true);
     }
 
-    private async Task<ConditionEvaluationResult> EvaluateDeviceResultConditionAsync(
-        WorkflowTriggerCondition condition,
-        TriggerTick tick,
-        CancellationToken token)
+    private async Task<TriggerEvaluation> EvaluateDeviceResultAsync(DeviceResultTrigger trigger, TriggerTick tick, CancellationToken token)
     {
-        if (condition.TriggerSourceAction is not { } sourceAction
-            || string.IsNullOrWhiteSpace(condition.TriggerPropertyPath)
-            || string.IsNullOrWhiteSpace(condition.TriggerExpectedValue)
-            || condition.TriggerOperator is null)
+        var action = trigger.DeviceAction;
+        var execution = await ExecuteSourceActionAsync(action, tick, token);
+        if (execution is not ActionSucceeded { Output: { } response }
+            || string.IsNullOrWhiteSpace(response)
+            || !JsonValueReader.TryReadProperty(response, trigger.PropertyPath, out var currentValue, out _))
         {
-            condition.LastConditionMatched = false;
-            return new ConditionEvaluationResult(false, null);
+            trigger.WasMatched = false;
+            return new TriggerEvaluation(false, null);
         }
 
-        var execution = await ExecuteSourceActionAsync(sourceAction, tick, token);
-        if (!execution.IsSuccess || string.IsNullOrWhiteSpace(execution.RawResponse))
-        {
-            condition.LastConditionMatched = false;
-            return new ConditionEvaluationResult(false, null);
-        }
-
-        if (!JsonValueReader.TryReadProperty(execution.RawResponse, condition.TriggerPropertyPath, out var currentValue, out var currentValueType))
-        {
-            condition.LastConditionMatched = false;
-            return new ConditionEvaluationResult(false, null);
-        }
-
-        var expectedType = condition.TriggerValueType ?? currentValueType;
-        var isMatched = IsMatched(
-            condition.TriggerOperator.Value,
-            currentValue,
-            condition.TriggerExpectedValue,
-            expectedType);
-
-        if (sourceAction.CommandType == Shared.CommandType.Event)
+        var isMatched = IsMatched(trigger.Operator, currentValue, trigger.ExpectedValue, trigger.ValueType);
+        var isEvent = action.CommandType == Shared.CommandType.Event;
+        if (isEvent)
         {
             // An event matches only at the check right after it arrived, never for as long as it stays the last value.
-            var receivedAtUtc = deviceStateStore.GetTelemetry(sourceAction.Device.DeviceId, sourceAction.Command)?.ReceivedAtUtc;
-            isMatched = IsNewEvent(condition.Id, receivedAtUtc) && isMatched;
-            condition.LastConditionMatched = isMatched;
-            return new ConditionEvaluationResult(isMatched, currentValue, IsEvent: true, Result: execution.RawResponse);
+            var receivedAtUtc = deviceStateStore.GetTelemetry(action.Device.DeviceId, action.Command)?.ReceivedAtUtc;
+            isMatched = IsNewEvent(trigger.Id, receivedAtUtc) && isMatched;
         }
 
-        condition.LastConditionMatched = isMatched;
-        return new ConditionEvaluationResult(isMatched, currentValue, Result: execution.RawResponse);
+        trigger.WasMatched = isMatched;
+        return new TriggerEvaluation(isMatched, currentValue, isEvent, response);
     }
 
-    private bool IsNewEvent(int conditionId, DateTimeOffset? receivedAtUtc)
+    private bool IsNewEvent(int triggerId, DateTimeOffset? receivedAtUtc)
     {
-        var handledAtUtc = _handledEventTimes.GetOrAdd(conditionId, _ => timeProvider.GetUtcNow());
+        var handledAtUtc = _handledEventTimes.GetOrAdd(triggerId, _ => timeProvider.GetUtcNow());
         if (receivedAtUtc is not { } received || received <= handledAtUtc)
         {
             return false;
         }
 
-        _handledEventTimes[conditionId] = received;
+        _handledEventTimes[triggerId] = received;
         return true;
     }
 
-    private async Task<DeviceActionExecutionResult> ExecuteSourceActionAsync(
-        DeviceAction action,
-        TriggerTick tick,
-        CancellationToken token)
+    private async Task<DeviceActionResult> ExecuteSourceActionAsync(DeviceAction action, TriggerTick tick, CancellationToken token)
     {
-        if (tick.SourceActionResults.TryGetValue(action.Id, out var cached))
+        if (!tick.SourceActionResults.TryGetValue(action.Id, out var result))
         {
-            return cached;
+            result = await deviceActionExecutor.ExecuteAsync(action.Device, action, token);
+            tick.SourceActionResults[action.Id] = result;
         }
 
-        var result = await deviceActionExecutor.ExecuteAsync(action.Device, action, token);
-        tick.SourceActionResults[action.Id] = result;
         return result;
     }
 
-    private static bool IsMatched(WorkflowComparisonOperator comparisonOperator, string? currentValue, string expectedValue, WorkflowTriggerValueType valueType)
+    private static bool IsMatched(WorkflowComparisonOperator op, string? currentValue, string expectedValue, WorkflowTriggerValueType valueType) => valueType switch
     {
-        return valueType switch
+        WorkflowTriggerValueType.Number => TryParseNumber(currentValue, out var current) && TryParseNumber(expectedValue, out var expected) && op switch
         {
-            WorkflowTriggerValueType.Number => IsNumberMatched(comparisonOperator, currentValue, expectedValue),
-            WorkflowTriggerValueType.Boolean => IsBooleanMatched(comparisonOperator, currentValue, expectedValue),
-            WorkflowTriggerValueType.Null => IsNullMatched(comparisonOperator, currentValue),
-            _ => IsTextMatched(comparisonOperator, currentValue, expectedValue)
-        };
-    }
-
-    private static bool IsNumberMatched(WorkflowComparisonOperator comparisonOperator, string? currentValue, string expectedValue)
-    {
-        if (!double.TryParse(currentValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var currentNumber)
-            || !double.TryParse(expectedValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var expectedNumber))
-        {
-            return false;
-        }
-
-        return comparisonOperator switch
-        {
-            WorkflowComparisonOperator.GreaterThan => currentNumber > expectedNumber,
-            WorkflowComparisonOperator.GreaterThanOrEqual => currentNumber >= expectedNumber,
-            WorkflowComparisonOperator.LessThan => currentNumber < expectedNumber,
-            WorkflowComparisonOperator.LessThanOrEqual => currentNumber <= expectedNumber,
-            WorkflowComparisonOperator.Equal => Math.Abs(currentNumber - expectedNumber) < 0.0001,
-            WorkflowComparisonOperator.NotEqual => Math.Abs(currentNumber - expectedNumber) >= 0.0001,
-            _ => false
-        };
-    }
-
-    private static bool IsBooleanMatched(WorkflowComparisonOperator comparisonOperator, string? currentValue, string expectedValue)
-    {
-        if (!bool.TryParse(currentValue, out var currentBoolean) || !bool.TryParse(expectedValue, out var expectedBoolean))
-        {
-            return false;
-        }
-
-        return comparisonOperator switch
-        {
-            WorkflowComparisonOperator.Equal => currentBoolean == expectedBoolean,
-            WorkflowComparisonOperator.NotEqual => currentBoolean != expectedBoolean,
-            _ => false
-        };
-    }
-
-    private static bool IsNullMatched(WorkflowComparisonOperator comparisonOperator, string? currentValue)
-    {
-        return comparisonOperator switch
+            // Numbers from JSON are compared with a small tolerance, e.g. 21.1 equals 21.1000001.
+            WorkflowComparisonOperator.Equal => Math.Abs(current - expected) < 0.0001,
+            WorkflowComparisonOperator.NotEqual => Math.Abs(current - expected) >= 0.0001,
+            _ => Compare(op, current, expected)
+        },
+        WorkflowTriggerValueType.Boolean => bool.TryParse(currentValue, out var current) && bool.TryParse(expectedValue, out var expected)
+            && op is WorkflowComparisonOperator.Equal or WorkflowComparisonOperator.NotEqual
+            && Compare(op, current, expected),
+        WorkflowTriggerValueType.Null => op switch
         {
             WorkflowComparisonOperator.Equal => string.IsNullOrWhiteSpace(currentValue),
             WorkflowComparisonOperator.NotEqual => !string.IsNullOrWhiteSpace(currentValue),
             _ => false
-        };
-    }
-
-    private static bool IsTextMatched(WorkflowComparisonOperator comparisonOperator, string? currentValue, string expectedValue)
-    {
-        return comparisonOperator switch
+        },
+        _ => op switch
         {
-            WorkflowComparisonOperator.Equal => string.Equals(currentValue, expectedValue, StringComparison.Ordinal),
-            WorkflowComparisonOperator.NotEqual => !string.Equals(currentValue, expectedValue, StringComparison.Ordinal),
             WorkflowComparisonOperator.Contains => currentValue?.Contains(expectedValue, StringComparison.Ordinal) ?? false,
             WorkflowComparisonOperator.NotContains => !(currentValue?.Contains(expectedValue, StringComparison.Ordinal) ?? false),
+            WorkflowComparisonOperator.Equal or WorkflowComparisonOperator.NotEqual => Compare(op, currentValue ?? string.Empty, expectedValue, StringComparer.Ordinal),
+            _ => false
+        }
+    };
+
+    private static bool TryParseNumber(string? value, out double number) => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out number);
+
+    /// <summary>
+    /// The relational operators, shared by dates, times, numbers, booleans and text. Range and text operators do not match here.
+    /// </summary>
+    private static bool Compare<T>(WorkflowComparisonOperator op, T current, T expected, IComparer<T>? comparer = null)
+    {
+        var order = (comparer ?? Comparer<T>.Default).Compare(current, expected);
+        return op switch
+        {
+            WorkflowComparisonOperator.Equal => order == 0,
+            WorkflowComparisonOperator.NotEqual => order != 0,
+            WorkflowComparisonOperator.GreaterThan => order > 0,
+            WorkflowComparisonOperator.GreaterThanOrEqual => order >= 0,
+            WorkflowComparisonOperator.LessThan => order < 0,
+            WorkflowComparisonOperator.LessThanOrEqual => order <= 0,
             _ => false
         };
     }
@@ -548,10 +483,10 @@ public class WorkflowTriggerService(
     private static TimeSpan GetCheckInterval(WorkflowAutomationOptions options)
         => TimeSpan.FromSeconds(Math.Max(5, options.CheckIntervalSeconds));
 
-    /// <param name="IsMatched">Whether the condition matches, or null when it cannot be evaluated yet.</param>
-    /// <param name="IsEvent">The condition matches only at the check right after something happened, not for as long as a state lasts.</param>
+    /// <param name="IsMatched">Whether the trigger matches, or null when it cannot be evaluated yet.</param>
+    /// <param name="IsEvent">The trigger matches only at the check right after something happened, not for as long as a state lasts.</param>
     /// <param name="Result">The device value the condition read, e.g. the JSON of a detection.</param>
-    private record ConditionEvaluationResult(bool? IsMatched, string? CurrentValue, bool IsEvent = false, string? Result = null);
+    private sealed record TriggerEvaluation(bool? IsMatched, string? CurrentValue, bool IsEvent = false, string? Result = null);
 
     private sealed record TriggerTick(
         DateTimeOffset LocalNow,
@@ -559,6 +494,6 @@ public class WorkflowTriggerService(
         WorkflowAutomationOptions Options,
         TimeSpan AtTimeGracePeriod)
     {
-        public Dictionary<int, DeviceActionExecutionResult> SourceActionResults { get; } = new();
+        public Dictionary<int, DeviceActionResult> SourceActionResults { get; } = new();
     }
 }

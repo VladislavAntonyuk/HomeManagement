@@ -5,21 +5,21 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
-namespace HomeManagement.Application.Login;
+namespace HomeManagement.Infrastructure.Api;
 
-public static class AuthModule
+public static class LoginEndpoints
 {
     public static void MapLogin(this IEndpointRouteBuilder app)
     {
         app.MapPost("api/account/login", async (
             HttpContext context,
-            IOptions<StaticAuthOptions> authOptions,
+            IOptions<AuthOptions> authOptions,
             [FromForm] string username,
             [FromForm] string key,
             [FromForm] bool remember,
             [FromForm] string? returnUrl) =>
         {
-            if (key == authOptions.Value.Key)
+            if (ApiKeyAuthenticationHandler.IsKey(key, authOptions.Value.Key))
             {
                 var claims = new List<Claim>
                 {

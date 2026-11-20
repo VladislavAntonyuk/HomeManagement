@@ -4,86 +4,56 @@ using Microsoft.Extensions.Options;
 
 namespace HomeManagement.Application.Router;
 
-public class AsusRouterController(IHttpClientFactory httpClientFactory, IOptions<RouterOptions> options) : IRouterController
+/// <summary>
+/// Talks to the Asus router web API, the way the Asus router app does. Registered as a typed <see cref="HttpClient"/>.
+/// </summary>
+public class AsusRouterController(HttpClient httpClient, IOptions<RouterOptions> options) : IRouterController
 {
-    public class LoginResult
-    {
-        public string? AsusToken { get; set; }
-    }
+    public const string UserAgent = "asusrouter-Android-DUTUtil-1.0.0.3.58-163";
 
-    private static readonly JsonSerializerOptions Options = new JsonSerializerOptions(JsonSerializerOptions.Web)
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerOptions.Web)
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
 
-    private HttpClient CreateClient()
-    {
-        var httpClient = httpClientFactory.CreateClient();
-        httpClient.BaseAddress = new Uri(options.Value.IpAddress);
-        httpClient.DefaultRequestHeaders.Add("User-Agent", "asusrouter-Android-DUTUtil-1.0.0.3.58-163");
-        return httpClient;
-    }
+    public Task<OperationResult> SetLedsAsync(bool enabled, CancellationToken token = default)
+        => ApplyAsync([new("config", JsonSerializer.Serialize(new { led_val = enabled ? 1 : 0 })), new("action_mode", "config_changed")], token);
 
-    private async Task<string?> AuthenticateAsync(HttpClient httpClient)
-    {
-        const string path = "/login.cgi";
-        var formattedUsernamePassword = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Value.Username}:{options.Value.Password}"));
+    public Task<OperationResult> RebootModemAsync(CancellationToken token = default) => ApplyAsync([new("action_mode", "rebootmodem")], token);
 
-        var content = new FormUrlEncodedContent(new Dictionary<string, string>
+    public Task<OperationResult> RebootAsync(CancellationToken token = default) => ApplyAsync([new("action_mode", "reboot")], token);
+
+    private async Task<OperationResult> ApplyAsync(IEnumerable<KeyValuePair<string, string>> payload, CancellationToken token)
+    {
+        if (httpClient.BaseAddress is null)
         {
-            { "login_authorization", formattedUsernamePassword }
-        });
-
-        var response = await httpClient.PostAsync(path, content);
-        response.EnsureSuccessStatusCode();
-
-        var loginResult = await response.Content.ReadFromJsonAsync<LoginResult>(Options);
-        return loginResult?.AsusToken;
-    }
-
-    private async Task<RouterResponse> ApplyAppPostAsync(Dictionary<string, string> payload)
-    {
-        var httpClient = CreateClient();
-        var asusToken = await AuthenticateAsync(httpClient);
-        if (string.IsNullOrEmpty(asusToken))
-        {
-            return new RouterResponse { ErrorStatus = "Authentication failed" };
+            return OperationResult.Failure("The router address is not configured (Router:IpAddress).");
         }
 
-        const string path = "/apply.cgi";
-        var request = new HttpRequestMessage(HttpMethod.Post, path)
+        if (await AuthenticateAsync(token) is not { Length: > 0 } asusToken)
         {
-            Content = new FormUrlEncodedContent(payload)
-        };
+            return OperationResult.Failure("Authentication failed");
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/apply.cgi");
+        request.Content = new FormUrlEncodedContent(payload);
         request.Headers.Add("Cookie", $"asus_token={asusToken}");
 
-        var response = await httpClient.SendAsync(request);
-        return new RouterResponse { ErrorStatus = response.IsSuccessStatusCode ? null : await response.Content.ReadAsStringAsync() };
+        using var response = await httpClient.SendAsync(request, token);
+        return response.IsSuccessStatusCode
+            ? OperationResult.Success("Done")
+            : OperationResult.Failure(await response.Content.ReadAsStringAsync(token));
     }
 
-    public Task<RouterResponse> SetLeds(bool enabled)
+    private async Task<string?> AuthenticateAsync(CancellationToken token)
     {
-        var configJson = JsonSerializer.Serialize(new { led_val = enabled ? 1 : 0 });
-        return ApplyAppPostAsync(new Dictionary<string, string>
-        {
-            { "config", configJson },
-            { "action_mode", "config_changed" }
-        });
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{options.Value.Username}:{options.Value.Password}"));
+        using var content = new FormUrlEncodedContent([new("login_authorization", credentials)]);
+        using var response = await httpClient.PostAsync("/login.cgi", content, token);
+        response.EnsureSuccessStatusCode();
+
+        return (await response.Content.ReadFromJsonAsync<LoginResult>(JsonOptions, token))?.AsusToken;
     }
 
-    public Task<RouterResponse> RebootModem()
-    {
-        return ApplyAppPostAsync(new Dictionary<string, string>
-        {
-            { "action_mode", "rebootmodem" }
-        });
-    }
-
-    public Task<RouterResponse> Reboot()
-    {
-        return ApplyAppPostAsync(new Dictionary<string, string>
-        {
-            { "action_mode", "reboot" }
-        });
-    }
+    private sealed record LoginResult(string? AsusToken);
 }

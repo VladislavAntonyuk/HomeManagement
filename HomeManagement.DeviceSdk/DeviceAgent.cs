@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Threading.Channels;
 using HomeManagement.DeviceSdk.Mqtt;
 using HomeManagement.Shared;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,14 +23,17 @@ public sealed class DeviceAgent(
     IDeviceHandler handler,
     DeviceTelemetryPublisher telemetryPublisher,
     IServiceScopeFactory serviceScopeFactory,
+    TimeProvider timeProvider,
     ILogger<DeviceAgent> logger) : BackgroundService, IMqttClientConnectedCallback, IMqttClientDisconnectingCallback
 {
     private static readonly TimeSpan HandledRequestRetention = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan ReadyTimeout = TimeSpan.FromSeconds(15);
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly ConcurrentDictionary<string, DateTime> _handledRequests = new();
-    private readonly SemaphoreSlim _publishTelemetrySignal = new(0, 1);
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _handledRequests = new();
+
+    // Holds at most one wake-up, so overlapping reconnects cannot overflow it.
+    private readonly Channel<bool> _publishTelemetrySignal = Channel.CreateBounded<bool>(
+        new BoundedChannelOptions(1) { FullMode = BoundedChannelFullMode.DropWrite, SingleReader = true });
     private readonly SemaphoreSlim _twinLock = new(1, 1);
     private readonly string _deviceId = options.Value.GetDeviceId();
 
@@ -140,7 +144,7 @@ public sealed class DeviceAgent(
         while (!stoppingToken.IsCancellationRequested)
         {
             // Wakes up early when the device (re)connects, so telemetry is published right away.
-            await _publishTelemetrySignal.WaitAsync(TelemetryInterval, stoppingToken);
+            await WaitForTelemetrySignalAsync(stoppingToken);
             if (!telemetryPublisher.IsConnected)
             {
                 continue;
@@ -150,7 +154,10 @@ public sealed class DeviceAgent(
             {
                 try
                 {
-                    if (await handler.ReadAsync(action.Command, stoppingToken) is { } value)
+                    // A hung read must not stop the telemetry of the other actions.
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                    timeout.CancelAfter(DeviceTopics.CommandTimeout);
+                    if (await handler.ReadAsync(action.Command, timeout.Token) is { } value)
                     {
                         await telemetryPublisher.TryPublishAsync(action.Command, value, stoppingToken);
                     }
@@ -171,14 +178,26 @@ public sealed class DeviceAgent(
             await PublishTwinAsync();
             await PublishAsync(new StringMessage<DeviceStatusPayload>(DeviceTopics.Online));
             await TryPublishInfoAsync(CancellationToken.None);
-            if (_publishTelemetrySignal.CurrentCount == 0)
-            {
-                _publishTelemetrySignal.Release();
-            }
+            _publishTelemetrySignal.Writer.TryWrite(true);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Failed to publish the twin and status.");
+        }
+    }
+
+    private async Task WaitForTelemetrySignalAsync(CancellationToken stoppingToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        timeout.CancelAfter(TelemetryInterval);
+        try
+        {
+            await _publishTelemetrySignal.Reader.WaitToReadAsync(timeout.Token);
+            _publishTelemetrySignal.Reader.TryRead(out _);
+        }
+        catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
+        {
+            // The regular interval elapsed.
         }
     }
 
@@ -201,12 +220,10 @@ public sealed class DeviceAgent(
         await _twinLock.WaitAsync();
         try
         {
-            var actions = new List<DeviceAction> { new("INFO", CommandType.Get, DeviceTopics.InfoKey) };
-            actions.AddRange(handler.GetActions());
             await PublishAsync(new DeviceTwin
             {
                 Name = options.Value.DeviceName,
-                Actions = actions,
+                Actions = [new("INFO", CommandType.Get, DeviceTopics.InfoKey), .. handler.GetActions()],
                 HeartbeatIntervalSeconds = (int)TelemetryInterval.TotalSeconds
             });
         }
@@ -221,7 +238,7 @@ public sealed class DeviceAgent(
     }
 
     private Task TryPublishInfoAsync(CancellationToken token)
-        => telemetryPublisher.TryPublishAsync(DeviceTopics.InfoKey, JsonSerializer.Serialize(GetDeviceInfo(), JsonOptions), token);
+        => telemetryPublisher.TryPublishAsync(DeviceTopics.InfoKey, JsonSerializer.Serialize(GetDeviceInfo(), JsonSerializerOptions.Web), token);
 
     private bool TryMarkHandled(byte[]? correlationData)
     {
@@ -230,7 +247,7 @@ public sealed class DeviceAgent(
             return true;
         }
 
-        var now = DateTime.UtcNow;
+        var now = timeProvider.GetUtcNow();
         foreach (var (requestId, handledUtc) in _handledRequests)
         {
             if (now - handledUtc > HandledRequestRetention)
@@ -249,9 +266,15 @@ public sealed class DeviceAgent(
             return new CommandResponse(false, $"Unknown command '{key}'.");
         }
 
+        // The hub stops waiting after the command timeout, so the device stops too.
+        using var timeout = new CancellationTokenSource(DeviceTopics.CommandTimeout);
         try
         {
-            return await handler.ExecuteAsync(key, CancellationToken.None);
+            return await handler.ExecuteAsync(key, timeout.Token);
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            return new CommandResponse(false, $"'{key}' did not finish within {DeviceTopics.CommandTimeout.TotalSeconds} seconds.");
         }
         catch (Exception e)
         {
@@ -269,7 +292,7 @@ public sealed class DeviceAgent(
     private DeviceInfo GetDeviceInfo() => new()
     {
         Name = options.Value.DeviceName,
-        Address = NetworkManager.GetLocalIp(),
-        Metrics = new Dictionary<string, string>(handler.GetMetrics())
+        Address = HostInfo.LocalIpAddress,
+        Metrics = handler.GetMetrics()
     };
 }

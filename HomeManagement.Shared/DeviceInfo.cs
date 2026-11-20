@@ -1,10 +1,16 @@
 namespace HomeManagement.Shared;
 
-public class DeviceInfo
+/// <summary>
+/// Describes a device and doubles as its heartbeat. Published as the <see cref="DeviceTopics.InfoKey"/> telemetry.
+/// </summary>
+public sealed record DeviceInfo
 {
     public required string Name { get; init; }
 
-    public required string Address { get; set; }
+    public string? Address { get; init; }
 
-    public Dictionary<string, string> Metrics { get; set; } = new();
+    /// <summary>
+    /// Free list of text values, e.g. UptimeSeconds, Rssi, FreeHeap or Temperature.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Metrics { get; init; } = new Dictionary<string, string>();
 }

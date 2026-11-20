@@ -19,7 +19,6 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.0" />
-		<PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="11.0.0" />
 		<PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="11.0.0" />
 		<PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
 		<PackageReference Include="ModelContextProtocol.Extensions.Apps" Version="2.4.0" />
@@ -35,6 +34,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="..\HomeManagement.Cameras\HomeManagement.Cameras.csproj" />
+	  <ProjectReference Include="..\HomeManagement.DeviceSdk\HomeManagement.DeviceSdk.csproj" />
 	  <ProjectReference Include="..\HomeManagement.ServiceDefaults\HomeManagement.ServiceDefaults.csproj" />
 	  <ProjectReference Include="..\HomeManagement.Shared\HomeManagement.Shared.csproj" />
 	  <Content Update="appsettings.*.json">

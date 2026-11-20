@@ -59,6 +59,7 @@
         .status.online { color: var(--color-text-success); }
         .status.offline { color: var(--color-text-danger); }
         .status.unknown { color: var(--color-text-secondary); }
+        .status.notresponding { color: var(--color-text-warning, #b26a00); }
         .details { margin-top: 4px; }
         .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
 
@@ -256,7 +257,8 @@
             for (const device of devices) {
                 const item = element("div", "item");
                 const header = element("div", "item-header");
-                const statusClass = device.isOnline === true ? "online" : device.isOnline === false ? "offline" : "unknown";
+                // status is "online", "offline", "not responding" or "unknown".
+                const statusClass = device.status.replaceAll(" ", "");
                 const statusText = element("span", `status ${statusClass}`, device.status);
                 if (device.lastSeenUtc) {
                     statusText.title = "Last seen " + new Date(device.lastSeenUtc).toLocaleString();

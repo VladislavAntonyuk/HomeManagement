@@ -8,9 +8,13 @@ namespace HomeManagement.DeviceSdk;
 public interface IDeviceHandler
 {
     /// <summary>
-    /// Raised when <see cref="GetActions"/> changes, so the twin is published again.
+    /// Raised when <see cref="GetActions"/> changes, so the twin is published again. Devices with fixed actions do not implement it.
     /// </summary>
-    event Action? ActionsChanged;
+    event Action? ActionsChanged
+    {
+        add { }
+        remove { }
+    }
 
     /// <summary>
     /// Actions of the device, without the built-in info action.

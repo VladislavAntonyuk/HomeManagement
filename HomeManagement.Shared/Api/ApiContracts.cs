@@ -30,7 +30,24 @@ public enum DevicePresenceStatus
     NotResponding
 }
 
-public sealed record OperationResultDto(bool IsSuccess, string Message);
+public static class DevicePresenceStatusExtensions
+{
+    extension(DevicePresenceStatus status)
+    {
+        public string DisplayName => status switch
+        {
+            DevicePresenceStatus.Online => "Online",
+            DevicePresenceStatus.Offline => "Offline",
+            DevicePresenceStatus.NotResponding => "Not responding",
+            _ => "Unknown"
+        };
+    }
+}
+
+/// <summary>
+/// What a successful command did. Failures are answered with a problem details body and an error status code.
+/// </summary>
+public sealed record OperationResultDto(string Message);
 
 public sealed record SetEnabledRequest(bool Enabled);
 

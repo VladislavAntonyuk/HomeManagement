@@ -1,5 +1,6 @@
 using HomeManagement.DeviceSdk.Mqtt;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Silverback.Configuration;
 using Silverback.Messaging.Messages;
 
@@ -20,6 +21,7 @@ public static class DeviceAgentServiceCollectionExtensions
             .Validate(x => !string.IsNullOrEmpty(x.GetDeviceId()), "DeviceName or DeviceId is required.")
             .ValidateOnStart();
 
+        services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<THandler>();
         services.AddSingleton<IDeviceHandler>(sp => sp.GetRequiredService<THandler>());
         services.AddSingleton<DeviceTelemetryPublisher>();

@@ -13,6 +13,13 @@ public sealed class FrigateApiClient(HttpClient httpClient)
     /// </summary>
     public const string ManualEventLabel = "manual";
 
+    /// <summary>
+    /// Sends a GET and returns as soon as the headers arrive, so a snapshot or an endless MJPEG stream can be passed on as it comes.
+    /// The caller disposes the response.
+    /// </summary>
+    public Task<HttpResponseMessage> OpenAsync(string path, CancellationToken token)
+        => httpClient.GetAsync(path, HttpCompletionOption.ResponseHeadersRead, token);
+
     public async Task<JsonDocument> GetConfigAsync(CancellationToken token = default)
     {
         await using var stream = await httpClient.GetStreamAsync("api/config", token);

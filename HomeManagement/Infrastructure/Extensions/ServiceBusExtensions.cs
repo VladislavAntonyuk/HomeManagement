@@ -17,8 +17,8 @@ public static class ServiceBusExtensions
             .WithConnectionToMessageBroker(options => options.AddMqtt().ConnectAfterStartup().RetryOnConnectionFailure())
             .AddBrokerClientsConfigurator<BrokerClientsConfigurator>()
             .AddDelegateSubscriber((IInboundEnvelope<DeviceTwin> envelope, DeviceHub hub) => hub.OnTwinAsync(envelope))
-            .AddDelegateSubscriber((IInboundEnvelope<StringMessage<DeviceStatusPayload>> envelope, DeviceHub hub) => hub.OnStatus(envelope))
-            .AddDelegateSubscriber((IInboundEnvelope<StringMessage<DeviceTelemetryPayload>> envelope, DeviceHub hub) => hub.OnTelemetry(envelope))
+            .AddDelegateSubscriber((IInboundEnvelope<StringMessage<InboundStatusPayload>> envelope, DeviceHub hub) => hub.OnStatus(envelope))
+            .AddDelegateSubscriber((IInboundEnvelope<StringMessage<InboundTelemetryPayload>> envelope, DeviceHub hub) => hub.OnTelemetry(envelope))
             .AddDelegateSubscriber((IInboundEnvelope<CommandResponse> envelope, DeviceHub hub) => hub.OnResponse(envelope));
     }
 }

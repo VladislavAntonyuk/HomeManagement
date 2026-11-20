@@ -142,7 +142,7 @@ It finds the stream of each camera in the Frigate configuration, either as an `r
 The sync runs on every stream start and stop, and every time Frigate reports `online` on `frigate/available`.
 Cameras that do not read from the hub are not changed.
 
-The module uses the hub's `Mqtt` section, and a `Cameras` section can override it, e.g. `"Cameras": { "Device": { "Mqtt": { "Username": "frigate-module", "Password": "..." } } }`.
+The module connects with the hub's `ConnectionStrings:mqtt`, as the device client `frigate-module` and the Frigate client `home-management-frigate`.
 
 ## Away mode with workflows
 
@@ -157,19 +157,18 @@ A Notify message can use every property of the value a device condition read, as
 
 ## Broker
 
-The hub connects to the broker configured in the `Mqtt` section of `appsettings.json`:
+The hub and the .NET devices connect to the broker in `ConnectionStrings:mqtt` of their `appsettings.json`:
 
 ```json
-"Mqtt": {
-  "Host": "localhost",
-  "Port": 1883,
-  "Username": "home-management",
-  "Password": "..."
+"ConnectionStrings": {
+  "mqtt": "mqtt://home-management:password@localhost:1883"
 }
 ```
 
-`Host` and `Port` default to `localhost` and `1883`, and `Username` and `Password` are optional.
-Devices use the same `Mqtt` section in their own `appsettings.json`, with `Host` pointing to the hub, for example `home-management.local`.
+The port defaults to `1883`, or `8883` with `mqtts://`, which also enables TLS.
+The user and password are optional, and special characters in them must be URL-encoded.
+Aspire sets the connection string itself when it starts the hub or a device.
+Devices point the host to the broker, for example `home-management.local`.
 
 Devices now connect to the broker over the network, so give every client a login and limit devices to their own topics.
 Example for Mosquitto, in `/etc/mosquitto/conf.d/home-management.conf`:

@@ -45,7 +45,8 @@ public static class JsonValueReader
                 return true;
             }
 
-            var normalized = propertyPath.StartsWith("$.", StringComparison.Ordinal) ? propertyPath[2..] : propertyPath;
+            // "$.a.b" and "$[0].a" both start at the root; GetProperties creates both forms.
+            var normalized = propertyPath.StartsWith('$') ? propertyPath[1..].TrimStart('.') : propertyPath;
             foreach (var segment in normalized.Split('.', StringSplitOptions.RemoveEmptyEntries))
             {
                 if (!TryResolveSegment(ref element, segment))

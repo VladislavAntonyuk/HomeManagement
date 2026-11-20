@@ -1,4 +1,3 @@
-using HomeManagement.Infrastructure.Database.Configurations;
 using HomeManagement.Infrastructure.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,15 +7,11 @@ public class HomeManagementDbContext(DbContextOptions<HomeManagementDbContext> o
 {
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<Workflow> Workflows => Set<Workflow>();
-    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfiguration(new DeviceConfiguration());
-        modelBuilder.ApplyConfiguration(new WorkflowConfiguration());
-        modelBuilder.ApplyConfiguration(new WorkflowTriggerConditionConfiguration());
-        modelBuilder.ApplyConfiguration(new WorkflowStepConfiguration());
-        modelBuilder.ApplyConfiguration(new AppSettingsConfiguration());
+        // Every IEntityTypeConfiguration in this assembly, so a new one cannot be forgotten.
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(HomeManagementDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }
 }

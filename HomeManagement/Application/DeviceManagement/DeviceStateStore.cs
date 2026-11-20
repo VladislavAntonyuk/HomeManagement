@@ -1,25 +1,18 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using HomeManagement.Shared;
+using HomeManagement.Shared.Api;
 using Microsoft.Extensions.Options;
 
 namespace HomeManagement.Application.DeviceManagement;
 
 public sealed record DeviceTelemetry(string Payload, DateTimeOffset ReceivedAtUtc);
 
-/// <param name="IsOnline">Whether the device is online, or null when it has not reported a status.</param>
-/// <param name="LastSeenUtc">When the hub last received any message of the device.</param>
-/// <param name="HeartbeatInterval">How often the device promised to publish its info.</param>
-/// <param name="IsHeartbeatMissed">The device reports online, but stopped sending messages, e.g. because it lost power and the broker did not notice.</param>
-public sealed record DevicePresence(bool? IsOnline, DateTimeOffset? LastSeenUtc, TimeSpan HeartbeatInterval, bool IsHeartbeatMissed);
-
 /// <summary>
 /// Latest status and telemetry reported by devices. Rebuilt from retained MQTT messages after every hub start.
 /// </summary>
 public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DevicePresenceOptions> options)
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     private readonly ConcurrentDictionary<string, DeviceState> _devices = new(StringComparer.Ordinal);
 
     /// <summary>
@@ -37,19 +30,25 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
     /// </summary>
     public event Action? TelemetryChanged;
 
-    public bool? IsOnline(string deviceId) => GetPresence(deviceId)?.IsOnline;
+    public bool IsOnline(string deviceId) => GetPresence(deviceId).IsOnline;
 
-    public DevicePresence? GetPresence(string deviceId)
+    public DevicePresence GetPresence(string deviceId)
     {
         if (!_devices.TryGetValue(deviceId, out var state))
         {
-            return null;
+            return new DevicePresence(DevicePresenceStatus.Unknown, null, options.Value.DefaultHeartbeatInterval);
         }
 
-        lock (state)
+        lock (state.Sync)
         {
-            var isOnline = state.ReportedOnline == true ? !state.IsHeartbeatMissed : state.ReportedOnline;
-            return new DevicePresence(isOnline, state.LastSeenUtc, GetHeartbeatInterval(state), state.ReportedOnline == true && state.IsHeartbeatMissed);
+            var status = state.ReportedOnline switch
+            {
+                true when state.IsHeartbeatMissed => DevicePresenceStatus.NotResponding,
+                true => DevicePresenceStatus.Online,
+                false => DevicePresenceStatus.Offline,
+                null => DevicePresenceStatus.Unknown
+            };
+            return new DevicePresence(status, state.LastSeenUtc, GetHeartbeatInterval(state));
         }
     }
 
@@ -61,28 +60,14 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
 
     /// <summary>
     /// The <see cref="DeviceInfo"/> the device last published to <see cref="DeviceTopics.InfoKey"/>, or null when it is missing or not valid.
+    /// It is parsed once, when it arrives.
     /// </summary>
-    public DeviceInfo? GetInfo(string deviceId)
-    {
-        if (GetTelemetry(deviceId, DeviceTopics.InfoKey) is not { } telemetry)
-        {
-            return null;
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<DeviceInfo>(telemetry.Payload, JsonOptions);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
+    public DeviceInfo? GetInfo(string deviceId) => _devices.TryGetValue(deviceId, out var state) ? state.Info : null;
 
     public void SetStatus(string deviceId, bool? isOnline)
     {
         var state = Touch(deviceId, out var changed);
-        lock (state)
+        lock (state.Sync)
         {
             if (state.ReportedOnline != isOnline)
             {
@@ -103,7 +88,7 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
     public void SetHeartbeatInterval(string deviceId, TimeSpan? interval)
     {
         var state = Touch(deviceId, out var changed);
-        lock (state)
+        lock (state.Sync)
         {
             state.HeartbeatInterval = interval is { } value && value > TimeSpan.Zero ? value : null;
         }
@@ -118,15 +103,22 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
     {
         var state = Touch(deviceId, out var changed);
         bool valueChanged;
-        if (string.IsNullOrEmpty(payload))
+        lock (state.Sync)
         {
-            valueChanged = state.Telemetry.TryRemove(key, out _);
-        }
-        else
-        {
-            var previous = state.Telemetry.TryGetValue(key, out var current) ? current.Payload : null;
-            state.Telemetry[key] = new DeviceTelemetry(payload, timeProvider.GetUtcNow());
-            valueChanged = previous != payload;
+            if (string.IsNullOrEmpty(payload))
+            {
+                valueChanged = state.Telemetry.TryRemove(key, out _);
+            }
+            else
+            {
+                valueChanged = state.Telemetry.TryGetValue(key, out var current) is false || current.Payload != payload;
+                state.Telemetry[key] = new DeviceTelemetry(payload, timeProvider.GetUtcNow());
+            }
+
+            if (key == DeviceTopics.InfoKey)
+            {
+                state.Info = ParseInfo(payload);
+            }
         }
 
         if (changed)
@@ -143,14 +135,14 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
     /// <summary>
     /// Marks devices that report online but sent nothing for <see cref="DevicePresenceOptions.MissedHeartbeats"/> heartbeat intervals.
     /// </summary>
-    /// <returns>Ids of the devices that just missed their heartbeats.</returns>
-    public IReadOnlyList<string> CheckHeartbeats()
+    /// <returns>The devices that just missed their heartbeats, with when the hub last heard from them.</returns>
+    public IReadOnlyList<(string DeviceId, DateTimeOffset LastSeenUtc)> CheckHeartbeats()
     {
         var now = timeProvider.GetUtcNow();
-        var missed = new List<string>();
+        List<(string DeviceId, DateTimeOffset LastSeenUtc)> missed = [];
         foreach (var (deviceId, state) in _devices)
         {
-            lock (state)
+            lock (state.Sync)
             {
                 if (state.ReportedOnline != true || state.IsHeartbeatMissed || state.LastSeenUtc is not { } lastSeen)
                 {
@@ -160,7 +152,7 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
                 if (now - lastSeen > GetHeartbeatInterval(state) * Math.Max(1, options.Value.MissedHeartbeats))
                 {
                     state.IsHeartbeatMissed = true;
-                    missed.Add(deviceId);
+                    missed.Add((deviceId, lastSeen));
                 }
             }
         }
@@ -183,6 +175,23 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
 
     public void NotifyDevicesChanged() => DevicesChanged?.Invoke();
 
+    private static DeviceInfo? ParseInfo(string? payload)
+    {
+        if (string.IsNullOrEmpty(payload))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<DeviceInfo>(payload, JsonSerializerOptions.Web);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private TimeSpan GetHeartbeatInterval(DeviceState state) => state.HeartbeatInterval ?? options.Value.DefaultHeartbeatInterval;
 
     /// <summary>
@@ -191,7 +200,7 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
     private DeviceState Touch(string deviceId, out bool recovered)
     {
         var state = _devices.GetOrAdd(deviceId, _ => new DeviceState());
-        lock (state)
+        lock (state.Sync)
         {
             state.LastSeenUtc = timeProvider.GetUtcNow();
             recovered = state.IsHeartbeatMissed;
@@ -203,6 +212,8 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
 
     private sealed class DeviceState
     {
+        public Lock Sync { get; } = new();
+
         public bool? ReportedOnline { get; set; }
 
         public DateTimeOffset? LastSeenUtc { get; set; }
@@ -210,6 +221,8 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
         public TimeSpan? HeartbeatInterval { get; set; }
 
         public bool IsHeartbeatMissed { get; set; }
+
+        public DeviceInfo? Info { get; set; }
 
         public ConcurrentDictionary<string, DeviceTelemetry> Telemetry { get; } = new(StringComparer.Ordinal);
     }

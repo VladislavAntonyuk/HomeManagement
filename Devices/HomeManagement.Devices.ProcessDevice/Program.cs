@@ -13,7 +13,7 @@ builder.Services.AddSystemd();
 builder.Services.AddSilverback()
     .WithConnectionToMessageBroker(options => options.AddMqtt().ConnectAfterStartup().RetryOnConnectionFailure());
 
-// DeviceName, DeviceId, TelemetryIntervalSeconds and the Mqtt section are read from the root of the configuration.
+// DeviceName, DeviceId and TelemetryIntervalSeconds are read from the root of the configuration, the broker from ConnectionStrings:mqtt.
 builder.Services.AddDeviceAgent<ProcessDeviceHandler>(builder.Configuration.Bind);
 
 await builder.Build().RunAsync();

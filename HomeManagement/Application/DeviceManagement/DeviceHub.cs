@@ -7,16 +7,6 @@ using Silverback.Messaging.Publishing;
 
 namespace HomeManagement.Application.DeviceManagement;
 
-public interface IDeviceHub
-{
-    Task<CommandResponse> SendCommandAsync(string deviceId, string command, CancellationToken token = default);
-
-    /// <summary>
-    /// Clears the retained twin, status and telemetry of a device so it is not registered again on the next hub start.
-    /// </summary>
-    Task ForgetDeviceAsync(string deviceId, CancellationToken token = default);
-}
-
 /// <summary>
 /// Hub side of the device protocol described by <see cref="DeviceTopics"/>.
 /// </summary>
@@ -24,19 +14,17 @@ public sealed class DeviceHub(
     IServiceScopeFactory serviceScopeFactory,
     DeviceStateStore stateStore,
     DeviceRegistry registry,
-    ILogger<DeviceHub> logger) : IDeviceHub
+    ILogger<DeviceHub> logger)
 {
-    public static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
+    public static TimeSpan CommandTimeout => DeviceTopics.CommandTimeout;
 
     private readonly ConcurrentDictionary<string, PendingCommand> _pendingCommands = new(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Sends a command and waits for the response. The caller checks that the device is online.
+    /// </summary>
     public async Task<CommandResponse> SendCommandAsync(string deviceId, string command, CancellationToken token = default)
     {
-        if (stateStore.IsOnline(deviceId) != true)
-        {
-            return new CommandResponse(false, $"Device '{deviceId}' is offline.");
-        }
-
         var requestId = Guid.NewGuid().ToString("N");
         var pending = new PendingCommand(deviceId, new TaskCompletionSource<CommandResponse>(TaskCreationOptions.RunContinuationsAsynchronously));
         _pendingCommands[requestId] = pending;
@@ -105,7 +93,7 @@ public sealed class DeviceHub(
         stateStore.NotifyDevicesChanged();
     }
 
-    public void OnStatus(IInboundEnvelope<StringMessage<DeviceStatusPayload>> envelope)
+    public void OnStatus(IInboundEnvelope<StringMessage<InboundStatusPayload>> envelope)
     {
         if (!TryGetDeviceTopic(envelope, out var deviceId, out _))
         {
@@ -138,7 +126,7 @@ public sealed class DeviceHub(
         }
     }
 
-    public void OnTelemetry(IInboundEnvelope<StringMessage<DeviceTelemetryPayload>> envelope)
+    public void OnTelemetry(IInboundEnvelope<StringMessage<InboundTelemetryPayload>> envelope)
     {
         if (TryGetDeviceTopic(envelope, out var deviceId, out var key) && !string.IsNullOrEmpty(key))
         {

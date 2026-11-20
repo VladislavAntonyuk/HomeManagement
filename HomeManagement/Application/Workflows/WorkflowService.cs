@@ -9,20 +9,15 @@ public sealed record WorkflowSummary(int Total, int Enabled, DateTimeOffset? Las
 
 public sealed class WorkflowService(
     IDbContextFactory<HomeManagementDbContext> dbContextFactory,
-    IWorkflowRunner workflowRunner)
+    WorkflowRunner workflowRunner,
+    TimeProvider timeProvider)
 {
     public async Task<List<Workflow>> GetWorkflowsAsync(CancellationToken token = default)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(token);
         return await db.Workflows
-            .Include(x => x.TriggerConditions.OrderBy(c => c.Order))
-            .ThenInclude(x => x.TriggerSourceAction)
-            .ThenInclude(x => x!.Device)
-            .Include(x => x.TriggerConditions)
-            .ThenInclude(x => x.TriggerDevice)
-            .Include(x => x.Steps.OrderBy(s => s.Order))
-            .ThenInclude(x => x.DeviceAction)
-            .ThenInclude(x => x!.Device)
+            .WithTriggers()
+            .WithSteps()
             .OrderBy(x => x.Name)
             .ToListAsync(token);
     }
@@ -52,6 +47,11 @@ public sealed class WorkflowService(
     public async Task<OperationResult> AddAsync(Workflow workflow, CancellationToken token = default)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(token);
+        if (await db.Workflows.AnyAsync(x => x.Name == workflow.Name, token))
+        {
+            return OperationResult.Failure($"Another workflow is already called '{workflow.Name}'.");
+        }
+
         db.Workflows.Add(workflow);
         await db.SaveChangesAsync(token);
         return OperationResult.Success($"Workflow '{workflow.Name}' added.");
@@ -62,7 +62,7 @@ public sealed class WorkflowService(
         await using var db = await dbContextFactory.CreateDbContextAsync(token);
         var workflow = await db.Workflows
             .AsTracking()
-            .Include(x => x.TriggerConditions)
+            .Include(x => x.Triggers)
             .Include(x => x.Steps)
             .FirstOrDefaultAsync(x => x.Id == id, token);
         if (workflow is null)
@@ -70,14 +70,20 @@ public sealed class WorkflowService(
             return OperationResult.NotFound("Workflow not found.");
         }
 
+        if (await db.Workflows.AnyAsync(x => x.Id != id && x.Name == updated.Name, token))
+        {
+            return OperationResult.Failure($"Another workflow is already called '{updated.Name}'.");
+        }
+
         workflow.Name = updated.Name;
         workflow.Description = updated.Description;
         workflow.IsEnabled = updated.IsEnabled;
         workflow.ConditionOperator = updated.ConditionOperator;
         workflow.RepeatWhileMatched = updated.RepeatWhileMatched;
-        workflow.TriggerConditions = updated.TriggerConditions;
+        // New rows replace the old ones, so the evaluation state starts over, e.g. a device status trigger does not run on save.
+        workflow.Triggers = updated.Triggers;
         workflow.Steps = updated.Steps;
-        workflow.LastConditionMatched = null;
+        workflow.WasMatched = null;
         await db.SaveChangesAsync(token);
         return OperationResult.Success($"Workflow '{workflow.Name}' updated.");
     }
@@ -106,11 +112,11 @@ public sealed class WorkflowService(
         }
 
         var result = await workflowRunner.RunAsync(workflow, token: token);
-        workflow.LastTriggeredAtUtc = DateTimeOffset.UtcNow;
+        workflow.LastTriggeredAtUtc = timeProvider.GetUtcNow();
         await db.SaveChangesAsync(token);
 
         return result.IsSuccessful
-            ? OperationResult.Success($"Workflow '{workflow.Name}' executed, {result.ExecutedActions} step(s) run.")
+            ? OperationResult.Success($"Workflow '{workflow.Name}' executed, {result.ExecutedSteps} step(s) run.")
             : OperationResult.Failure($"Workflow '{workflow.Name}' executed with errors: {string.Join(" | ", result.Errors)}");
     }
 

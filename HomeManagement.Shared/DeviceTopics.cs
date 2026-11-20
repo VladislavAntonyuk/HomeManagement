@@ -10,6 +10,11 @@ public static class DeviceTopics
 {
     public const string Root = "home/devices";
 
+    /// <summary>
+    /// How long the hub waits for a command response. Devices stop a command after the same time, because nobody waits for it any more.
+    /// </summary>
+    public static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
+
     public const string Online = "online";
 
     public const string Offline = "offline";

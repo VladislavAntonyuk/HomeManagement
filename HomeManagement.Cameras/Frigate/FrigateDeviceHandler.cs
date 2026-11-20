@@ -31,13 +31,15 @@ public sealed class FrigateDeviceHandler(
     private const string ClipStart = "/clip/start";
     private const string ClipStop = "/clip/stop";
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly ConcurrentDictionary<string, CameraState> _cameraStates = new(StringComparer.Ordinal);
 
     // Manual events of the on-demand recordings in progress, by camera.
     private readonly ConcurrentDictionary<string, string> _clips = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
+
+    // Two Start Clip commands at once must not create two Frigate events.
+    private readonly SemaphoreSlim _clipLock = new(1, 1);
 
     // Completes when the cameras and profiles are read, or Frigate is known to be offline.
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -189,7 +191,7 @@ public sealed class FrigateDeviceHandler(
                 : $"{publicUrl}/api/{tracked.Camera}/latest.jpg");
 
         logger.LogInformation("Frigate detected '{Label}' on camera '{Camera}'.", tracked.Label, tracked.Camera);
-        await telemetryPublisher.TryPublishEventAsync(DetectionKey, JsonSerializer.Serialize(detection, JsonOptions));
+        await telemetryPublisher.TryPublishEventAsync(DetectionKey, JsonSerializer.Serialize(detection, JsonSerializerOptions.Web));
     }
 
     private async Task RefreshLayoutAsync()
@@ -236,14 +238,40 @@ public sealed class FrigateDeviceHandler(
             new StringMessage<FrigateCommandPayload>(payload),
             envelope => envelope.SetMqttDestinationTopic(topic),
             token);
-        return new CommandResponse(true, JsonSerializer.Serialize(new { topic, payload }, JsonOptions));
+        return new CommandResponse(true, JsonSerializer.Serialize(new { topic, payload }, JsonSerializerOptions.Web));
     }
 
     private async Task<CommandResponse> StartClipAsync(string camera, CancellationToken token)
     {
+        await _clipLock.WaitAsync(token);
+        try
+        {
+            return await StartClipCoreAsync(camera, token);
+        }
+        finally
+        {
+            _clipLock.Release();
+        }
+    }
+
+    private async Task<CommandResponse> StopClipAsync(string camera, CancellationToken token)
+    {
+        await _clipLock.WaitAsync(token);
+        try
+        {
+            return await StopClipCoreAsync(camera, token);
+        }
+        finally
+        {
+            _clipLock.Release();
+        }
+    }
+
+    private async Task<CommandResponse> StartClipCoreAsync(string camera, CancellationToken token)
+    {
         if (_clips.TryGetValue(camera, out var current))
         {
-            return new CommandResponse(true, JsonSerializer.Serialize(new { camera, eventId = current, alreadyRecording = true }, JsonOptions));
+            return new CommandResponse(true, JsonSerializer.Serialize(new { camera, eventId = current, alreadyRecording = true }, JsonSerializerOptions.Web));
         }
 
         await using var scope = serviceScopeFactory.CreateAsyncScope();
@@ -252,10 +280,10 @@ public sealed class FrigateDeviceHandler(
         _clips[camera] = eventId;
         logger.LogInformation("Clip of camera '{Camera}' started as Frigate event '{EventId}'.", camera, eventId);
         await PublishCameraAsync(camera);
-        return new CommandResponse(true, JsonSerializer.Serialize(new { camera, eventId }, JsonOptions));
+        return new CommandResponse(true, JsonSerializer.Serialize(new { camera, eventId }, JsonSerializerOptions.Web));
     }
 
-    private async Task<CommandResponse> StopClipAsync(string camera, CancellationToken token)
+    private async Task<CommandResponse> StopClipCoreAsync(string camera, CancellationToken token)
     {
         if (!_clips.TryRemove(camera, out var eventId))
         {
@@ -276,7 +304,7 @@ public sealed class FrigateDeviceHandler(
 
         logger.LogInformation("Clip of camera '{Camera}' (Frigate event '{EventId}') stopped.", camera, eventId);
         await PublishCameraAsync(camera);
-        return new CommandResponse(true, JsonSerializer.Serialize(new { camera, eventId }, JsonOptions));
+        return new CommandResponse(true, JsonSerializer.Serialize(new { camera, eventId }, JsonSerializerOptions.Web));
     }
 
     // Always published, also when nothing is known but the end of a clip, so the hub never keeps a stale value.
@@ -289,7 +317,7 @@ public sealed class FrigateDeviceHandler(
     {
         _cameraStates.TryGetValue(camera, out var state);
         var hasClip = _clips.TryGetValue(camera, out var clipEventId);
-        return JsonSerializer.Serialize(new { enabled = state?.Enabled, recording = state?.Recording, clip = hasClip, clipEventId }, JsonOptions);
+        return JsonSerializer.Serialize(new { enabled = state?.Enabled, recording = state?.Recording, clip = hasClip, clipEventId }, JsonSerializerOptions.Web);
     }
 
     private static bool TryGetCamera(string command, string suffix, out string camera)
@@ -306,7 +334,7 @@ public sealed class FrigateDeviceHandler(
         return false;
     }
 
-    private string SerializeState() => JsonSerializer.Serialize(new { available = _isAvailable, profile = _profile }, JsonOptions);
+    private string SerializeState() => JsonSerializer.Serialize(new { available = _isAvailable, profile = _profile }, JsonSerializerOptions.Web);
 
     private static string CameraKey(string camera) => CameraPrefix + camera;
 

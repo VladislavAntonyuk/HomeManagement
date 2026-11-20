@@ -1,13 +1,23 @@
 using System.Globalization;
-using HomeManagement.Shared;
 
 namespace HomeManagement.DeviceSdk;
 
 public static class DeviceMetrics
 {
-    public static IReadOnlyDictionary<string, string> GetDefault() => new Dictionary<string, string>
+    /// <summary>
+    /// Uptime, and the CPU temperature when the machine reports it.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> GetDefault()
     {
-        { "UptimeSeconds", DeviceManager.GetUptime().ToString(CultureInfo.InvariantCulture) },
-        { "Temperature", DeviceManager.GetTemperature().ToString(CultureInfo.InvariantCulture) }
-    };
+        Dictionary<string, string> metrics = new()
+        {
+            ["UptimeSeconds"] = ((long)HostInfo.Uptime.TotalSeconds).ToString(CultureInfo.InvariantCulture)
+        };
+        if (HostInfo.CpuTemperature is { } temperature)
+        {
+            metrics["Temperature"] = temperature.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return metrics;
+    }
 }

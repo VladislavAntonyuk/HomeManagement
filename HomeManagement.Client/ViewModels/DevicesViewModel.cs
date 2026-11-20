@@ -149,8 +149,8 @@ public sealed partial class DeviceItemViewModel : ObservableObject
         DeviceId = device.DeviceId;
         Description = string.IsNullOrWhiteSpace(device.Description) ? null : device.Description;
         Status = device.Status;
-        StatusText = DisplayFormatter.FormatStatus(device.Status);
-        LastSeen = $"Last seen {DisplayFormatter.FormatAgo(device.LastSeenUtc)}";
+        StatusText = device.Status.DisplayName;
+        LastSeen = $"Last seen {DisplayFormatter.FormatAgo(device.LastSeenUtc, DateTimeOffset.UtcNow)}";
         Address = device.Address;
         SummaryText = Address is null ? LastSeen : $"{LastSeen} · {Address}";
         MetricsText = string.Join(" · ", device.Metrics.Select(x => $"{x.Label} {x.DisplayValue}"));
@@ -205,21 +205,16 @@ public sealed partial class DeviceActionItemViewModel(
         try
         {
             var result = await api.RunDeviceActionAsync(device.Id, action.Id);
-            var message = DeviceActionResultFormatter.Format(result.Message);
-            if (IsReadOnly && result.IsSuccess)
-            {
-                await notifier.ShowAsync(message, title: $"{device.Name}: {action.Name}");
-            }
-            else
-            {
-                await notifier.ShowAsync(message, !result.IsSuccess, UserNotifier.UsesInlineResults ? $"{device.Name}: {action.Name}" : null);
-            }
+            await notifier.ShowAsync(DisplayFormatter.FormatActionResult(result.Message), title: IsReadOnly || UserNotifier.UsesInlineResults ? Title : null);
         }
         catch (Exception e)
         {
-            await notifier.ShowErrorAsync(e);
+            // The hub answers a failed action with a problem, e.g. 503 when the device is offline.
+            await notifier.ShowAsync(ApiErrors.ToMessage(e), isError: true, UserNotifier.UsesInlineResults ? Title : null);
         }
     }
+
+    private string Title => $"{device.Name}: {action.Name}";
 }
 
 public sealed partial class DeviceMetricViewModel : ObservableObject

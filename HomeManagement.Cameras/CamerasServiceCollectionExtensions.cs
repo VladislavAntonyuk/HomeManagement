@@ -32,7 +32,7 @@ public static class CamerasServiceCollectionExtensions
             .AddServiceDiscovery();
 
         services.AddSingleton<FrigateStreamSync>();
-        // The RTMP server needs its port while the services are registered.
+        // The RTMP server and the device agent need their settings while the services are registered.
         var rtmpOptions = new CamerasOptions();
         configure(rtmpOptions);
         services.AddLiveStreamingServer(
@@ -42,12 +42,11 @@ public static class CamerasServiceCollectionExtensions
                 .AddStreamEventHandler(sp => sp.GetRequiredService<FrigateStreamSync>())
                 .AddFlv());
 
-        services.AddDeviceAgent<FrigateDeviceHandler>(_ => { });
-        services.AddOptions<DeviceAgentOptions>().Configure<IOptions<CamerasOptions>>((device, cameras) =>
+        services.AddDeviceAgent<FrigateDeviceHandler>(device =>
         {
-            device.DeviceName = cameras.Value.Device.DeviceName;
-            device.DeviceId = cameras.Value.Device.DeviceId;
-            device.TelemetryIntervalSeconds = cameras.Value.Device.TelemetryIntervalSeconds;
+            device.DeviceName = rtmpOptions.Device.DeviceName;
+            device.DeviceId = rtmpOptions.Device.DeviceId;
+            device.TelemetryIntervalSeconds = rtmpOptions.Device.TelemetryIntervalSeconds;
         });
 
         services.ConfigureSilverback()

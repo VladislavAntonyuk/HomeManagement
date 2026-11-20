@@ -18,9 +18,8 @@ public sealed class DevicePresenceMonitor(
         using var timer = new PeriodicTimer(options.Value.CheckInterval, timeProvider);
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
-            foreach (var deviceId in stateStore.CheckHeartbeats())
+            foreach (var (deviceId, lastSeen) in stateStore.CheckHeartbeats())
             {
-                var lastSeen = stateStore.GetPresence(deviceId)?.LastSeenUtc;
                 logger.LogWarning("Device '{DeviceId}' reports online, but sent nothing since {LastSeenUtc}. Showing it as offline.", deviceId, lastSeen);
                 deviceHub.FailPendingCommands(deviceId, $"Device '{deviceId}' stopped responding.");
             }

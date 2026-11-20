@@ -25,20 +25,20 @@ public class BrokerClientsConfigurator(IOptions<MqttOptions> mqttOptions, IConfi
                     .UseProtocolVersion(MqttProtocolVersion.V500)
                     .Consume(endpoint => endpoint
                         .ConsumeFrom(DeviceTopics.AllTwins)
-                        .DeserializeJson(serializer => serializer.Configure(ConfigureJson).UseModel<DeviceTwin>().IgnoreMessageTypeHeader())
+                        .DeserializeJson(serializer => serializer.Configure(DeviceProtocolJson.Configure).UseModel<DeviceTwin>().IgnoreMessageTypeHeader())
                         .WithAtLeastOnceQoS()
                         .OnError(policy => policy.Retry(3).ThenSkip()))
                     .Consume(endpoint => endpoint
                         .ConsumeFrom(DeviceTopics.AllStatuses)
-                        .ConsumeStrings(serializer => serializer.UseDiscriminator<DeviceStatusPayload>())
+                        .ConsumeStrings(serializer => serializer.UseDiscriminator<InboundStatusPayload>())
                         .WithAtLeastOnceQoS())
                     .Consume(endpoint => endpoint
                         .ConsumeFrom(DeviceTopics.AllTelemetry)
-                        .ConsumeStrings(serializer => serializer.UseDiscriminator<DeviceTelemetryPayload>())
+                        .ConsumeStrings(serializer => serializer.UseDiscriminator<InboundTelemetryPayload>())
                         .WithAtLeastOnceQoS())
                     .Consume(endpoint => endpoint
                         .ConsumeFrom(DeviceTopics.HubResponses(settings.ClientId))
-                        .DeserializeJson(serializer => serializer.Configure(ConfigureJson).UseModel<CommandResponse>().IgnoreMessageTypeHeader())
+                        .DeserializeJson(serializer => serializer.Configure(DeviceProtocolJson.Configure).UseModel<CommandResponse>().IgnoreMessageTypeHeader())
                         .WithAtLeastOnceQoS()
                         .OnError(policy => policy.Skip()))
                     .Produce<DeviceCommandRequest>(endpoint => endpoint
@@ -47,7 +47,7 @@ public class BrokerClientsConfigurator(IOptions<MqttOptions> mqttOptions, IConfi
                         .SetCorrelationData(request => request!.RequestId)
                         // A command the device could not receive in time must not run later, e.g. a restart after a reconnect.
                         .WithMessageExpiration(DeviceHub.CommandTimeout)
-                        .SerializeAsJson(serializer => serializer.Configure(ConfigureJson))
+                        .SerializeAsJson(serializer => serializer.Configure(DeviceProtocolJson.Configure))
                         .WithAtLeastOnceQoS())
                     .Produce<StringMessage<RetainedMessageClear>>(endpoint => endpoint
                         .ProduceToDynamicTopic()
@@ -55,11 +55,5 @@ public class BrokerClientsConfigurator(IOptions<MqttOptions> mqttOptions, IConfi
                         .ProduceStrings()
                         .WithAtLeastOnceQoS()));
             });
-    }
-
-    private static void ConfigureJson(JsonSerializerOptions options)
-    {
-        options.PropertyNameCaseInsensitive = true;
-        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
     }
 }

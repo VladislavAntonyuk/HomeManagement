@@ -12,7 +12,7 @@ public class CamerasOptions
     /// <summary>
     /// Port of the RTMP server cameras publish to.
     /// </summary>
-    public int RtmpPort { get; set; } = 1935;
+    public int RtmpPort { get; set; } = Frigate.FrigateCameraStreams.DefaultRtmpPort;
 
     /// <summary>
     /// Address of the Frigate API this module reads the camera configuration from.

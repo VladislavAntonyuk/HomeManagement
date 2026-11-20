@@ -13,7 +13,7 @@ public static class FrigateCameraStreams
     /// <summary>
     /// Maps each camera to the RTMP stream paths it reads, directly or through a go2rtc restream.
     /// </summary>
-    public static Dictionary<string, HashSet<string>> GetRtmpStreamPaths(JsonElement config, int rtmpPort = DefaultRtmpPort)
+    public static Dictionary<string, HashSet<string>> GetRtmpStreamPaths(JsonElement config, int rtmpPort)
     {
         var result = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         if (!config.TryGetProperty("cameras", out var cameras) || cameras.ValueKind != JsonValueKind.Object)

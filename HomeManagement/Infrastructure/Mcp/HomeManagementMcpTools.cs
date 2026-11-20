@@ -2,6 +2,8 @@
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Workflows;
 using HomeManagement.Shared;
+using HomeManagement.Infrastructure.Api;
+using HomeManagement.Shared.Api;
 using ModelContextProtocol.Extensions.Apps;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
@@ -14,39 +16,27 @@ public record McpDeviceAction(string Name, string CommandType);
 /// <param name="Value">Raw value.</param>
 /// <param name="Label">Readable name, e.g. Uptime.</param>
 /// <param name="DisplayValue">Readable value, e.g. 1 d 2 h.</param>
-public record McpDeviceMetric(string Name, string Value, string Label, string DisplayValue);
-
-public record McpDeviceInfo(string? Address, IReadOnlyList<McpDeviceMetric> Metrics, DateTimeOffset UpdatedAtUtc);
+public record McpDeviceInfo(string? Address, IReadOnlyList<DeviceMetricDto> Metrics, DateTimeOffset UpdatedAtUtc);
 
 /// <param name="Status">online, offline, not responding (reports online but stopped sending heartbeats) or unknown.</param>
 /// <param name="LastSeenUtc">When the hub last received a message of the device.</param>
 public record McpDevice(
     string Name,
     string DeviceId,
-    bool? IsOnline,
     string Status,
     DateTimeOffset? LastSeenUtc,
     string? Description,
     McpDeviceInfo? Info,
     IReadOnlyList<McpDeviceAction> Actions);
 
-public record McpWorkflow(
-    string Name,
-    string? Description,
-    bool IsEnabled,
-    bool RepeatWhileMatched,
-    string Trigger,
-    int Steps,
-    DateTimeOffset? LastTriggeredAtUtc);
-
-public record McpHomeDashboard(IReadOnlyList<McpDevice> Devices, IReadOnlyList<McpWorkflow> Workflows);
+public record McpHomeDashboard(IReadOnlyList<McpDevice> Devices, IReadOnlyList<WorkflowDto> Workflows);
 
 /// <param name="Message">Raw result, e.g. the JSON the device replied with.</param>
 /// <param name="DisplayMessage">Readable result, e.g. the device JSON flattened to "key: value" lines.</param>
 public record McpOperationResult(bool IsSuccess, string Message, string DisplayMessage)
 {
     public McpOperationResult(bool isSuccess, string message)
-        : this(isSuccess, message, DeviceActionResultFormatter.Format(message))
+        : this(isSuccess, message, DisplayFormatter.FormatActionResult(message))
     {
     }
 }
@@ -85,7 +75,7 @@ public class HomeManagementMcpTools
 
     [McpServerTool(UseStructuredContent = true, ReadOnly = true)]
     [Description("Lists all workflows with their triggers")]
-    public static Task<List<McpWorkflow>> ListWorkflows(WorkflowService workflowService, CancellationToken token)
+    public static Task<List<WorkflowDto>> ListWorkflows(WorkflowService workflowService, CancellationToken token)
         => GetWorkflowsAsync(workflowService, token);
 
     [McpServerTool(UseStructuredContent = true)]
@@ -112,28 +102,18 @@ public class HomeManagementMcpTools
             .Select(x => new McpDevice(
                 x.Device.Name,
                 x.Device.DeviceId,
-                x.Presence?.IsOnline,
-                DeviceInfoFormatter.FormatStatus(x.Presence).ToLowerInvariant(),
-                x.Presence?.LastSeenUtc,
+                x.Presence.Status.DisplayName.ToLowerInvariant(),
+                x.Presence.LastSeenUtc,
                 x.Device.Description,
                 x.Info is null || x.InfoReceivedAtUtc is null
                     ? null
                     : new McpDeviceInfo(
-                        string.IsNullOrEmpty(x.Info.Address) ? null : x.Info.Address,
-                        x.Metrics.Select(m => new McpDeviceMetric(m.Name, m.Value, m.Label, m.DisplayValue)).ToList(),
+                        x.Address,
+                        x.Metrics,
                         x.InfoReceivedAtUtc.Value),
                 x.Device.Actions.Select(a => new McpDeviceAction(a.Action, a.CommandType.ToString())).ToList()))
             .ToList();
 
-    private static async Task<List<McpWorkflow>> GetWorkflowsAsync(WorkflowService workflowService, CancellationToken token)
-        => (await workflowService.GetWorkflowsAsync(token))
-            .Select(w => new McpWorkflow(
-                w.Name,
-                w.Description,
-                w.IsEnabled,
-                w.RepeatWhileMatched,
-                WorkflowConditionFormatter.FormatTrigger(w),
-                w.Steps.Count,
-                w.LastTriggeredAtUtc))
-            .ToList();
+    private static async Task<List<WorkflowDto>> GetWorkflowsAsync(WorkflowService workflowService, CancellationToken token)
+        => [.. (await workflowService.GetWorkflowsAsync(token)).Select(x => x.ToDto())];
 }

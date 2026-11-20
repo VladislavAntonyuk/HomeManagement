@@ -90,13 +90,13 @@ public sealed class DeviceRegistry(
         }
 
         var removedIds = removed.Where(x => x.Id != 0).Select(x => x.Id).ToList();
-        var usedIds = await dbContext.Set<WorkflowStep>()
-            .Where(x => x.DeviceActionId != null && removedIds.Contains(x.DeviceActionId.Value))
-            .Select(x => x.DeviceActionId!.Value)
-            .Concat(dbContext.Set<WorkflowTriggerCondition>()
-                .Where(x => x.TriggerSourceActionId != null && removedIds.Contains(x.TriggerSourceActionId.Value))
-                .Select(x => x.TriggerSourceActionId!.Value))
-            .ToListAsync(token);
+        var usedIds = await dbContext.Set<DeviceActionStep>()
+            .Where(x => removedIds.Contains(x.DeviceActionId))
+            .Select(x => x.DeviceActionId)
+            .Concat(dbContext.Set<DeviceResultTrigger>()
+                .Where(x => removedIds.Contains(x.DeviceActionId))
+                .Select(x => x.DeviceActionId))
+            .ToHashSetAsync(token);
 
         foreach (var action in removed)
         {

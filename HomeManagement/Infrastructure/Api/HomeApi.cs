@@ -1,6 +1,8 @@
 using HomeManagement.Application;
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Workflows;
+using HomeManagement.Cameras;
+using HomeManagement.DeviceSdk;
 using HomeManagement.Shared;
 using HomeManagement.Shared.Api;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -46,9 +48,9 @@ public static class HomeApi
     }
 
     private static async Task<List<DeviceDto>> GetDevicesAsync(DeviceService deviceService, CancellationToken token)
-        => (await deviceService.GetDevicesAsync(token)).Select(ToDto).ToList();
+        => [.. (await deviceService.GetDevicesAsync(token)).Select(x => x.ToDto())];
 
-    private static async Task<Results<Ok<OperationResultDto>, NotFound<OperationResultDto>>> RunDeviceActionAsync(
+    private static async Task<Results<Ok<OperationResultDto>, ProblemHttpResult>> RunDeviceActionAsync(
         int deviceId,
         int actionId,
         DeviceService deviceService,
@@ -56,78 +58,37 @@ public static class HomeApi
         => ToHttpResult(await deviceService.RunActionAsync(deviceId, actionId, token));
 
     private static async Task<List<WorkflowDto>> GetWorkflowsAsync(WorkflowService workflowService, CancellationToken token)
-        => (await workflowService.GetWorkflowsAsync(token))
-            .Select(w => new WorkflowDto(
-                w.Id,
-                w.Name,
-                w.Description,
-                w.IsEnabled,
-                w.RepeatWhileMatched,
-                WorkflowConditionFormatter.FormatTrigger(w),
-                w.Steps.Count,
-                w.LastTriggeredAtUtc))
-            .ToList();
+        => [.. (await workflowService.GetWorkflowsAsync(token)).Select(x => x.ToDto())];
 
-    private static async Task<Results<Ok<OperationResultDto>, NotFound<OperationResultDto>>> RunWorkflowAsync(
+    private static async Task<Results<Ok<OperationResultDto>, ProblemHttpResult>> RunWorkflowAsync(
         int workflowId,
         WorkflowService workflowService,
         CancellationToken token)
         => ToHttpResult(await workflowService.RunAsync(workflowId, token));
 
-    private static async Task<Results<Ok<OperationResultDto>, NotFound<OperationResultDto>>> SetWorkflowEnabledAsync(
+    private static async Task<Results<Ok<OperationResultDto>, ProblemHttpResult>> SetWorkflowEnabledAsync(
         int workflowId,
         SetEnabledRequest request,
         WorkflowService workflowService,
         CancellationToken token)
         => ToHttpResult(await workflowService.SetEnabledAsync(workflowId, request.Enabled, token));
 
-    private static Results<Ok<OperationResultDto>, NotFound<OperationResultDto>> ToHttpResult(OperationResult result)
-    {
-        var dto = new OperationResultDto(result.IsSuccess, result.Message);
-        return result.Status == OperationStatus.NotFound ? TypedResults.NotFound(dto) : TypedResults.Ok(dto);
-    }
-
-    private static DeviceDto ToDto(DeviceOverview overview)
-    {
-        var device = overview.Device;
-        return new DeviceDto(
-            device.Id,
-            device.Name,
-            device.DeviceId,
-            device.Description,
-            ToStatus(overview.Presence),
-            overview.Presence?.LastSeenUtc,
-            string.IsNullOrEmpty(overview.Info?.Address) ? null : overview.Info.Address,
-            overview.Metrics.Select(x => new DeviceMetricDto(x.Name, x.Value, x.Label, x.DisplayValue)).ToList(),
-            device.Actions.Select(x => new DeviceActionDto(x.Id, x.Action, x.CommandType)).ToList());
-    }
-
-    private static DevicePresenceStatus ToStatus(DevicePresence? presence) => presence switch
-    {
-        { IsHeartbeatMissed: true } => DevicePresenceStatus.NotResponding,
-        { IsOnline: true } => DevicePresenceStatus.Online,
-        { IsOnline: false } => DevicePresenceStatus.Offline,
-        _ => DevicePresenceStatus.Unknown
-    };
+    private static Results<Ok<OperationResultDto>, ProblemHttpResult> ToHttpResult(OperationResult result)
+        => result.Status switch
+        {
+            OperationStatus.Succeeded => TypedResults.Ok(result.ToDto()),
+            OperationStatus.NotFound => TypedResults.Problem(result.Message, statusCode: StatusCodes.Status404NotFound),
+            OperationStatus.Unavailable => TypedResults.Problem(result.Message, statusCode: StatusCodes.Status503ServiceUnavailable),
+            _ => TypedResults.Problem(result.Message, statusCode: StatusCodes.Status502BadGateway)
+        };
 
     private static HubInfoDto GetHubInfo()
     {
-        string? localIp;
-        try
-        {
-            localIp = NetworkManager.GetLocalIp();
-        }
-        catch
-        {
-            localIp = null;
-        }
-
-        var temperature = OperatingSystem.IsLinux() ? DeviceManager.GetTemperature() : 0;
         return new HubInfoDto(
             Environment.MachineName,
-            localIp,
+            HostInfo.LocalIpAddress,
             RuntimeInformation.OSDescription,
-            Environment.TickCount64 / 1000,
-            temperature > 0 ? Math.Round(temperature, 1) : null);
+            (long)HostInfo.Uptime.TotalSeconds,
+            HostInfo.CpuTemperature is { } temperature ? Math.Round(temperature, 1) : null);
     }
 }

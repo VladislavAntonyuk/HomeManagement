@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using HomeManagement.Infrastructure.Database;
 using HomeManagement.Infrastructure.Database.Entities;
+using HomeManagement.Shared.Api;
 using Microsoft.EntityFrameworkCore;
 using DeviceInfo = HomeManagement.Shared.DeviceInfo;
 using DeviceTopics = HomeManagement.Shared.DeviceTopics;
@@ -9,30 +10,37 @@ namespace HomeManagement.Application.DeviceManagement;
 
 public sealed record DeviceOverview(
     Device Device,
-    DevicePresence? Presence,
+    DevicePresence Presence,
     DeviceInfo? Info,
     DateTimeOffset? InfoReceivedAtUtc,
-    IReadOnlyList<FormattedMetric> Metrics);
+    IReadOnlyList<DeviceMetricDto> Metrics);
 
 public sealed record DeviceStatusSummary(int Total, int Online, int Offline, int NotResponding);
 
 public sealed class DeviceService(
     IDbContextFactory<HomeManagementDbContext> dbContextFactory,
     DeviceStateStore stateStore,
-    IDeviceActionExecutor actionExecutor,
-    IDeviceHub deviceHub)
+    DeviceActionExecutor actionExecutor,
+    DeviceHub deviceHub)
 {
-    public async Task<List<DeviceOverview>> GetDevicesAsync(CancellationToken token = default)
+    /// <summary>
+    /// The registered devices with their actions, without their live state.
+    /// </summary>
+    public async Task<List<Device>> ListAsync(CancellationToken token = default)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(token);
-        var devices = await db.Devices
+        return await db.Devices
             .Include(x => x.Actions.OrderBy(a => a.Action))
             .OrderBy(x => x.Name)
             .ToListAsync(token);
-
-        return devices.Select(GetOverview).ToList();
     }
 
+    public async Task<List<DeviceOverview>> GetDevicesAsync(CancellationToken token = default)
+        => [.. (await ListAsync(token)).Select(GetOverview)];
+
+    /// <summary>
+    /// The device with its current presence and info. Cheap: the live state is in memory.
+    /// </summary>
     public DeviceOverview GetOverview(Device device)
     {
         var info = stateStore.GetInfo(device.DeviceId);
@@ -41,21 +49,20 @@ public sealed class DeviceService(
             stateStore.GetPresence(device.DeviceId),
             info,
             info is null ? null : stateStore.GetTelemetry(device.DeviceId, DeviceTopics.InfoKey)?.ReceivedAtUtc,
-            info is null ? [] : DeviceInfoFormatter.FormatMetrics(info));
+            info is null ? [] : DisplayFormatter.FormatMetrics(info));
     }
 
     public async Task<DeviceStatusSummary> GetStatusSummaryAsync(CancellationToken token = default)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(token);
-        var presences = (await db.Devices.Select(x => x.DeviceId).ToListAsync(token))
-            .Select(stateStore.GetPresence)
-            .ToList();
+        var deviceIds = await db.Devices.Select(x => x.DeviceId).ToListAsync(token);
+        var counts = deviceIds.CountBy(x => stateStore.GetPresence(x).Status).ToDictionary();
 
         return new DeviceStatusSummary(
-            presences.Count,
-            presences.Count(x => x is { IsOnline: true }),
-            presences.Count(x => x is { IsOnline: false, IsHeartbeatMissed: false }),
-            presences.Count(x => x is { IsHeartbeatMissed: true }));
+            deviceIds.Count,
+            counts.GetValueOrDefault(DevicePresenceStatus.Online),
+            counts.GetValueOrDefault(DevicePresenceStatus.Offline),
+            counts.GetValueOrDefault(DevicePresenceStatus.NotResponding));
     }
 
     public Task<OperationResult> RunActionAsync(int deviceId, int actionId, CancellationToken token = default)
@@ -73,8 +80,14 @@ public sealed class DeviceService(
             return OperationResult.NotFound("Device not found.");
         }
 
-        device.Name = name.Trim();
-        device.Description = string.IsNullOrWhiteSpace(description) ? null : description;
+        name = name.Trim();
+        if (await db.Devices.AnyAsync(x => x.Id != id && x.Name == name, token))
+        {
+            return OperationResult.Failure($"Another device is already called '{name}'.");
+        }
+
+        device.Name = name;
+        device.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         await db.SaveChangesAsync(token);
         return OperationResult.Success($"'{device.Name}' updated.");
     }
@@ -111,9 +124,9 @@ public sealed class DeviceService(
     {
         var actionIds = device.Actions.Select(x => x.Id).ToList();
         return await db.Workflows
-            .Where(w => w.Steps.Any(s => s.DeviceActionId != null && actionIds.Contains(s.DeviceActionId.Value))
-                        || w.TriggerConditions.Any(c => (c.TriggerSourceActionId != null && actionIds.Contains(c.TriggerSourceActionId.Value))
-                                                        || c.TriggerDeviceId == device.Id))
+            .Where(w => w.Steps.OfType<DeviceActionStep>().Any(s => actionIds.Contains(s.DeviceActionId))
+                        || w.Triggers.OfType<DeviceResultTrigger>().Any(t => actionIds.Contains(t.DeviceActionId))
+                        || w.Triggers.OfType<DeviceStatusTrigger>().Any(t => t.DeviceId == device.Id))
             .Select(w => w.Name)
             .Distinct()
             .OrderBy(x => x)
@@ -140,6 +153,11 @@ public sealed class DeviceService(
         }
 
         var result = await actionExecutor.ExecuteAsync(device, action, token);
-        return result.IsSuccess ? OperationResult.Success(result.Message) : OperationResult.Failure(result.Message);
+        return result switch
+        {
+            ActionSucceeded => OperationResult.Success(result.Message),
+            ActionDeviceOffline or ActionValueMissing => OperationResult.Unavailable(result.Message),
+            ActionFailed => OperationResult.Failure(result.Message)
+        };
     }
 }

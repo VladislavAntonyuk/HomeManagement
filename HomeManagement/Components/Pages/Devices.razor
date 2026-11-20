@@ -1,30 +1,29 @@
 ﻿@page "/devices"
 @using HomeManagement.Infrastructure.Database.Entities
-@using HomeManagement.Shared
 @attribute [Authorize]
 
 <PageTitle>Devices</PageTitle>
 
 <div class="devices">
-    <MudTable @ref="_table" ServerData="ServerReload" Dense="true" Hover="true">
+    <MudTable T="Device" Items="_devices" Loading="@(_devices is null)" Dense="true" Hover="true">
         <ToolBarContent>
             <MudText Typo="Typo.h6">Devices</MudText>
             <MudSpacer />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="_table.ReloadServerData">Refresh</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="ReloadAsync">Refresh</MudButton>
         </ToolBarContent>
         <HeaderContent>
             <MudTh Class="device-expand-cell"></MudTh>
-            <MudTh><MudTableSortLabel T="Device" SortLabel="@nameof(Device.Name)">Name</MudTableSortLabel></MudTh>
-            <MudTh Style="white-space: nowrap"><MudTableSortLabel T="Device" SortLabel="@nameof(Device.DeviceId)">Device Id</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel T="Device" SortBy="x => x.Name" InitialDirection="SortDirection.Ascending">Name</MudTableSortLabel></MudTh>
+            <MudTh Style="white-space: nowrap"><MudTableSortLabel T="Device" SortBy="x => x.DeviceId">Device Id</MudTableSortLabel></MudTh>
             <MudTh>Status</MudTh>
             <MudTh>Actions</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
             @{
-                var presence = deviceStateStore.GetPresence(context.DeviceId);
-                var isOnline = presence?.IsOnline;
-                var isExpanded = _expandedDevices.Contains(context.DeviceId);
+                var overview = deviceService.GetOverview(context);
+                var presence = overview.Presence;
+                var isExpanded = _expandedDevices.Contains(context.Id);
             }
             <MudTd DataLabel="Details" Class="device-expand-cell">
                 <MudIconButton Icon="@(isExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
@@ -38,11 +37,11 @@
             <MudTd DataLabel="Status">
                 <div class="device-status">
                     <MudTooltip Text="@GetStatusTooltip(presence)">
-                        <MudChip T="string" Color="@GetStatusColor(presence)" Variant="Variant.Filled" Class="ma-0">@DeviceInfoFormatter.FormatStatus(presence)</MudChip>
+                        <MudChip T="string" Color="@GetStatusColor(presence)" Variant="Variant.Filled" Class="ma-0">@presence.Status.DisplayName</MudChip>
                     </MudTooltip>
-                    @if (presence?.LastSeenUtc is { } lastSeen)
+                    @if (presence.LastSeenUtc is { } lastSeen)
                     {
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary device-last-seen">Seen @DeviceInfoFormatter.FormatAgo(lastSeen, Now)</MudText>
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary device-last-seen">Seen @DisplayFormatter.FormatAgo(lastSeen, Now)</MudText>
                     }
                 </div>
             </MudTd>
@@ -50,9 +49,9 @@
                 <div class="device-actions-container">
                     @foreach (var action in context.Actions)
                     {
-                        var disabled = isOnline != true || _runningActions.Contains((context.Name, action));
-                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="@disabled" OnClick="@(() => RunAction(context, action))" Class="device-action-button">
-                            @if (_runningActions.Contains((context.Name, action)))
+                        var isRunning = _runningActions.Contains(action.Id);
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!presence.IsOnline || isRunning)" OnClick="@(() => RunActionAsync(context, action))" Class="device-action-button">
+                            @if (isRunning)
                             {
                                 <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="me-1" />
                             }
@@ -62,19 +61,17 @@
                 </div>
             </MudTd>
             <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="Edit device" OnClick="() => Edit(context)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete device" Color="Color.Error" OnClick="() => Delete(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="Edit device" OnClick="() => EditAsync(context)" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete device" Color="Color.Error" OnClick="() => DeleteAsync(context)" />
             </MudTd>
         </RowTemplate>
         <ChildRowContent>
-            @if (_expandedDevices.Contains(context.DeviceId))
+            @if (_expandedDevices.Contains(context.Id))
             {
-                var presence = deviceStateStore.GetPresence(context.DeviceId);
-                var info = deviceStateStore.GetInfo(context.DeviceId);
-                var infoTelemetry = deviceStateStore.GetTelemetry(context.DeviceId, DeviceTopics.InfoKey);
+                var overview = deviceService.GetOverview(context);
                 <MudTr>
                     <td colspan="6" class="mud-table-cell device-details-cell">
-                        @if (info is null)
+                        @if (overview.Info is null)
                         {
                             <div class="device-details-empty">
                                 <MudText Typo="Typo.body2" Class="mud-text-secondary">@context.Name has not reported device info yet.</MudText>
@@ -85,28 +82,24 @@
                             <dl class="device-details">
                                 <div>
                                     <dt>Address</dt>
-                                    <dd>@(string.IsNullOrEmpty(info.Address) ? "-" : info.Address)</dd>
+                                    <dd>@(string.IsNullOrEmpty(overview.Info.Address) ? "-" : overview.Info.Address)</dd>
                                 </div>
-                                @foreach (var (name, value) in info.Metrics.OrderBy(x => x.Key, StringComparer.Ordinal))
+                                @foreach (var metric in overview.Metrics)
                                 {
-                                    var metric = DeviceInfoFormatter.FormatMetric(name, value);
                                     <div>
                                         <dt>@metric.Label</dt>
-                                        <dd>@metric.Value</dd>
+                                        <dd>@metric.DisplayValue</dd>
                                     </div>
                                 }
-                                @if (presence is not null)
-                                {
-                                    <div>
-                                        <dt>Heartbeat</dt>
-                                        <dd>Every @DeviceInfoFormatter.FormatDuration(presence.HeartbeatInterval)</dd>
-                                    </div>
-                                }
-                                @if (infoTelemetry is not null)
+                                <div>
+                                    <dt>Heartbeat</dt>
+                                    <dd>Every @DisplayFormatter.FormatDuration(overview.Presence.HeartbeatInterval)</dd>
+                                </div>
+                                @if (overview.InfoReceivedAtUtc is { } infoReceived)
                                 {
                                     <div>
                                         <dt>Info updated</dt>
-                                        <dd title="@infoTelemetry.ReceivedAtUtc.ToLocalTime().ToString("G")">@DeviceInfoFormatter.FormatAgo(infoTelemetry.ReceivedAtUtc, Now)</dd>
+                                        <dd title="@infoReceived.ToLocalTime().ToString("G")">@DisplayFormatter.FormatAgo(infoReceived, Now)</dd>
                                     </div>
                                 }
                             </dl>

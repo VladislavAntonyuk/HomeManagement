@@ -92,7 +92,7 @@ public sealed partial class WorkflowItemViewModel : ObservableObject
         TriggerText = $"When {workflow.Trigger}";
         var steps = workflow.Steps == 1 ? "1 step" : $"{workflow.Steps} steps";
         var repeat = workflow.RepeatWhileMatched ? " · repeats while matched" : string.Empty;
-        Details = $"{steps}{repeat} · last run {DisplayFormatter.FormatAgo(workflow.LastTriggeredAtUtc)}";
+        Details = $"{steps}{repeat} · last run {DisplayFormatter.FormatAgo(workflow.LastTriggeredAtUtc, DateTimeOffset.UtcNow)}";
         SummaryText = Description is null ? Details : $"{Description} · {Details}";
         if (!IsUpdating)
         {
@@ -118,7 +118,7 @@ public sealed partial class WorkflowItemViewModel : ObservableObject
         try
         {
             var result = await _api.SetWorkflowEnabledAsync(Id, new SetEnabledRequest(value));
-            await _notifier.ShowAsync(result.Message, !result.IsSuccess);
+            await _notifier.ShowAsync(result.Message);
         }
         catch (Exception e)
         {
@@ -156,7 +156,7 @@ public sealed partial class WorkflowItemViewModel : ObservableObject
         {
             _notifier.ShowProgress($"'{Name}': running...");
             var result = await _api.RunWorkflowAsync(Id);
-            await _notifier.ShowAsync(result.Message, !result.IsSuccess);
+            await _notifier.ShowAsync(result.Message);
         }
         catch (Exception e)
         {

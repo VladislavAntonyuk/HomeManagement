@@ -21,7 +21,11 @@ public sealed class DeviceTelemetryPublisher(
     /// <summary>
     /// Whether the device is connected to the broker. Telemetry published while disconnected is dropped.
     /// </summary>
-    public bool IsConnected { get; internal set; }
+    public bool IsConnected
+    {
+        get => Volatile.Read(ref field);
+        internal set => Volatile.Write(ref field, value);
+    }
 
     /// <summary>
     /// Publishes the value of a <see cref="CommandType.Get"/> action, retained.

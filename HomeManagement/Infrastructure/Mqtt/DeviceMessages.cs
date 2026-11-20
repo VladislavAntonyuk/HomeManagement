@@ -13,9 +13,9 @@ public sealed record DeviceCommandRequest(
 /// <summary>
 /// Discriminator of the string payload of a device status topic.
 /// </summary>
-public sealed class DeviceStatusPayload
+public sealed class InboundStatusPayload
 {
-    private DeviceStatusPayload()
+    private InboundStatusPayload()
     {
     }
 }
@@ -23,9 +23,9 @@ public sealed class DeviceStatusPayload
 /// <summary>
 /// Discriminator of the string payload of a device telemetry topic.
 /// </summary>
-public sealed class DeviceTelemetryPayload
+public sealed class InboundTelemetryPayload
 {
-    private DeviceTelemetryPayload()
+    private InboundTelemetryPayload()
     {
     }
 }

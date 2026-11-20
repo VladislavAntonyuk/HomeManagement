@@ -8,6 +8,7 @@ public class DeviceActionConfiguration : IEntityTypeConfiguration<DeviceAction>
 {
     public void Configure(EntityTypeBuilder<DeviceAction> builder)
     {
+        builder.ToTable("DeviceActions");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Action).HasMaxLength(50).IsRequired();
         builder.Property(x => x.Command).IsRequired();

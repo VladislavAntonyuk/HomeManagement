@@ -5,6 +5,7 @@ namespace HomeManagement.Application.Router;
 
 public class InternetWatchdogService(
     IRouterController routerController,
+    TimeProvider timeProvider,
     IOptionsMonitor<InternetWatchdogOptions> optionsMonitor,
     ILogger<InternetWatchdogService> logger)
     : BackgroundService
@@ -41,21 +42,21 @@ public class InternetWatchdogService(
             if (_consecutiveFailures >= Math.Max(1, options.ConsecutiveFailuresBeforeReboot))
             {
                 var rebootCooldown = TimeSpan.FromMinutes(Math.Max(0, options.RebootCooldownMinutes));
-                var now = DateTimeOffset.UtcNow;
+                var now = timeProvider.GetUtcNow();
                 if (now - _lastRebootAttempt >= rebootCooldown)
                 {
                     _lastRebootAttempt = now;
                     try
                     {
-                        var result = await routerController.RebootModem();
-                        if (string.IsNullOrEmpty(result.ErrorStatus))
+                        var result = await routerController.RebootModemAsync(stoppingToken);
+                        if (result.IsSuccess)
                         {
                             logger.LogWarning("Internet is unavailable. Modem reboot has been requested.");
                             _consecutiveFailures = 0;
                         }
                         else
                         {
-                            logger.LogError("Failed to reboot modem: {ErrorStatus}", result.ErrorStatus);
+                            logger.LogError("Failed to reboot modem: {Error}", result.Message);
                         }
                     }
                     catch (HttpRequestException ex)

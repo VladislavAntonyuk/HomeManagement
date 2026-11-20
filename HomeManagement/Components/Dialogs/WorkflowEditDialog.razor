@@ -1,207 +1,211 @@
 ﻿@using HomeManagement.Application.Workflows
 @using HomeManagement.Infrastructure.Database.Entities
-@inherits ComponentBase
 
 <MudPaper Class="pa-4" Elevation="1">
     <MudForm @ref="_form">
         <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
-        <MudTextField @bind-Value="Model.Description" Label="Description" Lines="3" Required="false" />
+        <MudTextField @bind-Value="Model.Description" Label="Description" Lines="3" />
         <MudSwitch @bind-Value="Model.IsEnabled" Color="Color.Primary" Label="Enabled" />
 
         <MudDivider Class="my-2" />
-        <MudText Typo="Typo.subtitle1">Trigger Conditions</MudText>
-        @if (Model.TriggerConditions.Count == 0)
+        <MudText Typo="Typo.subtitle1">Triggers</MudText>
+        @if (Model.Triggers.Count == 0)
         {
-            <MudText Typo="Typo.body2" Class="mud-text-secondary my-2">No conditions: the workflow runs only when you run it manually. Add a condition to run it automatically.</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary my-2">No triggers: the workflow runs only when you run it. Add a trigger to run it automatically.</MudText>
         }
         else
         {
-            @if (Model.TriggerConditions.Count > 1)
+            @if (Model.Triggers.Count > 1)
             {
-                <MudSelect T="WorkflowConditionOperator" @bind-Value="Model.ConditionOperator" Label="Combine Conditions">
+                <MudSelect T="WorkflowConditionOperator" @bind-Value="Model.ConditionOperator" Label="Combine triggers">
                     <MudSelectItem T="WorkflowConditionOperator" Value="WorkflowConditionOperator.And">AND</MudSelectItem>
                     <MudSelectItem T="WorkflowConditionOperator" Value="WorkflowConditionOperator.Or">OR</MudSelectItem>
                 </MudSelect>
             }
 
-            <MudSwitch @bind-Value="Model.RepeatWhileMatched" Color="Color.Primary" Label="Repeat on every check while conditions match (e.g. alerts)" />
+            <MudSwitch @bind-Value="Model.RepeatWhileMatched" Color="Color.Primary" Label="Repeat on every check while the triggers match (e.g. alerts)" />
         }
 
-        @foreach (var (index, condition) in Model.TriggerConditions.Index())
+        @foreach (var (index, trigger) in Model.Triggers.Index())
         {
-            <MudPaper @key="condition" Class="pa-2 my-2" Outlined="true">
+            <MudPaper @key="trigger" Class="pa-2 my-2" Outlined="true">
                 <MudStack Spacing="2">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudAvatar Size="Size.Small" Color="Color.Primary" Style="font-size: 0.875rem;">@(index + 1)</MudAvatar>
-                        <MudSelect T="WorkflowTriggerType" Value="@condition.TriggerType" ValueChanged="value => OnConditionTypeChanged(index, value)" Label="Trigger Type" Required="true" Class="action-field">
-                            @foreach (var triggerType in Enum.GetValues<WorkflowTriggerType>().Where(t => t != WorkflowTriggerType.Manual))
+                        <MudSelect T="TriggerKind" Value="@trigger.Kind" ValueChanged="trigger.SetKind" Label="Trigger" Class="action-field">
+                            @foreach (var kind in Enum.GetValues<TriggerKind>())
                             {
-                                <MudSelectItem T="WorkflowTriggerType" Value="@triggerType">@triggerType</MudSelectItem>
+                                <MudSelectItem T="TriggerKind" Value="@kind">@kind</MudSelectItem>
                             }
                         </MudSelect>
                         <MudSpacer />
                         <MudTooltip Text="Move up">
-                            <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Move condition up" Disabled="@(index == 0)" OnClick="() => MoveCondition(index, -1)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Move trigger up" Disabled="@(index == 0)" OnClick="() => Move(Model.Triggers, trigger, -1)" />
                         </MudTooltip>
                         <MudTooltip Text="Move down">
-                            <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Move condition down" Disabled="@(index == Model.TriggerConditions.Count - 1)" OnClick="() => MoveCondition(index, 1)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Move trigger down" Disabled="@(index == Model.Triggers.Count - 1)" OnClick="() => Move(Model.Triggers, trigger, 1)" />
                         </MudTooltip>
                         <MudTooltip Text="Delete">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete condition" Color="Color.Error" OnClick="() => RemoveCondition(index)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete trigger" Color="Color.Error" OnClick='() => RemoveAsync(Model.Triggers, trigger, "trigger")' />
                         </MudTooltip>
                     </MudStack>
 
-                    @if (condition.TriggerType is WorkflowTriggerType.Date)
+                    @switch (trigger.Kind)
                     {
-                        <MudSelect T="WorkflowComparisonOperator?" @bind-Value="condition.TriggerOperator" Label="Operator" Required="true">
-                            @foreach (var op in WorkflowConditionFormatter.DateOperators)
-                            {
-                                <MudSelectItem T="WorkflowComparisonOperator?" Value="@op">@WorkflowConditionFormatter.FormatOperator(condition.TriggerType, op)</MudSelectItem>
-                            }
-                        </MudSelect>
-                        <MudDatePicker Label="@(WorkflowConditionFormatter.IsRange(condition.TriggerOperator) ? "From" : "Date")" Date="@ToDateTime(condition.TriggerDate)" DateChanged="value => condition.TriggerDate = ToDateOnly(value)" Required="true" />
-                        @if (WorkflowConditionFormatter.IsRange(condition.TriggerOperator))
-                        {
-                            <MudDatePicker Label="To" Date="@ToDateTime(condition.TriggerDateTo)" DateChanged="value => condition.TriggerDateTo = ToDateOnly(value)" Required="true" />
-                        }
-                    }
-                    else if (condition.TriggerType is WorkflowTriggerType.Time)
-                    {
-                        <MudSelect T="WorkflowComparisonOperator?" @bind-Value="condition.TriggerOperator" Label="Operator" Required="true">
-                            @foreach (var op in WorkflowConditionFormatter.TimeOperators)
-                            {
-                                <MudSelectItem T="WorkflowComparisonOperator?" Value="@op">@WorkflowConditionFormatter.FormatOperator(condition.TriggerType, op)</MudSelectItem>
-                            }
-                        </MudSelect>
-                        @if (condition.TriggerOperator is WorkflowComparisonOperator.Equal)
-                        {
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Matches once per day, within a few minutes after the time is reached.</MudText>
-                        }
-
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudSelect T="WorkflowTimeReference?" @bind-Value="condition.TriggerTimeReference" Label="@(WorkflowConditionFormatter.IsRange(condition.TriggerOperator) ? "From" : "Time")" Required="true" Class="action-field">
-                                @foreach (var reference in Enum.GetValues<WorkflowTimeReference>())
+                        case TriggerKind.Date:
+                            <MudSelect T="WorkflowComparisonOperator" @bind-Value="trigger.Operator" Label="Operator">
+                                @foreach (var op in WorkflowFormatter.DateOperators)
                                 {
-                                    <MudSelectItem T="WorkflowTimeReference?" Value="@reference">@reference</MudSelectItem>
+                                    <MudSelectItem T="WorkflowComparisonOperator" Value="@op">@WorkflowFormatter.FormatOperator(OperatorSubject.Date, op)</MudSelectItem>
                                 }
                             </MudSelect>
-                            @if (condition.TriggerTimeReference is WorkflowTimeReference.Fixed)
+                            <MudDatePicker Label="@(trigger.IsRange ? "From" : "Date")" Date="@ToDateTime(trigger.Date)" DateChanged="value => trigger.Date = ToDateOnly(value)" Required="true" />
+                            @if (trigger.IsRange)
                             {
-                                <MudTimePicker Label="Fixed time" Time="@condition.TriggerTime?.ToTimeSpan()" TimeChanged="value => condition.TriggerTime = ToTimeOnly(value)" Required="true" Class="action-field" />
+                                <MudDatePicker Label="To" Date="@ToDateTime(trigger.DateTo)" DateChanged="value => trigger.DateTo = ToDateOnly(value)" Required="true" />
                             }
-                            else
-                            {
-                                <MudNumericField T="int?" @bind-Value="condition.TriggerTimeOffsetMinutes" Label="Offset (minutes)" HelperText="Negative for before" Class="action-field" />
-                            }
-                        </MudStack>
 
-                        @if (WorkflowConditionFormatter.IsRange(condition.TriggerOperator))
-                        {
+                            break;
+
+                        case TriggerKind.Time:
+                            <MudSelect T="WorkflowComparisonOperator" @bind-Value="trigger.Operator" Label="Operator">
+                                @foreach (var op in WorkflowFormatter.TimeOperators)
+                                {
+                                    <MudSelectItem T="WorkflowComparisonOperator" Value="@op">@WorkflowFormatter.FormatOperator(OperatorSubject.Time, op)</MudSelectItem>
+                                }
+                            </MudSelect>
+                            @if (trigger.Operator is WorkflowComparisonOperator.Equal)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">Matches once per day, within a few minutes after the time is reached.</MudText>
+                            }
+
                             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                                <MudSelect T="WorkflowTimeReference?" @bind-Value="condition.TriggerTimeToReference" Label="To" Required="true" Class="action-field">
+                                <MudSelect T="WorkflowTimeReference" @bind-Value="trigger.FromReference" Label="@(trigger.IsRange ? "From" : "Time")" Class="action-field">
                                     @foreach (var reference in Enum.GetValues<WorkflowTimeReference>())
                                     {
-                                        <MudSelectItem T="WorkflowTimeReference?" Value="@reference">@reference</MudSelectItem>
+                                        <MudSelectItem T="WorkflowTimeReference" Value="@reference">@reference</MudSelectItem>
                                     }
                                 </MudSelect>
-                                @if (condition.TriggerTimeToReference is WorkflowTimeReference.Fixed)
+                                @if (trigger.FromReference is WorkflowTimeReference.Fixed)
                                 {
-                                    <MudTimePicker Label="Fixed time" Time="@condition.TriggerTimeTo?.ToTimeSpan()" TimeChanged="value => condition.TriggerTimeTo = ToTimeOnly(value)" Required="true" Class="action-field" />
+                                    <MudTimePicker Label="Fixed time" Time="@trigger.FromTime?.ToTimeSpan()" TimeChanged="value => trigger.FromTime = ToTimeOnly(value)" Required="true" Class="action-field" />
                                 }
                                 else
                                 {
-                                    <MudNumericField T="int?" @bind-Value="condition.TriggerTimeToOffsetMinutes" Label="Offset (minutes)" HelperText="Negative for before" Class="action-field" />
+                                    <MudNumericField T="int" @bind-Value="trigger.FromOffsetMinutes" Label="Offset (minutes)" HelperText="Negative for before" Class="action-field" />
                                 }
                             </MudStack>
-                        }
-                    }
-                    else if (condition.TriggerType is WorkflowTriggerType.DeviceStatus)
-                    {
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                            <MudSelect T="string" @bind-Value="condition.TriggerDeviceName" Label="Device" Required="true" Class="action-field">
-                                @foreach (var deviceName in AvailableActions.Keys.Order())
+
+                            @if (trigger.IsRange)
+                            {
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudSelect T="WorkflowTimeReference" @bind-Value="trigger.ToReference" Label="To" Class="action-field">
+                                        @foreach (var reference in Enum.GetValues<WorkflowTimeReference>())
+                                        {
+                                            <MudSelectItem T="WorkflowTimeReference" Value="@reference">@reference</MudSelectItem>
+                                        }
+                                    </MudSelect>
+                                    @if (trigger.ToReference is WorkflowTimeReference.Fixed)
+                                    {
+                                        <MudTimePicker Label="Fixed time" Time="@trigger.ToTime?.ToTimeSpan()" TimeChanged="value => trigger.ToTime = ToTimeOnly(value)" Required="true" Class="action-field" />
+                                    }
+                                    else
+                                    {
+                                        <MudNumericField T="int" @bind-Value="trigger.ToOffsetMinutes" Label="Offset (minutes)" HelperText="Negative for before" Class="action-field" />
+                                    }
+                                </MudStack>
+                            }
+
+                            break;
+
+                        case TriggerKind.DeviceStatus:
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudSelect T="int?" @bind-Value="trigger.DeviceId" Label="Device" Required="true" ToStringFunc="DeviceName" Class="action-field">
+                                    @foreach (var device in Devices)
+                                    {
+                                        <MudSelectItem T="int?" Value="@device.Id">@device.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                                <MudSelect T="DeviceStatus" @bind-Value="trigger.ExpectedStatus" Label="Goes" Class="action-field">
+                                    @foreach (var status in Enum.GetValues<DeviceStatus>())
+                                    {
+                                        <MudSelectItem T="DeviceStatus" Value="@status">@status</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudStack>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Runs once each time the device changes to this status. Use OR with the other status to be told about both.</MudText>
+                            break;
+
+                        case TriggerKind.DeviceResult:
+                            <MudSelect T="int?" Value="@trigger.DeviceId" ValueChanged="value => OnTriggerDeviceChanged(trigger, value)" Label="Device" Required="true" ToStringFunc="DeviceName">
+                                @foreach (var device in Devices)
                                 {
-                                    <MudSelectItem T="string" Value="@deviceName">@deviceName</MudSelectItem>
+                                    <MudSelectItem T="int?" Value="@device.Id">@device.Name</MudSelectItem>
                                 }
                             </MudSelect>
-                            <MudSelect T="DeviceStatus?" @bind-Value="condition.TriggerDeviceStatus" Label="Goes" Required="true" Class="action-field">
-                                @foreach (var status in Enum.GetValues<DeviceStatus>())
+
+                            <MudSelect T="int?" Value="@trigger.ActionId" ValueChanged="value => OnTriggerActionChanged(trigger, value)" Label="Action" Required="true" Disabled="@(trigger.DeviceId is null)" ToStringFunc="ActionName">
+                                @foreach (var action in ActionsOf(trigger.DeviceId))
                                 {
-                                    <MudSelectItem T="DeviceStatus?" Value="@status">@status</MudSelectItem>
+                                    <MudSelectItem T="int?" Value="@action.Id">@action.Name</MudSelectItem>
                                 }
                             </MudSelect>
-                        </MudStack>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Runs once each time the device changes to this status. Use OR with the other status to be told about both.</MudText>
-                    }
-                    else if (condition.TriggerType is WorkflowTriggerType.DeviceResult)
-                    {
-                        <MudSelect T="string" Value="@condition.TriggerDeviceName" ValueChanged="value => OnConditionDeviceChanged(index, value)" Label="Device" Required="true">
-                            @foreach (var deviceName in AvailableActions.Keys.Order())
+
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="() => PreviewAsync(trigger)" Disabled="@(trigger.ActionId is null || trigger.IsPreviewLoading)">Preview response</MudButton>
+                                @if (trigger.Preview?.Error is { } previewError)
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Error">@previewError</MudText>
+                                }
+                            </MudStack>
+
+                            @if (!string.IsNullOrWhiteSpace(trigger.Preview?.RawResponse))
                             {
-                                <MudSelectItem T="string" Value="@deviceName">@deviceName</MudSelectItem>
+                                <MudTextField Value="@trigger.Preview.RawResponse" Label="Response" ReadOnly="true" Lines="3" />
                             }
-                        </MudSelect>
 
-                        <MudSelect T="string" Value="@condition.TriggerSourceActionName" ValueChanged="value => OnConditionActionChanged(index, value)" Label="Source Action" Required="true" Disabled="@string.IsNullOrWhiteSpace(condition.TriggerDeviceName)">
-                            @foreach (var actionName in GetActionsForDevice(condition.TriggerDeviceName))
-                            {
-                                <MudSelectItem T="string" Value="@actionName">@actionName</MudSelectItem>
-                            }
-                        </MudSelect>
-
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mt-2">
-                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="() => PreviewConditionResponse(index)" Disabled="@(!CanPreviewCondition(index) || IsConditionPreviewLoading(index))">Preview Response</MudButton>
-                            @if (!string.IsNullOrWhiteSpace(GetConditionPreviewError(index)))
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Error">@GetConditionPreviewError(index)</MudText>
-                            }
-                        </MudStack>
-
-                        @if (!string.IsNullOrWhiteSpace(GetConditionPreviewRawResponse(index)))
-                        {
-                            <MudTextField Value="@GetConditionPreviewRawResponse(index)" Label="Preview Raw Response" ReadOnly="true" Lines="3" />
-                        }
-
-                        <MudSelect T="string" Value="@condition.TriggerPropertyPath" ValueChanged="value => OnConditionPropertyChanged(index, value)" Label="JSON Property" Required="true" Disabled="@(GetConditionPreviewProperties(index).Count == 0)">
-                            @foreach (var property in GetConditionPreviewProperties(index))
-                            {
-                                <MudSelectItem T="string" Value="@property.Path">@($"{property.Path} ({property.ValueType})")</MudSelectItem>
-                            }
-                        </MudSelect>
-
-                        <MudSelect T="WorkflowComparisonOperator?" Value="@condition.TriggerOperator" ValueChanged="value => OnConditionOperatorChanged(index, value)" Label="Operator" Required="true">
-                            @foreach (var op in GetAllowedOperators(condition.TriggerValueType))
-                            {
-                                <MudSelectItem T="WorkflowComparisonOperator?" Value="@op">@WorkflowConditionFormatter.FormatOperator(condition.TriggerType, op)</MudSelectItem>
-                            }
-                        </MudSelect>
-
-                        @if (condition.TriggerValueType is WorkflowTriggerValueType.Boolean)
-                        {
-                            <MudSelect T="string" Value="@condition.TriggerExpectedValue" ValueChanged="value => OnConditionBooleanExpectedValueChanged(index, value)" Label="Expected Value" Required="true">
-                                <MudSelectItem T="string" Value='@("true")'>true</MudSelectItem>
-                                <MudSelectItem T="string" Value='@("false")'>false</MudSelectItem>
+                            <MudSelect T="string" Value="@trigger.PropertyPath" ValueChanged="trigger.SetProperty" Label="JSON property" Required="true" Disabled="@(trigger.Properties.Count == 0)">
+                                @foreach (var property in trigger.Properties)
+                                {
+                                    <MudSelectItem T="string" Value="@property.Path">@($"{property.Path} ({property.ValueType})")</MudSelectItem>
+                                }
                             </MudSelect>
-                        }
-                        else if (condition.TriggerValueType is WorkflowTriggerValueType.Number)
-                        {
-                            <MudNumericField T="double?" Value="@GetConditionNumberExpectedValue(index)" ValueChanged="value => OnConditionNumberExpectedValueChanged(index, value)" Label="Expected Value" Required="true" />
-                        }
-                        else
-                        {
-                            <MudTextField @bind-Value="condition.TriggerExpectedValue" Label="Expected Value" Required="true" />
-                        }
+
+                            <MudSelect T="WorkflowComparisonOperator" @bind-Value="trigger.Operator" Label="Operator">
+                                @foreach (var op in WorkflowFormatter.GetValueOperators(trigger.ValueType ?? WorkflowTriggerValueType.Text))
+                                {
+                                    <MudSelectItem T="WorkflowComparisonOperator" Value="@op">@WorkflowFormatter.FormatOperator(OperatorSubject.Value, op)</MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            @switch (trigger.ValueType)
+                            {
+                                case WorkflowTriggerValueType.Boolean:
+                                    <MudSelect T="string" @bind-Value="trigger.ExpectedValue" Label="Expected value" Required="true">
+                                        <MudSelectItem T="string" Value='@("true")'>true</MudSelectItem>
+                                        <MudSelectItem T="string" Value='@("false")'>false</MudSelectItem>
+                                    </MudSelect>
+                                    break;
+                                case WorkflowTriggerValueType.Number:
+                                    <MudNumericField T="double?" @bind-Value="trigger.ExpectedNumber" Label="Expected value" Required="true" />
+                                    break;
+                                default:
+                                    <MudTextField @bind-Value="trigger.ExpectedValue" Label="Expected value" Required="true" />
+                                    break;
+                            }
+
+                            break;
                     }
 
-                    @if (!string.IsNullOrWhiteSpace(GetConditionValidationError(index)))
+                    @if (trigger.Error is { } error)
                     {
-                        <MudText Typo="Typo.caption" Color="Color.Error">@GetConditionValidationError(index)</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Error">@error</MudText>
                     }
                 </MudStack>
             </MudPaper>
         }
 
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="AddCondition" StartIcon="@Icons.Material.Filled.Add" Class="my-2">Add Condition</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="AddTrigger" StartIcon="@Icons.Material.Filled.Add" Class="my-2">Add trigger</MudButton>
 
         <MudDivider Class="my-2" />
         <MudText Typo="Typo.subtitle1">Steps</MudText>
@@ -216,53 +220,58 @@
                 <MudStack Spacing="2">
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudAvatar Size="Size.Small" Color="Color.Primary" Style="font-size: 0.875rem;">@(index + 1)</MudAvatar>
-                        <MudSelect T="WorkflowStepType" Value="@step.StepType" ValueChanged="value => OnStepTypeChanged(index, value)" Label="Step Type" Required="true" Class="action-field">
-                            @foreach (var stepType in Enum.GetValues<WorkflowStepType>())
+                        <MudSelect T="StepKind" Value="@step.Kind" ValueChanged="step.SetKind" Label="Step" Class="action-field">
+                            @foreach (var kind in Enum.GetValues<StepKind>())
                             {
-                                <MudSelectItem T="WorkflowStepType" Value="@stepType">@stepType</MudSelectItem>
+                                <MudSelectItem T="StepKind" Value="@kind">@kind</MudSelectItem>
                             }
                         </MudSelect>
                         <MudSpacer />
                         <MudTooltip Text="Move up">
-                            <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Move step up" Disabled="@(index == 0)" OnClick="() => MoveStep(index, -1)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowUpward" aria-label="Move step up" Disabled="@(index == 0)" OnClick="() => Move(Model.Steps, step, -1)" />
                         </MudTooltip>
                         <MudTooltip Text="Move down">
-                            <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Move step down" Disabled="@(index == Model.Steps.Count - 1)" OnClick="() => MoveStep(index, 1)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowDownward" aria-label="Move step down" Disabled="@(index == Model.Steps.Count - 1)" OnClick="() => Move(Model.Steps, step, 1)" />
                         </MudTooltip>
                         <MudTooltip Text="Delete">
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete step" Color="Color.Error" OnClick="() => RemoveStep(index)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete step" Color="Color.Error" OnClick='() => RemoveAsync(Model.Steps, step, "step")' />
                         </MudTooltip>
                     </MudStack>
 
-                    @if (step.StepType is WorkflowStepType.DeviceAction)
+                    @switch (step.Kind)
                     {
-                        <MudSelect T="string" Value="@step.DeviceName" ValueChanged="value => OnStepDeviceChanged(index, value)" Label="Device" Required="true">
-                            @foreach (var deviceName in AvailableActions.Keys.Order())
-                            {
-                                <MudSelectItem T="string" Value="@deviceName">@deviceName</MudSelectItem>
-                            }
-                        </MudSelect>
-                        <MudSelect T="string" Value="@step.ActionName" ValueChanged="value => OnStepActionChanged(index, value)" Label="Action" Required="true">
-                            @foreach (var actionName in GetActionsForDevice(step.DeviceName))
-                            {
-                                <MudSelectItem T="string" Value="@actionName">@actionName</MudSelectItem>
-                            }
-                        </MudSelect>
+                        case StepKind.DeviceAction:
+                            <MudSelect T="int?" Value="@step.DeviceId" ValueChanged="value => OnStepDeviceChanged(step, value)" Label="Device" Required="true" ToStringFunc="DeviceName">
+                                @foreach (var device in Devices)
+                                {
+                                    <MudSelectItem T="int?" Value="@device.Id">@device.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                            <MudSelect T="int?" @bind-Value="step.ActionId" Label="Action" Required="true" Disabled="@(step.DeviceId is null)" ToStringFunc="ActionName">
+                                @foreach (var action in ActionsOf(step.DeviceId))
+                                {
+                                    <MudSelectItem T="int?" Value="@action.Id">@action.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                            break;
+                        case StepKind.Delay:
+                            <MudNumericField T="int?" @bind-Value="step.DelaySeconds" Label="Delay (seconds)" Required="true" Min="1" />
+                            break;
+                        case StepKind.Notify:
+                            <MudTextField @bind-Value="step.Title" Label="Title" Required="true" />
+                            <MudTextField @bind-Value="step.MessageTemplate" Label="Message" Lines="3" Required="true" HelperText="Use placeholders like {Trigger.Device}, {Trigger.Expected}, {Trigger.Current}, {Trigger.Result.snapshotUrl}, {LastStep.Message}." />
+                            break;
                     }
-                    else if (step.StepType is WorkflowStepType.Delay)
+
+                    @if (step.Error is { } error)
                     {
-                        <MudNumericField T="int?" Value="@step.DelaySeconds" ValueChanged="value => OnStepDelayChanged(index, value)" Label="Delay (seconds)" Required="true" Min="1" />
-                    }
-                    else if (step.StepType is WorkflowStepType.Notify)
-                    {
-                        <MudTextField @bind-Value="step.NotifyTitle" Label="Title" Required="true" />
-                        <MudTextField @bind-Value="step.NotifyMessageTemplate" Label="Message Template" Lines="3" Required="true" HelperText="Use placeholders like {Trigger.Device}, {Trigger.Expected}, {Trigger.Current}, {Trigger.Result.snapshotUrl}." />
+                        <MudText Typo="Typo.caption" Color="Color.Error">@error</MudText>
                     }
                 </MudStack>
             </MudPaper>
         }
 
-        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="AddStep" StartIcon="@Icons.Material.Filled.Add" Class="my-2">Add Step</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="AddStep" StartIcon="@Icons.Material.Filled.Add" Class="my-2">Add step</MudButton>
 
         @if (!string.IsNullOrEmpty(_saveError))
         {
@@ -270,8 +279,8 @@
         }
 
         <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd" Class="mt-4">
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save" Disabled="_saving">Save</MudButton>
-            <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="Cancel" Disabled="_saving">Cancel</MudButton>
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveAsync">Save</MudButton>
+            <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="Cancel">Cancel</MudButton>
         </MudStack>
     </MudForm>
 </MudPaper>

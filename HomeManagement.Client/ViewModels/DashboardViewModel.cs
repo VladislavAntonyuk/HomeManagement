@@ -26,7 +26,7 @@ public sealed partial class DashboardViewModel(IHomeManagementApi api, UserNotif
 
     public string HubTemperature => Dashboard?.Hub.TemperatureCelsius is { } celsius ? $"{celsius:0.#} °C" : "-";
 
-    public string LastWorkflowRun => DisplayFormatter.FormatAgo(Dashboard?.LastWorkflowRunAtUtc);
+    public string LastWorkflowRun => DisplayFormatter.FormatAgo(Dashboard?.LastWorkflowRunAtUtc, DateTimeOffset.UtcNow);
 
     public double OnlineShare => Dashboard is { TotalDevices: > 0 } d ? (double)d.OnlineDevices / d.TotalDevices : 0;
 

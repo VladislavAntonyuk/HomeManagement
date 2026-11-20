@@ -1,6 +1,4 @@
-﻿using HomeManagement.Application.Login;
-using HomeManagement.Infrastructure.Api;
-using HomeManagement.Infrastructure.Mcp;
+﻿using HomeManagement.Infrastructure.Api;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
@@ -10,7 +8,11 @@ public static class AuthExtensions
 {
     public static void AddAuth(this WebApplicationBuilder builder)
     {
-        builder.Services.Configure<StaticAuthOptions>(builder.Configuration.GetSection("Auth"));
+        builder.Services.AddOptions<AuthOptions>()
+            .Bind(builder.Configuration.GetSection("Auth"))
+            .Validate(x => !string.IsNullOrEmpty(x.Key) && !string.IsNullOrEmpty(x.McpKey), "Auth:Key and Auth:McpKey are required.")
+            .ValidateOnStart();
+        var auth = builder.Configuration.GetSection("Auth");
 
         const string mainHost = AppHosts.MainHost;
         // Cookie authentication for Blazor UI + API key authentication for MCP
@@ -57,12 +59,12 @@ public static class AuthExtensions
                     return Task.CompletedTask;
                 };
             })
-            .AddScheme<AuthenticationSchemeOptions, McpApiKeyAuthenticationHandler>(
-                McpApiKeyAuthenticationDefaults.AuthenticationScheme,
-                _ => { })
-            .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+            .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+                ApiAuthenticationDefaults.McpAuthenticationScheme,
+                o => (o.Key, o.ClientName) = (auth["McpKey"] ?? string.Empty, "mcp-client"))
+            .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
                 ApiAuthenticationDefaults.AuthenticationScheme,
-                _ => { });
+                o => o.Key = auth["Key"] ?? string.Empty);
 
         builder.Services.AddAuthorization(options =>
         {
@@ -73,9 +75,9 @@ public static class AuthExtensions
                 policy.RequireAuthenticatedUser();
             });
 
-            options.AddPolicy(McpApiKeyAuthenticationDefaults.PolicyName, policy =>
+            options.AddPolicy(ApiAuthenticationDefaults.McpPolicyName, policy =>
             {
-                policy.AuthenticationSchemes.Add(McpApiKeyAuthenticationDefaults.AuthenticationScheme);
+                policy.AuthenticationSchemes.Add(ApiAuthenticationDefaults.McpAuthenticationScheme);
                 policy.RequireAuthenticatedUser();
             });
         });
