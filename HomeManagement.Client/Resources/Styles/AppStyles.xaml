@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <ResourceDictionary>
 
-    <PresenceStatusToColorConverter x:Key="PresenceStatusToColorConverter" />
-
     <Style x:Key="Card" TargetType="Border">
         <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource CardLight}, Dark={StaticResource CardDark}}" />
         <Setter Property="Stroke" Value="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray600}}" />

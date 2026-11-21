@@ -31,6 +31,7 @@ public static class CamerasServiceCollectionExtensions
         services.AddHttpClient<FrigateApiClient>((sp, client) => client.BaseAddress = new Uri(sp.GetRequiredService<IOptions<CamerasOptions>>().Value.FrigateApiUrl))
             .AddServiceDiscovery();
 
+        services.AddSingleton<FrigateConfigProvider>();
         services.AddSingleton<FrigateStreamSync>();
         // The RTMP server and the device agent need their settings while the services are registered.
         var rtmpOptions = new CamerasOptions();
@@ -53,7 +54,9 @@ public static class CamerasServiceCollectionExtensions
             .AddBrokerClientsConfigurator<FrigateBrokerClientsConfigurator>()
             .AddDelegateSubscriber((FrigateEventMessage message, FrigateDeviceHandler handler) => handler.OnEventAsync(message))
             .AddDelegateSubscriber((StringMessage<FrigateAvailabilityPayload> message, FrigateDeviceHandler handler) => handler.OnAvailabilityAsync(message))
-            .AddDelegateSubscriber((StringMessage<FrigateAvailabilityPayload> message, FrigateStreamSync sync) => sync.OnFrigateAvailability(message))
+            .AddDelegateSubscriber((StringMessage<FrigateAvailabilityPayload> message, FrigateConfigProvider config) => config.OnFrigateAvailability(message))
+            .AddDelegateSubscriber((FrigateConfigLoaded message, FrigateDeviceHandler handler) => handler.OnConfigLoaded(message.Config))
+            .AddDelegateSubscriber((FrigateConfigLoaded _, FrigateStreamSync sync) => sync.OnConfigLoaded())
             .AddDelegateSubscriber((IInboundEnvelope<StringMessage<FrigateStatePayload>> envelope, FrigateDeviceHandler handler) => handler.OnStateAsync(envelope));
 
         return services;

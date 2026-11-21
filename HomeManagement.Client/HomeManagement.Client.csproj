@@ -41,7 +41,6 @@
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 
 		<MauiActiveBackend Condition="'$(TargetFramework)' == 'net11.0'">gtk</MauiActiveBackend>
-		<DefineConstants Condition="'$(TargetFramework)' == 'net11.0'">$(DefineConstants);GTK</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -64,9 +63,11 @@
 	<ItemGroup Condition="'$(TargetFramework)' == 'net11.0'">
 		<!-- Map the 'Platforms/Gtk' directory to the GTK backend -->
 		<MauiPlatformSpecificFolder Include="Platforms\Gtk" TargetPlatformIdentifiers="" BackendIdentity="gtk" ActivationProperty="MauiActiveBackend" ActivationValue="gtk" />
-		<PackageReference Include="Platform.Maui.Linux.Gtk4" Version="0.6.0" />
-		<PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
-		<PackageReference Include="Platform.Maui.Linux.Gtk4.Essentials" Version="0.6.0" />
+		<PackageReference Include="Microsoft.Maui.Platforms.Linux.Gtk4" Version="0.1.0-preview.14.26567.2" />
+		<PackageReference Include="Microsoft.Maui.Platforms.Linux.Gtk4.Essentials" Version="0.1.0-preview.14.26567.2" />
+		<AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
+			<_Parameter1>linux</_Parameter1>
+		</AssemblyAttribute>
 	</ItemGroup>
 	
 	<ItemGroup>

@@ -148,12 +148,14 @@ The module connects with the hub's `ConnectionStrings:mqtt`, as the device clien
 
 There is no away mode switch: create workflows for it on the Workflows page, so you choose what happens.
 
-- **Leave home**, with the Manual trigger: `Frigate` › `Profile Away`, then `LiveCamera` › `Start LiveCamera`, then `Frigate` › `Start Recording {camera}`.
-- **Arrive home**, with the Manual trigger: `Frigate` › `Stop Recording {camera}`, `LiveCamera` › `Stop LiveCamera`, `Frigate` › `Profile None`.
-- **Person alert**, with these conditions in this order: `Frigate` › `Detection` › `label` equals `person`, then `Frigate` › `State` › `profile` equals `away`.
-  Add a Notify step with a message such as `Person on {Trigger[0].Result.camera}: {Trigger[0].Result.snapshotUrl}`.
+- **Leave home**, without triggers, run from the Workflows page or the app: `Frigate` › `Profile Away`, then `LiveCamera` › `Start LiveCamera`, then `Frigate` › `Start Recording {camera}`.
+- **Arrive home**, without triggers: `Frigate` › `Stop Recording {camera}`, `LiveCamera` › `Stop LiveCamera`, `Frigate` › `Profile None`.
+- **Person alert**, with both triggers: `Frigate` › `State` › `profile` equals `away`, and `Frigate` › `Detection` › `label` equals `person`.
+  Add a Notify step with a message such as `Person on {Trigger.Result.camera}, score {Trigger.Result.score}: {Trigger.Result.snapshotUrl}`.
 
-A Notify message can use every property of the value a device condition read, as `{Trigger.Result.<property>}` for the first matching condition or `{Trigger[0].Result.<property>}` for a given one.
+A Notify message can use every property of the value a device trigger read, as `{Trigger.Result.<property>}` or `{Trigger[0].Result.<property>}` for a given trigger.
+`{Trigger.*}` is the trigger that ran the workflow: the event that just happened, such as the detection, otherwise the first matching trigger.
+Placeholder names are not case sensitive, and a placeholder that matches nothing stays in the message as written.
 
 ## Broker
 

@@ -31,17 +31,15 @@ public static partial class CameraEndpoints
         return api;
     }
 
-    private static async Task<IResult> GetCamerasAsync(FrigateApiClient frigate, ILoggerFactory loggerFactory, CancellationToken token)
+    private static async Task<IResult> GetCamerasAsync(FrigateConfigProvider configProvider, ILoggerFactory loggerFactory, CancellationToken token)
     {
         try
         {
-            using var config = await frigate.GetConfigAsync(token);
-            List<CameraDto> cameras = config.RootElement.TryGetProperty("cameras", out var element) && element.ValueKind == JsonValueKind.Object
-                ? [.. element.EnumerateObject()
-                    .Where(x => !x.Value.TryGetProperty("enabled", out var enabled) || enabled.ValueKind != JsonValueKind.False)
-                    .Select(x => new CameraDto(x.Name))
-                    .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)]
-                : [];
+            var config = await configProvider.GetAsync(token);
+            List<CameraDto> cameras = [.. config.Cameras
+                .Where(x => x.IsEnabled)
+                .Select(x => new CameraDto(x.Name))
+                .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)];
             return TypedResults.Ok(cameras);
         }
         catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException && !token.IsCancellationRequested)

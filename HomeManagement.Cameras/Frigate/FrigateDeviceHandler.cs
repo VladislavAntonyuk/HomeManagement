@@ -31,19 +31,17 @@ public sealed class FrigateDeviceHandler(
     private const string ClipStart = "/clip/start";
     private const string ClipStop = "/clip/stop";
 
-
     private readonly ConcurrentDictionary<string, CameraState> _cameraStates = new(StringComparer.Ordinal);
 
     // Manual events of the on-demand recordings in progress, by camera.
     private readonly ConcurrentDictionary<string, string> _clips = new(StringComparer.Ordinal);
-    private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     // Two Start Clip commands at once must not create two Frigate events.
     private readonly SemaphoreSlim _clipLock = new(1, 1);
 
     // Completes when the cameras and profiles are read, or Frigate is known to be offline.
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private volatile FrigateLayout _layout = FrigateLayout.Empty;
+    private volatile FrigateConfig _config = FrigateConfig.Empty;
     private bool? _isAvailable;
     private string? _profile;
 
@@ -51,14 +49,14 @@ public sealed class FrigateDeviceHandler(
 
     public IReadOnlyList<DeviceAction> GetActions()
     {
-        var layout = _layout;
+        var config = _config;
         var actions = new List<DeviceAction>
         {
             new("State", CommandType.Get, StateKey),
             new("Detection", CommandType.Event, DetectionKey)
         };
 
-        foreach (var camera in layout.Cameras)
+        foreach (var camera in config.Cameras.Select(x => x.Name))
         {
             actions.Add(new($"{camera} State", CommandType.Get, CameraKey(camera)));
             actions.Add(new($"Start Recording {camera}", CommandType.Post, CameraKey(camera) + RecordingOn));
@@ -67,12 +65,12 @@ public sealed class FrigateDeviceHandler(
             actions.Add(new($"Stop Clip {camera}", CommandType.Post, CameraKey(camera) + ClipStop));
         }
 
-        foreach (var (profile, friendlyName) in layout.Profiles)
+        foreach (var (profile, friendlyName) in config.Profiles)
         {
             actions.Add(new($"Profile {friendlyName}", CommandType.Post, ProfilePrefix + profile));
         }
 
-        if (layout.Profiles.Count > 0)
+        if (config.Profiles.Count > 0)
         {
             actions.Add(new("Profile None", CommandType.Post, ProfilePrefix + FrigateTopics.NoProfile));
         }
@@ -127,19 +125,14 @@ public sealed class FrigateDeviceHandler(
 
     public IReadOnlyDictionary<string, string> GetMetrics() => new Dictionary<string, string>(DeviceMetrics.GetDefault())
     {
-        ["Cameras"] = _layout.Cameras.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        ["Cameras"] = _config.Cameras.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
     };
 
     public async Task OnAvailabilityAsync(StringMessage<FrigateAvailabilityPayload> message)
     {
         _isAvailable = message.Content == FrigateTopics.Online;
         await telemetryPublisher.TryPublishAsync(StateKey, SerializeState());
-        if (_isAvailable == true)
-        {
-            // Not awaited: the consumer of the Frigate client must not wait for an HTTP call.
-            _ = RefreshLayoutAsync();
-        }
-        else
+        if (_isAvailable == false)
         {
             // Nothing to wait for: the actions are read when Frigate is back online.
             _ready.TrySetResult();
@@ -194,36 +187,24 @@ public sealed class FrigateDeviceHandler(
         await telemetryPublisher.TryPublishEventAsync(DetectionKey, JsonSerializer.Serialize(detection, JsonSerializerOptions.Web));
     }
 
-    private async Task RefreshLayoutAsync()
+    /// <summary>
+    /// Rebuilds the actions from the cameras and profiles of the Frigate that just came online.
+    /// </summary>
+    public void OnConfigLoaded(FrigateConfig config)
     {
-        await _refreshLock.WaitAsync();
-        try
+        var isChanged = !config.HasSameActionsAs(_config);
+        _config = config;
+        _ready.TrySetResult();
+        if (!isChanged)
         {
-            await using var scope = serviceScopeFactory.CreateAsyncScope();
-            using var config = await scope.ServiceProvider.GetRequiredService<FrigateApiClient>().GetConfigAsync();
-            var layout = FrigateLayout.Read(config.RootElement);
-            var isChanged = !layout.IsSameAs(_layout);
-            _layout = layout;
-            _ready.TrySetResult();
-            if (!isChanged)
-            {
-                return;
-            }
+            return;
+        }
 
-            logger.LogInformation(
-                "Frigate cameras: {Cameras}. Profiles: {Profiles}.",
-                string.Join(", ", layout.Cameras),
-                string.Join(", ", layout.Profiles.Keys));
-            ActionsChanged?.Invoke();
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Failed to read the Frigate configuration.");
-        }
-        finally
-        {
-            _refreshLock.Release();
-        }
+        logger.LogInformation(
+            "Frigate cameras: {Cameras}. Profiles: {Profiles}.",
+            string.Join(", ", config.Cameras.Select(x => x.Name)),
+            string.Join(", ", config.Profiles.Keys));
+        ActionsChanged?.Invoke();
     }
 
     private async Task<CommandResponse> SendAsync(string topic, string payload, CancellationToken token)
@@ -311,7 +292,7 @@ public sealed class FrigateDeviceHandler(
     private Task PublishCameraAsync(string camera) => telemetryPublisher.TryPublishAsync(CameraKey(camera), SerializeCamera(camera));
 
     private bool IsKnownCamera(string camera)
-        => _layout.Cameras.Contains(camera, StringComparer.Ordinal) || _cameraStates.ContainsKey(camera) || _clips.ContainsKey(camera);
+        => _config.Cameras.Any(x => x.Name == camera) || _cameraStates.ContainsKey(camera) || _clips.ContainsKey(camera);
 
     private string SerializeCamera(string camera)
     {
@@ -341,35 +322,4 @@ public sealed class FrigateDeviceHandler(
     private sealed record CameraState(bool? Enabled, bool? Recording);
 
     private sealed record Detection(string Id, string Camera, string? Label, double Score, string SnapshotUrl);
-
-    private sealed record FrigateLayout(IReadOnlyList<string> Cameras, IReadOnlyDictionary<string, string> Profiles)
-    {
-        public static readonly FrigateLayout Empty = new([], new Dictionary<string, string>());
-
-        public static FrigateLayout Read(JsonElement config)
-        {
-            var cameras = config.TryGetProperty("cameras", out var camerasElement) && camerasElement.ValueKind == JsonValueKind.Object
-                ? camerasElement.EnumerateObject().Select(x => x.Name).Order(StringComparer.Ordinal).ToList()
-                : [];
-
-            var profiles = new SortedDictionary<string, string>(StringComparer.Ordinal);
-            if (config.TryGetProperty("profiles", out var profilesElement) && profilesElement.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var profile in profilesElement.EnumerateObject())
-                {
-                    profiles[profile.Name] = profile.Value.ValueKind == JsonValueKind.Object
-                        && profile.Value.TryGetProperty("friendly_name", out var friendlyName)
-                        && friendlyName.ValueKind == JsonValueKind.String
-                        && !string.IsNullOrWhiteSpace(friendlyName.GetString())
-                            ? friendlyName.GetString()!
-                            : profile.Name;
-                }
-            }
-
-            return new FrigateLayout(cameras, profiles);
-        }
-
-        public bool IsSameAs(FrigateLayout other)
-            => Cameras.SequenceEqual(other.Cameras) && Profiles.OrderBy(x => x.Key).SequenceEqual(other.Profiles.OrderBy(x => x.Key));
-    }
 }

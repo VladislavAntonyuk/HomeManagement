@@ -114,34 +114,10 @@ public sealed partial class DeviceItemViewModel : ObservableObject
     public partial string? Address { get; private set; }
 
     [ObservableProperty]
-    public partial IReadOnlyList<DeviceMetricViewModel> Metrics { get; private set; } = [];
-
-    public const int ActionsPerRow = 3;
+    public partial IReadOnlyList<DeviceMetricDto> Metrics { get; private set; } = [];
 
     [ObservableProperty]
     public partial IReadOnlyList<DeviceActionItemViewModel> Actions { get; private set; } = [];
-
-    [ObservableProperty]
-    public partial IReadOnlyList<DeviceActionRow> ActionRows { get; private set; } = [];
-
-    [ObservableProperty]
-    public partial string SummaryText { get; private set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string MetricsText { get; private set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial DeviceActionItemViewModel? SelectedAction { get; set; }
-
-    [RelayCommand]
-    private async Task RunSelectedActionAsync()
-    {
-        if ((SelectedAction ?? Actions.FirstOrDefault()) is { } action)
-        {
-            _notifier.ShowProgress($"{Name}: {action.Name}: running...");
-            await action.RunCommand.ExecuteAsync(null);
-        }
-    }
 
     public void Update(DeviceDto device)
     {
@@ -152,25 +128,14 @@ public sealed partial class DeviceItemViewModel : ObservableObject
         StatusText = device.Status.DisplayName;
         LastSeen = $"Last seen {DisplayFormatter.FormatAgo(device.LastSeenUtc, DateTimeOffset.UtcNow)}";
         Address = device.Address;
-        SummaryText = Address is null ? LastSeen : $"{LastSeen} · {Address}";
-        MetricsText = string.Join(" · ", device.Metrics.Select(x => $"{x.Label} {x.DisplayValue}"));
-        if (Metrics.Select(x => x.Name).SequenceEqual(device.Metrics.Select(x => x.Name)))
+        if (!Metrics.SequenceEqual(device.Metrics))
         {
-            for (var i = 0; i < Metrics.Count; i++)
-            {
-                Metrics[i].Update(device.Metrics[i]);
-            }
-        }
-        else
-        {
-            Metrics = device.Metrics.Select(x => new DeviceMetricViewModel(x)).ToList();
+            Metrics = device.Metrics;
         }
 
         if (!Actions.Select(x => (x.Id, x.Name, x.CommandType)).SequenceEqual(device.Actions.Select(x => (x.Id, x.Name, x.CommandType))))
         {
-            Actions = device.Actions.Select((x, i) => new DeviceActionItemViewModel(this, x, _api, _notifier, i % ActionsPerRow)).ToList();
-            ActionRows = Actions.Chunk(ActionsPerRow).Select(x => new DeviceActionRow(x)).ToList();
-            SelectedAction = Actions.FirstOrDefault();
+            Actions = device.Actions.Select(x => new DeviceActionItemViewModel(this, x, _api, _notifier)).ToList();
         }
     }
 
@@ -180,18 +145,13 @@ public sealed partial class DeviceItemViewModel : ObservableObject
            || Description?.Contains(text, StringComparison.CurrentCultureIgnoreCase) == true;
 }
 
-public sealed record DeviceActionRow(IReadOnlyList<DeviceActionItemViewModel> Actions);
-
 public sealed partial class DeviceActionItemViewModel(
     DeviceItemViewModel device,
     DeviceActionDto action,
     IHomeManagementApi api,
-    UserNotifier notifier,
-    int column) : ObservableObject
+    UserNotifier notifier) : ObservableObject
 {
     public int Id => action.Id;
-
-    public int Column => column;
 
     public string Name => action.Name;
 
@@ -205,37 +165,14 @@ public sealed partial class DeviceActionItemViewModel(
         try
         {
             var result = await api.RunDeviceActionAsync(device.Id, action.Id);
-            await notifier.ShowAsync(DisplayFormatter.FormatActionResult(result.Message), title: IsReadOnly || UserNotifier.UsesInlineResults ? Title : null);
+            await notifier.ShowAsync(DisplayFormatter.FormatActionResult(result.Message), title: IsReadOnly ? Title : null);
         }
         catch (Exception e)
         {
             // The hub answers a failed action with a problem, e.g. 503 when the device is offline.
-            await notifier.ShowAsync(ApiErrors.ToMessage(e), isError: true, UserNotifier.UsesInlineResults ? Title : null);
+            await notifier.ShowErrorAsync(e);
         }
     }
 
     private string Title => $"{device.Name}: {action.Name}";
-}
-
-public sealed partial class DeviceMetricViewModel : ObservableObject
-{
-    public DeviceMetricViewModel(DeviceMetricDto metric)
-    {
-        Name = metric.Name;
-        Update(metric);
-    }
-
-    public string Name { get; }
-
-    [ObservableProperty]
-    public partial string Label { get; private set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string DisplayValue { get; private set; } = string.Empty;
-
-    public void Update(DeviceMetricDto metric)
-    {
-        Label = metric.Label;
-        DisplayValue = metric.DisplayValue;
-    }
 }

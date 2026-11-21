@@ -216,7 +216,7 @@ public class Program
         var metrics = new Hashtable
         {
             { "UptimeSeconds", ((Environment.TickCount64 - _bootTicks) / 1000).ToString() },
-            { "FreeMemory", nanoFramework.Runtime.Native.GC.Run(false).ToString() }
+            { "FreeHeap", nanoFramework.Runtime.Native.GC.Run(false).ToString() }
         };
 
         var info = new Hashtable

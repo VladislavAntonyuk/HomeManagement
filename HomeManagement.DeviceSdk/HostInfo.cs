@@ -9,7 +9,8 @@ namespace HomeManagement.DeviceSdk;
 /// </summary>
 public static class HostInfo
 {
-    private const string ThermalZone = "/sys/class/thermal/thermal_zone0/temp";
+    private const string ThermalRoot = "/sys/class/thermal";
+    private const string ThermalZonePrefix = "thermal_zone";
 
     /// <summary>
     /// Time since the machine started.
@@ -17,25 +18,26 @@ public static class HostInfo
     public static TimeSpan Uptime => TimeSpan.FromMilliseconds(Environment.TickCount64);
 
     /// <summary>
-    /// CPU temperature in °C, or null when the machine does not report it. Linux boards report it in their thermal zone.
+    /// CPU temperature in °C, or null when the machine does not report it. Linux boards report it in their first thermal zone.
     /// </summary>
-    public static double? CpuTemperature
+    public static double? CpuTemperature => ReadThermalZone(Path.Combine(ThermalRoot, ThermalZonePrefix + "0"))?.Celsius;
+
+    /// <summary>
+    /// Every temperature sensor of the machine, e.g. CPU, GPU and DDR on an Orange Pi. Empty when there are none.
+    /// </summary>
+    public static IReadOnlyList<HostTemperature> Temperatures
     {
         get
         {
-            if (!OperatingSystem.IsLinux() || !File.Exists(ThermalZone))
+            if (!OperatingSystem.IsLinux() || !Directory.Exists(ThermalRoot))
             {
-                return null;
+                return [];
             }
 
-            try
-            {
-                return double.Parse(File.ReadAllText(ThermalZone), CultureInfo.InvariantCulture) / 1000.0;
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or FormatException)
-            {
-                return null;
-            }
+            return [.. Directory.EnumerateDirectories(ThermalRoot, ThermalZonePrefix + "*")
+                .OrderBy(x => int.TryParse(Path.GetFileName(x).AsSpan(ThermalZonePrefix.Length), out var number) ? number : int.MaxValue)
+                .Select(ReadThermalZone)
+                .OfType<HostTemperature>()];
         }
     }
 
@@ -47,4 +49,22 @@ public static class HostInfo
         .SelectMany(x => x.GetIPProperties().UnicastAddresses)
         .FirstOrDefault(x => x.Address.AddressFamily == AddressFamily.InterNetwork)
         ?.Address.ToString();
+
+    private static HostTemperature? ReadThermalZone(string zone)
+    {
+        try
+        {
+            var milliCelsius = double.Parse(File.ReadAllText(Path.Combine(zone, "temp")), CultureInfo.InvariantCulture);
+            var typeFile = Path.Combine(zone, "type");
+            var sensor = File.Exists(typeFile) ? File.ReadAllText(typeFile).Trim() : Path.GetFileName(zone);
+            return new HostTemperature(sensor, milliCelsius / 1000.0);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or FormatException)
+        {
+            return null;
+        }
+    }
 }
+
+/// <param name="Sensor">Name the machine gives the sensor, e.g. cpu-thermal.</param>
+public sealed record HostTemperature(string Sensor, double Celsius);

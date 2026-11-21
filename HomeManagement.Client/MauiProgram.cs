@@ -4,9 +4,9 @@ using HomeManagement.Client.Pages;
 using Microsoft.Extensions.Logging;
 using Refit;
 
-#if GTK
-using Platform.Maui.Linux.Gtk4.Hosting;
-using Platform.Maui.Linux.Gtk4.Essentials.Storage;
+#if LINUX
+using Microsoft.Maui.Platforms.Linux.Gtk4.Essentials.Storage;
+using Microsoft.Maui.Platforms.Linux.Gtk4.Hosting;
 #endif
 
 namespace HomeManagement.Client;
@@ -17,7 +17,7 @@ public static class MauiProgram
     {
         var builder = MauiApp.CreateBuilder();
         builder
-#if GTK
+#if LINUX
             .UseMauiAppLinuxGtk4<App>()
 #else
             .UseMauiApp<App>()
@@ -33,7 +33,7 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
-#if GTK
+#if LINUX
         builder.Services.AddSingleton<IPreferences>(new LinuxPreferences());
         builder.Services.AddSingleton<ISecureStorage>(new LinuxSecureStorage());
 #else

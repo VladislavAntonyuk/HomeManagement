@@ -1,41 +1,60 @@
-Installing ESP8266 Board in Arduino IDE
-https://randomnerdtutorials.com/how-to-install-esp8266-board-arduino-ide/
+# ESP8266
 
-Підключіть ESP8266 до реле:
+Arduino sketches for ESP8266 boards that connect to HomeManagement as devices.
 
-- Підключіть один з цифрових пінів ESP8266 (наприклад, D1) до піну IN на реле.
+## Board setup
 
-- Підключіть пін GND ESP8266 до GND на реле.
+Install the ESP8266 board in the Arduino IDE: [how to install the ESP8266 board](https://randomnerdtutorials.com/how-to-install-esp8266-board-arduino-ide/).
 
-- Пін VCC(V+)  реле підключіть до 3.3V ESP8266.
+## Wiring a relay
 
-Підключіть реле до розетки:
+### ESP8266 to relay
 
-- Один з проводів розетки підключіть до COM на реле.
+| ESP8266 pin | Relay pin |
+|---|---|
+| A digital pin, for example D1 | IN |
+| GND | GND |
+| 3.3V | VCC (V+) |
 
-- Другий провід підключіть до NO (нормально відкритий) або NC (нормально закритий) контакту реле в залежності від того, як ви хочете керувати розеткою.
+### Relay to a socket
 
-- Замкніть ланцюг, підключивши провід від NO або NC до живлення.
+1. Connect one wire of the socket to COM on the relay.
+2. Connect the other wire to NO (normally open) or NC (normally closed), depending on how you want to control the socket.
+3. Close the circuit by connecting the wire from NO or NC to the power.
+
+> [!WARNING]
+> Mains voltage is dangerous.
+> Turn off the power before wiring.
 
 ## Connecting to HomeManagement
 
 The sketches connect to the MQTT broker of HomeManagement with MQTT v5 and follow the device protocol in [DeviceProtocol.md](../../HomeManagement/DeviceProtocol.md).
-The shared code is in the `DeviceApi` library (`MqttDevice`), which every sketch uses directly; there is no HTTP server on the devices anymore.
+The shared code is in the `DeviceApi` library (`MqttDevice`), which every sketch uses directly.
+There is no HTTP server on the devices.
 Each device registers itself on the Devices page as soon as it connects.
 
-Libraries to install in the Arduino sketchbook (`Documents/Arduino/libraries`):
+### Libraries
 
-- [H4](https://github.com/hamzahajeir/H4) 4.0.10, commit 9125640
-- [H4Tools](https://github.com/hamzahajeir/H4Tools) 0.0.16, commit 396d0c5
-- [H4AsyncTCP](https://github.com/hamzahajeir/H4AsyncTCP) 0.0.25, commit 90ec706
-- [H4AsyncMQTT](https://github.com/hamzahajeir/H4AsyncMQTT) 1.0.0-rc12, commit 6fbf4cb
-- ArduinoJson, from the Library Manager
-- [Preferences](https://github.com/vshymanskyy/Preferences) 2.4.0 by Volodymyr Shymanskyy, from the Library Manager, for the settings that `CODetector` and `Motor` keep in flash
-- `libraries/DeviceApi` and `libraries/WifiHelper` from this folder, for example as junctions
+Install them in the Arduino sketchbook (`Documents/Arduino/libraries`):
 
-`DeviceApi` and `WifiHelper` also build for the ESP32, see [ESP32/README.md](../ESP32/README.md).
+| Library | Version | Source |
+|---|---|---|
+| [H4](https://github.com/hamzahajeir/H4) | 4.0.10, commit 9125640 | GitHub |
+| [H4Tools](https://github.com/hamzahajeir/H4Tools) | 0.0.16, commit 396d0c5 | GitHub |
+| [H4AsyncTCP](https://github.com/hamzahajeir/H4AsyncTCP) | 0.0.25, commit 90ec706 | GitHub |
+| [H4AsyncMQTT](https://github.com/hamzahajeir/H4AsyncMQTT) | 1.0.0-rc12, commit 6fbf4cb | GitHub |
+| ArduinoJson | latest | Library Manager |
+| [Preferences](https://github.com/vshymanskyy/Preferences) by Volodymyr Shymanskyy | 2.4.0 | Library Manager |
+| `DeviceApi` and `WifiHelper` | | [`libraries`](libraries) in this folder, for example as junctions |
+
+`Preferences` is used by `CODetector` and `Motor` to keep settings in flash.
+`DeviceApi` and `WifiHelper` also build for the ESP32, see the [ESP32 README](../ESP32/README.md).
+
+### Writing a sketch
 
 The H4 scheduler owns `setup()` and `loop()`, so the sketches use `h4setup()` and H4 timers (`h4.every`, `h4.once`).
 
-Every `Config.h` needs the broker settings next to the Wi-Fi settings (see `Config.h.example`).
+### Configuration
+
+Copy `Config.h.example` to `Config.h` in the sketch folder and fill in the Wi-Fi and broker settings.
 The ESP8266 cannot resolve `.local` names, so `mqttHost` is the IP address of the hub.

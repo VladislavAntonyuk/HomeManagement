@@ -25,7 +25,8 @@ public class WorkflowTriggerService(
     private readonly ConcurrentDictionary<int, Task> _runningWorkflows = new();
 
     // When the last event each trigger handled arrived, so every event runs the workflow once.
-    // A trigger starts from the time it is first checked, so a workflow created later does not run for an old event.
+    // A trigger starts from the check before its first one, so the event that causes that first check counts,
+    // e.g. the first detection after the hub started, while a workflow created later does not run for an older event.
     // Devices do not retain events, so the hub never receives an old one again after it restarts.
     private readonly ConcurrentDictionary<int, DateTimeOffset> _handledEventTimes = new();
 
@@ -35,8 +36,12 @@ public class WorkflowTriggerService(
 
     private TimeZoneInfo? _timeZone;
 
+    // Start of the previous check: events that arrived after it are new for a trigger checked for the first time.
+    private DateTimeOffset _previousCheckUtc;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _previousCheckUtc = timeProvider.GetUtcNow();
         deviceStateStore.StatusChanged += OnDeviceChanged;
         deviceStateStore.TelemetryChanged += OnDeviceChanged;
         try
@@ -123,7 +128,9 @@ public class WorkflowTriggerService(
             TimeZoneInfo.ConvertTime(nowUtc, timeZone),
             timeZone,
             options,
-            TimeSpan.FromTicks(Math.Max(MinAtTimeGracePeriod.Ticks, GetCheckInterval(options).Ticks * 3)));
+            TimeSpan.FromTicks(Math.Max(MinAtTimeGracePeriod.Ticks, GetCheckInterval(options).Ticks * 3)),
+            _previousCheckUtc);
+        _previousCheckUtc = nowUtc;
 
         var query = dbContext.Workflows
             .AsTracking()
@@ -213,7 +220,8 @@ public class WorkflowTriggerService(
         TriggerTick tick,
         CancellationToken token)
     {
-        Dictionary<string, string?> placeholders = new(StringComparer.Ordinal);
+        // Case does not matter, so {Trigger.Result.Score} finds the "score" property.
+        Dictionary<string, string?> placeholders = new(StringComparer.OrdinalIgnoreCase);
         var triggers = workflow.Triggers;
         if (triggers.Count == 0)
         {
@@ -228,8 +236,14 @@ public class WorkflowTriggerService(
             AddPlaceholders(placeholders, $"Trigger[{index}]", trigger, evaluation);
         }
 
-        // {Trigger.*} describes the first matching trigger, e.g. which status a device went to when either status runs the workflow.
-        var triggerIndex = Math.Max(0, results.FindIndex(x => x.IsMatched == true));
+        // {Trigger.*} describes the trigger that ran the workflow: the event that just happened, e.g. a detection while the mode is away,
+        // otherwise the first matching trigger, e.g. which status a device went to when either status runs the workflow.
+        var triggerIndex = results.FindIndex(x => x is { IsMatched: true, IsEvent: true });
+        if (triggerIndex < 0)
+        {
+            triggerIndex = Math.Max(0, results.FindIndex(x => x.IsMatched == true));
+        }
+
         AddPlaceholders(placeholders, "Trigger", triggers[triggerIndex], results[triggerIndex]);
 
         // Three-valued logic: an unknown trigger decides the result only when the known triggers do not.
@@ -388,6 +402,13 @@ public class WorkflowTriggerService(
     private async Task<TriggerEvaluation> EvaluateDeviceResultAsync(DeviceResultTrigger trigger, TriggerTick tick, CancellationToken token)
     {
         var action = trigger.DeviceAction;
+        var isEvent = action.CommandType == Shared.CommandType.Event;
+        if (isEvent)
+        {
+            // Before reading the value: the first event the device sends is also the first value there is.
+            _handledEventTimes.TryAdd(trigger.Id, tick.EventsSinceUtc);
+        }
+
         var execution = await ExecuteSourceActionAsync(action, tick, token);
         if (execution is not ActionSucceeded { Output: { } response }
             || string.IsNullOrWhiteSpace(response)
@@ -398,7 +419,6 @@ public class WorkflowTriggerService(
         }
 
         var isMatched = IsMatched(trigger.Operator, currentValue, trigger.ExpectedValue, trigger.ValueType);
-        var isEvent = action.CommandType == Shared.CommandType.Event;
         if (isEvent)
         {
             // An event matches only at the check right after it arrived, never for as long as it stays the last value.
@@ -412,7 +432,7 @@ public class WorkflowTriggerService(
 
     private bool IsNewEvent(int triggerId, DateTimeOffset? receivedAtUtc)
     {
-        var handledAtUtc = _handledEventTimes.GetOrAdd(triggerId, _ => timeProvider.GetUtcNow());
+        var handledAtUtc = _handledEventTimes[triggerId];
         if (receivedAtUtc is not { } received || received <= handledAtUtc)
         {
             return false;
@@ -492,7 +512,8 @@ public class WorkflowTriggerService(
         DateTimeOffset LocalNow,
         TimeZoneInfo TimeZone,
         WorkflowAutomationOptions Options,
-        TimeSpan AtTimeGracePeriod)
+        TimeSpan AtTimeGracePeriod,
+        DateTimeOffset EventsSinceUtc)
     {
         public Dictionary<int, DeviceActionResult> SourceActionResults { get; } = new();
     }

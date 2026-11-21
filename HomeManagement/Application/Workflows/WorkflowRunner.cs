@@ -33,7 +33,7 @@ public partial class WorkflowRunner(
 
         var executedSteps = 0;
         List<string> errors = [];
-        Dictionary<string, string?> values = new(placeholders ?? new Dictionary<string, string?>(), StringComparer.Ordinal)
+        Dictionary<string, string?> values = new(placeholders ?? new Dictionary<string, string?>(), StringComparer.OrdinalIgnoreCase)
         {
             ["Workflow.Name"] = workflow.Name
         };

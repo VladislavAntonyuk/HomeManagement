@@ -2,6 +2,7 @@
 using HomeManagement.Application.Router;
 using HomeManagement.Components.Dialogs;
 using HomeManagement.DeviceSdk;
+using HomeManagement.Shared.Api;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor;
@@ -28,6 +29,11 @@ public partial class Home(
     protected override async Task OnInitializedAsync()
     {
         _localIp = HostInfo.LocalIpAddress;
+        _uptime = DisplayFormatter.FormatDuration(HostInfo.Uptime);
+        var temperatures = HostInfo.Temperatures;
+        _temperature = temperatures.Count == 0
+            ? "Not reported"
+            : string.Join(Environment.NewLine, temperatures.Select(x => $"{x.Sensor}: {x.Celsius:0.#} °C"));
         _totalDevices = (await deviceService.GetStatusSummaryAsync()).Total;
     }
 
@@ -38,49 +44,17 @@ public partial class Home(
             return;
         }
 
-        var uptime = GetUptime();
-        var temperature = GetTemperature();
         var diskSpace = GetDiskSpace();
         var networkData = GetNetworkData();
         var cpuInfo = GetCpuInfo();
         var ramInfo = GetRamInfo();
-        await Task.WhenAll(uptime, temperature, diskSpace, networkData, cpuInfo, ramInfo);
+        await Task.WhenAll(diskSpace, networkData, cpuInfo, ramInfo);
 
-        _uptime = uptime.Result;
-        _temperature = temperature.Result;
         _diskSpace = diskSpace.Result;
         _networkData = networkData.Result;
         _cpuInfo = cpuInfo.Result;
         _ramInfo = ramInfo.Result;
         StateHasChanged();
-    }
-
-    private static async Task<string> GetUptime()
-    {
-        var (_, output) = await RunCommandAsync("uptime", "-p");
-        return output;
-    }
-
-    private static async Task<string> GetTemperature()
-    {
-        var (isSuccess, output) = await RunCommandAsync(
-            "/bin/bash",
-            "-lc",
-            "paste <(cat /sys/class/thermal/thermal_zone*/type) <(cat /sys/class/thermal/thermal_zone*/temp | awk '{print $1/1000 \"°C\"}')");
-
-        if (!isSuccess)
-        {
-            return output;
-        }
-
-        var lines = output
-            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(line => line.Split('\t', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .Where(parts => parts.Length == 2)
-            .Select(parts => $"{parts[0]}: {parts[1]}")
-            .ToArray();
-
-        return lines.Length == 0 ? output : string.Join(Environment.NewLine, lines);
     }
 
     private static async Task<string> GetDiskSpace()

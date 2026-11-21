@@ -1,6 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using HomeManagement.Client.Services;
 
 namespace HomeManagement.Client.ViewModels;
 
@@ -9,16 +8,9 @@ public abstract partial class RefreshableViewModel(UserNotifier notifier, HubSet
     private CancellationTokenSource? _visibleCts;
     private IDispatcherTimer? _timer;
 
-    public UserNotifier Notifier { get; } = notifier;
+    protected UserNotifier Notifier { get; } = notifier;
 
-#if GTK
-    protected virtual TimeSpan? AutoRefreshInterval => null;
-#else
     protected virtual TimeSpan? AutoRefreshInterval => TimeSpan.FromSeconds(10);
-#endif
-
-    [ObservableProperty]
-    public partial int LoadVersion { get; private set; }
 
     [ObservableProperty]
     public partial string? ErrorMessage { get; set; }
@@ -114,7 +106,6 @@ public abstract partial class RefreshableViewModel(UserNotifier notifier, HubSet
         finally
         {
             IsLoading = false;
-            LoadVersion++;
         }
     }
 }

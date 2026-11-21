@@ -2,7 +2,6 @@ using LiveStreamingServerNet.Rtmp.Server.Contracts;
 using LiveStreamingServerNet.Utilities.Contracts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Silverback.Messaging.Messages;
 using Silverback.Messaging.Publishing;
 
@@ -14,7 +13,7 @@ namespace HomeManagement.Cameras.Frigate;
 /// </summary>
 public sealed class FrigateStreamSync(
     IServiceScopeFactory serviceScopeFactory,
-    IOptions<CamerasOptions> options,
+    FrigateConfigProvider configProvider,
     ILogger<FrigateStreamSync> logger) : IRtmpServerStreamEventHandler
 {
     private readonly HashSet<string> _activeStreams = new(StringComparer.Ordinal);
@@ -57,15 +56,12 @@ public sealed class FrigateStreamSync(
         => ValueTask.CompletedTask;
 
     /// <summary>
-    /// Frigate retains its availability, so this also syncs once after every hub start and broker reconnect.
+    /// Every time Frigate comes online, so also once after every hub start and broker reconnect.
     /// </summary>
-    public void OnFrigateAvailability(StringMessage<FrigateAvailabilityPayload> message)
+    public void OnConfigLoaded()
     {
-        if (message.Content == FrigateTopics.Online)
-        {
-            // Not awaited: the consumer of the Frigate client must not wait for its own producer.
-            _ = SyncAsync();
-        }
+        // Not awaited: the consumer of the Frigate client must not wait for its own producer.
+        _ = SyncAsync();
     }
 
     private async Task SyncAsync()
@@ -79,10 +75,10 @@ public sealed class FrigateStreamSync(
                 activeStreams = [.. _activeStreams];
             }
 
+            var config = await configProvider.GetAsync();
             await using var scope = serviceScopeFactory.CreateAsyncScope();
             var publisher = scope.ServiceProvider.GetRequiredService<IPublisher>();
-            var cameras = await GetCameraStreamPathsAsync(scope.ServiceProvider.GetRequiredService<FrigateApiClient>());
-            foreach (var (camera, streamPaths) in cameras)
+            foreach (var (camera, _, streamPaths) in config.Cameras)
             {
                 if (streamPaths.Count == 0)
                 {
@@ -102,7 +98,7 @@ public sealed class FrigateStreamSync(
                     isEnabled ? "published" : "not published");
             }
 
-            var linkedStreams = cameras.Values.SelectMany(x => x).ToHashSet(StringComparer.Ordinal);
+            var linkedStreams = config.Cameras.SelectMany(x => x.RtmpStreamPaths).ToHashSet(StringComparer.Ordinal);
             foreach (var streamPath in activeStreams.Where(x => !linkedStreams.Contains(x)))
             {
                 logger.LogWarning("RTMP stream '{StreamPath}' is published, but no Frigate camera reads it.", streamPath);
@@ -116,11 +112,5 @@ public sealed class FrigateStreamSync(
         {
             _syncLock.Release();
         }
-    }
-
-    private async Task<Dictionary<string, HashSet<string>>> GetCameraStreamPathsAsync(FrigateApiClient frigateApiClient)
-    {
-        using var config = await frigateApiClient.GetConfigAsync();
-        return FrigateCameraStreams.GetRtmpStreamPaths(config.RootElement, options.Value.RtmpPort);
     }
 }

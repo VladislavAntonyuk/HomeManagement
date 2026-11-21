@@ -9,7 +9,7 @@ public closed class WorkflowTrigger
     public int Id { get; init; }
 
     /// <summary>
-    /// Position of the trigger in the workflow. The first matching trigger fills the {Trigger.*} placeholders.
+    /// Position of the trigger in the workflow: {Trigger[Order].*}. {Trigger.*} is the matching event, otherwise the first matching trigger.
     /// </summary>
     public int Order { get; set; }
 
