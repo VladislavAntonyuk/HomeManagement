@@ -1,0 +1,18 @@
+.usage-meter {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.usage-meter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.usage-meter-header ::deep .usage-meter-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

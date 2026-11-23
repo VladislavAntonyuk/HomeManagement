@@ -1,0 +1,11 @@
+.icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 12px;
+    color: var(--icon-badge-accent);
+    background: color-mix(in srgb, var(--icon-badge-accent) 16%, transparent);
+}

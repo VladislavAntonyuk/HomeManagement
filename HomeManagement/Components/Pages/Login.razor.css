@@ -1,0 +1,13 @@
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.login-form ::deep .mud-input-control {
+    margin: 0;
+}
+
+.login-form ::deep .login-remember {
+    margin: -0.5rem 0 0 -0.75rem;
+}

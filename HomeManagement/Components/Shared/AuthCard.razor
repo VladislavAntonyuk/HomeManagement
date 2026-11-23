@@ -1,0 +1,24 @@
+<div class="auth">
+    <section class="auth-card">
+        <img src="icon.svg" alt="" class="auth-logo" />
+        <div class="auth-heading">
+            <MudText Typo="Typo.h5" Class="auth-title">@Title</MudText>
+            @if (Subtitle is not null)
+            {
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@Subtitle</MudText>
+            }
+        </div>
+        @ChildContent
+    </section>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required string Title { get; set; }
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

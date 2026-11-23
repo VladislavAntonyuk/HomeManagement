@@ -1,0 +1,28 @@
+<section class="stat-tile">
+    <IconBadge Icon="@Icon" Accent="@Accent" />
+    <div class="stat-tile-text">
+        <MudText Typo="Typo.caption" Class="stat-tile-label">@Label</MudText>
+        <MudText Typo="Typo.h5" Class="stat-tile-value" title="@Value">@(Value ?? "…")</MudText>
+        @if (Caption is not null)
+        {
+            <div class="stat-tile-caption">@Caption</div>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public required string Label { get; set; }
+
+    [Parameter, EditorRequired]
+    public required string Icon { get; set; }
+
+    [Parameter]
+    public string? Value { get; set; }
+
+    [Parameter]
+    public RenderFragment? Caption { get; set; }
+
+    [Parameter]
+    public Color Accent { get; set; } = Color.Primary;
+}

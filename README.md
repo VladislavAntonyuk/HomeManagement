@@ -1,4 +1,4 @@
-# IoTSamples
+# HomeManagement
 
 [![Buy Me A Coffee](https://ik.imagekit.io/VladislavAntonyuk/vladislavantonyuk/misc/bmc-button.png)](https://www.buymeacoffee.com/vlad.antonyuk)
 
@@ -8,7 +8,7 @@ License: MIT.
 
 ## Projects
 
-The folders on disk match the solution folders in `IoTSamples.slnx`.
+The folders on disk match the solution folders in `HomeManagement.slnx`.
 
 - [HomeManagement](HomeManagement): the hub, with [HomeManagement.Cameras](HomeManagement.Cameras), [HomeManagement.Shared](HomeManagement.Shared) and the [HomeManagement.AppHost](HomeManagement.AppHost) Aspire host.
 - [HomeManagement.Client](HomeManagement.Client): the MAUI app.

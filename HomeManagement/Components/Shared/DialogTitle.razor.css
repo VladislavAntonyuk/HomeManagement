@@ -1,0 +1,17 @@
+.dialog-title {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+}
+
+.dialog-title-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.dialog-title-text ::deep .dialog-title-heading {
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}

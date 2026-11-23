@@ -1,0 +1,33 @@
+<section class="dashboard-card">
+    <div class="dashboard-card-header">
+        <IconBadge Icon="@Icon" Accent="@Accent" />
+        <MudText Typo="Typo.subtitle1" Class="dashboard-card-title">@Title</MudText>
+        @if (Actions is not null)
+        {
+            <div class="dashboard-card-actions">@Actions</div>
+        }
+    </div>
+    <div class="dashboard-card-body">
+        @ChildContent
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public required string Title { get; set; }
+
+    [Parameter, EditorRequired]
+    public required string Icon { get; set; }
+
+    [Parameter]
+    public Color Accent { get; set; } = Color.Primary;
+
+    /// <summary>
+    /// Small content on the right of the title, e.g. a summary value.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

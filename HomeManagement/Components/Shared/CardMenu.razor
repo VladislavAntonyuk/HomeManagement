@@ -1,0 +1,31 @@
+<MudMenu @ref="_menu" Icon="@Icons.Material.Rounded.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="@Label">
+    <MudMenuItem Icon="@Icons.Material.Rounded.Edit" OnClick="() => RunAsync(OnEdit)">Edit</MudMenuItem>
+    <MudMenuItem Icon="@Icons.Material.Rounded.DeleteOutline" IconColor="Color.Error" OnClick="() => RunAsync(OnDelete)">Delete</MudMenuItem>
+</MudMenu>
+
+@code {
+    private MudMenu? _menu;
+
+    [Parameter, EditorRequired]
+    public required string Label { get; set; }
+
+    [Parameter]
+    public EventCallback OnEdit { get; set; }
+
+    [Parameter]
+    public EventCallback OnDelete { get; set; }
+
+    /// <summary>
+    /// MudMenuItem closes the menu only after its handler finishes, which for a dialog is when the dialog closes.
+    /// Closing first keeps the menu from floating behind the dialog.
+    /// </summary>
+    private async Task RunAsync(EventCallback action)
+    {
+        if (_menu is not null)
+        {
+            await _menu.CloseMenuAsync();
+        }
+
+        await action.InvokeAsync();
+    }
+}

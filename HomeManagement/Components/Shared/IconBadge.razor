@@ -1,0 +1,11 @@
+<span class="icon-badge" style="--icon-badge-accent: var(--mud-palette-@Accent.ToString().ToLowerInvariant())">
+    <MudIcon Icon="@Icon" Size="Size.Small" />
+</span>
+
+@code {
+    [Parameter, EditorRequired]
+    public required string Icon { get; set; }
+
+    [Parameter]
+    public Color Accent { get; set; } = Color.Primary;
+}

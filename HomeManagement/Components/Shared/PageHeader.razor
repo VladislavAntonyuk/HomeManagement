@@ -1,0 +1,27 @@
+<header class="page-header">
+    <div class="page-header-title">
+        <MudText Typo="Typo.h4" Class="page-header-heading">@Title</MudText>
+        @if (Subtitle is not null)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Subtitle</MudText>
+        }
+    </div>
+    @if (ChildContent is not null)
+    {
+        <div class="page-header-toolbar">@ChildContent</div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public required string Title { get; set; }
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    /// <summary>
+    /// Toolbar on the right of the title, e.g. a search box and buttons. It takes the full width on phones.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

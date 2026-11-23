@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 
 namespace HomeManagement.Components.Pages;
 
@@ -7,6 +7,7 @@ public partial class Login : ComponentBase
     private string? Username { get; set; }
     private string? Key { get; set; }
     private bool RememberMe { get; set; }
+    private bool _showKey;
 
     [SupplyParameterFromQuery(Name = "returnUrl")]
     public string? ReturnUrl { get; set; }

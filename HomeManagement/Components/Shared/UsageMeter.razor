@@ -1,0 +1,29 @@
+<div class="usage-meter">
+    <div class="usage-meter-header">
+        <MudText Typo="Typo.body2" Class="usage-meter-label" title="@Label">@Label</MudText>
+        <MudText Typo="Typo.body2"><b>@Percent.ToString("0")%</b></MudText>
+    </div>
+    <MudProgressLinear Value="@Math.Clamp(Percent, 0, 100)" Color="@Severity" Rounded="true" Size="Size.Medium" />
+    @if (!string.IsNullOrEmpty(Detail))
+    {
+        <MudText Typo="Typo.caption" Class="mud-text-secondary">@Detail</MudText>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public required string Label { get; set; }
+
+    [Parameter]
+    public double Percent { get; set; }
+
+    [Parameter]
+    public string? Detail { get; set; }
+
+    private Color Severity => Percent switch
+    {
+        >= 90 => Color.Error,
+        >= 75 => Color.Warning,
+        _ => Color.Success
+    };
+}

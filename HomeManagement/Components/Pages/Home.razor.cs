@@ -1,4 +1,5 @@
 ﻿using HomeManagement.Application.DeviceManagement;
+using HomeManagement.Application.Host;
 using HomeManagement.Application.Router;
 using HomeManagement.Components.Dialogs;
 using HomeManagement.DeviceSdk;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace HomeManagement.Components.Pages;
 
@@ -14,27 +16,35 @@ public partial class Home(
      ISnackbar snackbar,
      IRouterController routerController,
      DeviceService deviceService,
-     IDialogService dialogService) : ComponentBase
+     IDialogService dialogService) : ComponentBase, IDisposable
 {
 
-    private int _totalDevices;
+    private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(5);
+
+    private readonly CancellationTokenSource _disposed = new();
+    private readonly string _hostName = Environment.MachineName;
+    private readonly string _osDescription = $"{RuntimeInformation.OSDescription} · .NET {Environment.Version}";
+    private readonly DateTime _bootedAt = DateTime.Now - HostInfo.Uptime;
+    private DeviceStatusSummary? _devices;
     private string? _localIp;
     private string? _uptime;
-    private string? _temperature;
-    private string? _diskSpace;
-    private string? _networkData;
-    private string? _cpuInfo;
-    private string? _ramInfo;
+    private IReadOnlyList<HostTemperature> _temperatures = [];
+    private HostTemperature? _hottest;
+    private DateTime? _updatedAt;
+    private IReadOnlyList<DiskUsage>? _disks;
+    private IReadOnlyList<NetworkLink>? _network;
+    private CpuModel? _cpuModel;
+    private CpuSample? _cpuSample;
+    private double? _cpuUsage;
+    private IReadOnlyList<double> _loadAverage = [];
+    private MemoryUsage? _memory;
+    private bool _metricsLoaded;
 
     protected override async Task OnInitializedAsync()
     {
         _localIp = HostInfo.LocalIpAddress;
-        _uptime = DisplayFormatter.FormatDuration(HostInfo.Uptime);
-        var temperatures = HostInfo.Temperatures;
-        _temperature = temperatures.Count == 0
-            ? "Not reported"
-            : string.Join(Environment.NewLine, temperatures.Select(x => $"{x.Sensor}: {x.Celsius:0.#} °C"));
-        _totalDevices = (await deviceService.GetStatusSummaryAsync()).Total;
+        RefreshSensors();
+        _devices = await deviceService.GetStatusSummaryAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -44,150 +54,99 @@ public partial class Home(
             return;
         }
 
-        var diskSpace = GetDiskSpace();
-        var networkData = GetNetworkData();
-        var cpuInfo = GetCpuInfo();
-        var ramInfo = GetRamInfo();
-        await Task.WhenAll(diskSpace, networkData, cpuInfo, ramInfo);
-
-        _diskSpace = diskSpace.Result;
-        _networkData = networkData.Result;
-        _cpuInfo = cpuInfo.Result;
-        _ramInfo = ramInfo.Result;
-        StateHasChanged();
-    }
-
-    private static async Task<string> GetDiskSpace()
-    {
-        var (isSuccess, output) = await RunCommandAsync("df", "-T", "-h", "-x", "tmpfs", "-x", "devtmpfs");
-        if (!isSuccess)
+        // The first CPU usage needs two samples, so the first refresh comes after a short wait instead of the full interval.
+        _cpuSample = HostMetrics.SampleCpu();
+        _cpuModel = await HostMetrics.CpuModelAsync();
+        try
         {
-            return output;
-        }
-
-        var lines = output.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (lines.Length <= 1)
-        {
-            return output;
-        }
-
-        var formatted = lines.Skip(1)
-            .Select(line => line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .Where(parts => parts.Length >= 7)
-            .Select(parts => $"{string.Join(' ', parts.Skip(6))}: {parts[3]}/{parts[2]} ({parts[5]}) [{parts[1]}]")
-            .ToArray();
-
-        return formatted.Length == 0 ? output : string.Join(Environment.NewLine, formatted);
-    }
-
-    private static async Task<string> GetNetworkData()
-    {
-        var (isSuccess, output) = await RunCommandAsync("ip", "-brief", "address", "show");
-        if (!isSuccess)
-        {
-            return output;
-        }
-
-        var formatted = output
-            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(line => line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .Where(parts => parts.Length >= 2)
-            .Select(parts => $"{parts[0]}: {parts[1]} - {(parts.Length > 2 ? string.Join(' ', parts.Skip(2)) : "No address")}")
-            .ToArray();
-
-        return formatted.Length == 0 ? output : string.Join(Environment.NewLine, formatted);
-    }
-
-    private static async Task<string> GetRamInfo()
-    {
-        var (isSuccess, output) = await RunCommandAsync("free", "-h");
-        if (!isSuccess)
-        {
-            return output;
-        }
-
-        var lines = output
-            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        if (lines.Length <= 1)
-        {
-            return output;
-        }
-
-        var headers = lines[0]
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        if (headers.Length == 0)
-        {
-            return output;
-        }
-
-        var formatted = lines.Skip(1)
-            .Select(line => line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .Where(parts => parts.Length >= 2)
-            .Select(parts =>
+            await Task.Delay(TimeSpan.FromMilliseconds(500), _disposed.Token);
+            using var timer = new PeriodicTimer(RefreshInterval);
+            do
             {
-                var label = parts[0].TrimEnd(':');
-                var values = parts.Skip(1).ToArray();
-                var metrics = headers
-                    .Zip(values, (header, value) => $"{header}: {value}")
-                    .ToArray();
-
-                return metrics.Length == 0
-                    ? string.Join(' ', parts)
-                    : $"{label}: {string.Join(", ", metrics)}";
-            })
-            .ToArray();
-
-        return formatted.Length == 0 ? output : string.Join(Environment.NewLine, formatted);
+                RefreshHost();
+                _devices = await deviceService.GetStatusSummaryAsync(_disposed.Token);
+                _updatedAt = DateTime.Now;
+                await InvokeAsync(StateHasChanged);
+            }
+            while (await timer.WaitForNextTickAsync(_disposed.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was closed.
+        }
     }
 
-    private static async Task<string> GetCpuInfo()
+    // Only cancelled, not disposed: the refresh loop may still read the token after the page is gone.
+    public void Dispose() => _disposed.Cancel();
+
+    private void RefreshHost()
     {
-        var (isSuccess, output) = await RunCommandAsync("lscpu");
-        if (!isSuccess)
-        {
-            return output;
-        }
-
-        var details = output
-            .Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(line => line.Split(':', 2, StringSplitOptions.TrimEntries))
-            .Where(parts => parts.Length == 2)
-            .GroupBy(parts => parts[0], StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group
-                    .Select(parts => parts[1])
-                    .Where(value => !string.IsNullOrWhiteSpace(value))
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToArray(),
-                StringComparer.OrdinalIgnoreCase);
-
-        var cpuInfo = new[]
-        {
-            BuildInfoLine(details, "Model name", "Model", includeAllValues: true),
-            BuildInfoLine(details, "Architecture", "Architecture"),
-            BuildInfoLine(details, "CPU(s)", "Logical CPUs"),
-            BuildInfoLine(details, "Core(s) per socket", "Cores/socket"),
-            BuildInfoLine(details, "Thread(s) per core", "Threads/core"),
-        }
-        .Where(line => !string.IsNullOrWhiteSpace(line))
-        .ToArray();
-
-        return cpuInfo.Length == 0 ? output : string.Join(Environment.NewLine, cpuInfo);
+        RefreshSensors();
+        var sample = HostMetrics.SampleCpu();
+        _cpuUsage = HostMetrics.CpuUsagePercent(_cpuSample, sample) ?? _cpuUsage;
+        _cpuSample = sample;
+        _loadAverage = HostMetrics.LoadAverage();
+        _memory = HostMetrics.Memory();
+        _disks = HostMetrics.Disks();
+        _network = HostMetrics.Network();
+        _metricsLoaded = true;
     }
 
-    private static string? BuildInfoLine(IReadOnlyDictionary<string, string[]> details, string key, string label, bool includeAllValues = false)
+    private void RefreshSensors()
     {
-        if (!details.TryGetValue(key, out var values) || values.Length == 0)
-        {
-            return null;
-        }
-
-        var value = includeAllValues ? string.Join(", ", values) : values[0];
-        return $"{label}: {value}";
+        _uptime = DisplayFormatter.FormatDuration(HostInfo.Uptime);
+        _temperatures = HostInfo.Temperatures;
+        _hottest = _temperatures.MaxBy(x => x.Celsius);
     }
+
+    private NetworkLink? LocalLink() => _localIp is null
+        ? null
+        : _network?.FirstOrDefault(x => x.IsUp && x.Addresses.Contains(_localIp));
+
+    // "bigcore0-thermal" reads as "Bigcore0".
+    private static string SensorName(string sensor)
+    {
+        var name = sensor.Replace("-thermal", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("_thermal", string.Empty, StringComparison.OrdinalIgnoreCase);
+        return name.Length == 0 ? sensor : char.ToUpperInvariant(name[0]) + name[1..];
+    }
+
+    private static Color TemperatureColor(double? celsius) => celsius switch
+    {
+        null => Color.Info,
+        >= 80 => Color.Error,
+        >= 65 => Color.Warning,
+        _ => Color.Success
+    };
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024L * 1024 => $"{bytes / 1024.0:0.#} KB",
+        < 1024L * 1024 * 1024 => $"{bytes / 1024.0 / 1024:0.#} MB",
+        < 1024L * 1024 * 1024 * 1024 => $"{bytes / 1024.0 / 1024 / 1024:0.#} GB",
+        _ => $"{bytes / 1024.0 / 1024 / 1024 / 1024:0.##} TB"
+    };
+
+    private static string FormatCpuModel(CpuModel model) => model.Clusters.Count == 0
+        ? $"{model.LogicalCpus} cores"
+        : string.Join(" + ", model.Clusters.Select(x => x.Cores is { } cores ? $"{cores}× {x.Name}" : x.Name));
+
+    private static string NetworkIcon(NetworkKind kind) => kind switch
+    {
+        NetworkKind.Ethernet => Icons.Material.Filled.SettingsEthernet,
+        NetworkKind.WiFi => Icons.Material.Filled.Wifi,
+        NetworkKind.Vpn => Icons.Material.Filled.VpnLock,
+        _ => Icons.Material.Filled.Lan
+    };
+
+    private static string NetworkKindName(NetworkKind kind) => kind switch
+    {
+        NetworkKind.Ethernet => "Ethernet",
+        NetworkKind.WiFi => "Wi-Fi",
+        NetworkKind.Vpn => "VPN",
+        _ => "Network"
+    };
 
     // A command that never ends, e.g. "top", must not block the page.
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
@@ -241,16 +200,28 @@ public partial class Home(
 
     private string _terminalCommand = string.Empty;
     private string _terminalOutput = string.Empty;
+    private bool _terminalRunning;
 
     private async Task RunTerminalCommand()
     {
-        if (string.IsNullOrWhiteSpace(_terminalCommand))
+        if (_terminalRunning || string.IsNullOrWhiteSpace(_terminalCommand))
         {
             return;
         }
 
-        var (_, output) = await RunCommandAsync("/bin/bash", "-lc", _terminalCommand);
-        _terminalOutput = $"> {_terminalCommand}{Environment.NewLine}{output}";
+        var command = _terminalCommand;
+        _terminalRunning = true;
+        _terminalOutput = $"$ {command}{Environment.NewLine}Running...";
+        try
+        {
+            var (_, output) = await RunCommandAsync("/bin/bash", "-lc", command);
+            _terminalOutput = $"$ {command}{Environment.NewLine}{output}";
+            _terminalCommand = string.Empty;
+        }
+        finally
+        {
+            _terminalRunning = false;
+        }
     }
 
     private async Task OnTerminalKeyDown(KeyboardEventArgs e)

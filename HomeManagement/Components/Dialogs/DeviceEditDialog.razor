@@ -1,14 +1,20 @@
-﻿@inherits ComponentBase
-
-<MudPaper Class="pa-4" Elevation="1">
-    <MudForm @ref="_form">
-        <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" />
-        <MudTextField @bind-Value="Model.Description" Label="Description" Lines="5" Required="false" />
-        <MudText Color="Color.Secondary" Typo="Typo.caption">Actions are reported by the device.</MudText>
-
-        <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd" Class="mt-4">
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Save</MudButton>
-            <MudButton Color="Color.Secondary" Variant="Variant.Outlined" OnClick="Cancel">Cancel</MudButton>
-        </MudStack>
-    </MudForm>
-</MudPaper>
+<MudDialog>
+    <TitleContent>
+        <DialogTitle Icon="@Icons.Material.Rounded.Memory" Title="@DialogReference.Title"
+                     Subtitle="Name and describe the device. It reports its own actions." />
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <div class="device-form">
+                <MudTextField @bind-Value="Model.Name" Label="Name" Required="true" RequiredError="Enter a name."
+                              Variant="Variant.Outlined" Immediate="true" />
+                <MudTextField @bind-Value="Model.Description" Label="Description" Lines="3" Sizing="InputSizing.Auto" MaxLines="8"
+                              Variant="Variant.Outlined" HelperText="Optional. Shown on the device card." />
+            </div>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Rounded.Check" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>

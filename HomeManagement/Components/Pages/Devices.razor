@@ -5,77 +5,120 @@
 <PageTitle>Devices</PageTitle>
 
 <div class="devices">
-    <MudTable T="Device" Items="_devices" Loading="@(_devices is null)" Dense="true" Hover="true">
-        <ToolBarContent>
-            <MudText Typo="Typo.h6">Devices</MudText>
-            <MudSpacer />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="me-2 mb-1" OnClick="ReloadAsync">Refresh</MudButton>
-        </ToolBarContent>
-        <HeaderContent>
-            <MudTh Class="device-expand-cell"></MudTh>
-            <MudTh><MudTableSortLabel T="Device" SortBy="x => x.Name" InitialDirection="SortDirection.Ascending">Name</MudTableSortLabel></MudTh>
-            <MudTh Style="white-space: nowrap"><MudTableSortLabel T="Device" SortBy="x => x.DeviceId">Device Id</MudTableSortLabel></MudTh>
-            <MudTh>Status</MudTh>
-            <MudTh>Actions</MudTh>
-            <MudTh></MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            @{
-                var overview = deviceService.GetOverview(context);
-                var presence = overview.Presence;
-                var isExpanded = _expandedDevices.Contains(context.Id);
-            }
-            <MudTd DataLabel="Details" Class="device-expand-cell">
-                <MudIconButton Icon="@(isExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
-                               Size="Size.Small"
-                               aria-label="@(isExpanded ? $"Hide {context.Name} details" : $"Show {context.Name} details")"
-                               aria-expanded="@(isExpanded ? "true" : "false")"
-                               OnClick="() => ToggleDetails(context)" />
-            </MudTd>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Device Id">@context.DeviceId</MudTd>
-            <MudTd DataLabel="Status">
-                <div class="device-status">
-                    <MudTooltip Text="@GetStatusTooltip(presence)">
-                        <MudChip T="string" Color="@GetStatusColor(presence)" Variant="Variant.Filled" Class="ma-0">@presence.Status.DisplayName</MudChip>
-                    </MudTooltip>
-                    @if (presence.LastSeenUtc is { } lastSeen)
-                    {
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary device-last-seen">Seen @DisplayFormatter.FormatAgo(lastSeen, Now)</MudText>
-                    }
-                </div>
-            </MudTd>
-            <MudTd DataLabel="Actions">
-                <div class="device-actions-container">
-                    @foreach (var action in context.Actions)
-                    {
-                        var isRunning = _runningActions.Contains(action.Id);
-                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!presence.IsOnline || isRunning)" OnClick="@(() => RunActionAsync(context, action))" Class="device-action-button">
-                            @if (isRunning)
-                            {
-                                <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="me-1" />
-                            }
-                            @action.Action
-                        </MudButton>
-                    }
-                </div>
-            </MudTd>
-            <MudTd>
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" aria-label="Edit device" OnClick="() => EditAsync(context)" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" aria-label="Delete device" Color="Color.Error" OnClick="() => DeleteAsync(context)" />
-            </MudTd>
-        </RowTemplate>
-        <ChildRowContent>
-            @if (_expandedDevices.Contains(context.Id))
+    <PageHeader Title="Devices" Subtitle="@Summary()">
+        <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="Search devices"
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
+        <MudTooltip Text="Refresh">
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Variant="Variant.Outlined" aria-label="Refresh" OnClick="ReloadAsync" />
+        </MudTooltip>
+    </PageHeader>
+
+    @if (_devices is null)
+    {
+        <div class="devices-grid">
+            @for (var i = 0; i < 3; i++)
             {
-                var overview = deviceService.GetOverview(context);
-                <MudTr>
-                    <td colspan="6" class="mud-table-cell device-details-cell">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="160px" Class="device-skeleton" />
+            }
+        </div>
+    }
+    else if (_devices.Count == 0)
+    {
+        <div class="devices-empty">
+            <MudIcon Icon="@Icons.Material.Filled.DevicesOther" Size="Size.Large" Class="mud-text-secondary" />
+            <MudText Typo="Typo.body1">No devices yet.</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Devices appear here when they connect to the MQTT broker.</MudText>
+        </div>
+    }
+    else if (FilteredDevices().ToList() is { Count: 0 })
+    {
+        <div class="devices-empty">
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">No devices match "@_search".</MudText>
+        </div>
+    }
+    else
+    {
+        <div class="devices-grid">
+            @foreach (var device in FilteredDevices())
+            {
+                var overview = deviceService.GetOverview(device);
+                var presence = overview.Presence;
+                var isExpanded = _expandedDevices.Contains(device.Id);
+                var showAllActions = _expandedActions.Contains(device.Id);
+                var orderedActions = OrderActions(device.Actions);
+                var visibleActions = showAllActions ? orderedActions : orderedActions.Take(CollapsedActionCount);
+                <section @key="device.Id" class="device-card" style="--device-status-color: @GetStatusCssColor(presence)">
+                    <div class="device-card-header">
+                        <span class="device-badge"><MudIcon Icon="@Icons.Material.Filled.Memory" Size="Size.Small" /></span>
+                        <div class="device-card-title">
+                            <MudText Typo="Typo.subtitle1" Class="device-name">@device.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="device-id mud-text-secondary">@device.DeviceId</MudText>
+                        </div>
+                        <CardMenu Label="@($"{device.Name} options")" OnEdit="() => EditAsync(device)" OnDelete="() => DeleteAsync(device)" />
+                    </div>
+
+                    <div class="device-status">
+                        <MudTooltip Text="@GetStatusTooltip(presence)">
+                            <span class="device-status-pill">
+                                <span class="device-status-dot"></span>
+                                @presence.Status.DisplayName
+                            </span>
+                        </MudTooltip>
+                        @if (presence.LastSeenUtc is { } lastSeen)
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Seen @DisplayFormatter.FormatAgo(lastSeen, Now)</MudText>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(device.Description))
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary device-description">@device.Description</MudText>
+                    }
+
+                    @if (device.Actions.Count > 0)
+                    {
+                        <div class="device-actions">
+                            @foreach (var action in visibleActions)
+                            {
+                                var isRunning = _runningActions.Contains(action.Id);
+                                <MudButton @key="action.Id" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                           Disabled="@(!presence.IsOnline || isRunning)" OnClick="@(() => RunActionAsync(device, action))"
+                                           Class="device-action">
+                                    @if (isRunning)
+                                    {
+                                        <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="device-action-spinner" />
+                                    }
+                                    @FormatActionName(action.Action)
+                                </MudButton>
+                            }
+                            @if (device.Actions.Count > CollapsedActionCount)
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Class="device-action"
+                                           EndIcon="@(showAllActions ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                           aria-expanded="@(showAllActions ? "true" : "false")"
+                                           OnClick="() => Toggle(_expandedActions, device)">
+                                    @(showAllActions ? "Show less" : $"{device.Actions.Count - CollapsedActionCount} more")
+                                </MudButton>
+                            }
+                        </div>
+                    }
+
+                    <div class="device-card-footer">
+                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default"
+                                   StartIcon="@Icons.Material.Filled.Info"
+                                   EndIcon="@(isExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                   aria-expanded="@(isExpanded ? "true" : "false")"
+                                   OnClick="() => Toggle(_expandedDevices, device)">
+                            Details
+                        </MudButton>
+                    </div>
+
+                    @if (isExpanded)
+                    {
                         @if (overview.Info is null)
                         {
-                            <div class="device-details-empty">
-                                <MudText Typo="Typo.body2" Class="mud-text-secondary">@context.Name has not reported device info yet.</MudText>
-                            </div>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@device.Name has not reported device info yet.</MudText>
                         }
                         else
                         {
@@ -93,7 +136,7 @@
                                 }
                                 <div>
                                     <dt>Heartbeat</dt>
-                                    <dd>Every @DisplayFormatter.FormatDuration(overview.Presence.HeartbeatInterval)</dd>
+                                    <dd>Every @DisplayFormatter.FormatDuration(presence.HeartbeatInterval)</dd>
                                 </div>
                                 @if (overview.InfoReceivedAtUtc is { } infoReceived)
                                 {
@@ -104,18 +147,9 @@
                                 }
                             </dl>
                         }
-                    </td>
-                </MudTr>
+                    }
+                </section>
             }
-        </ChildRowContent>
-        <NoRecordsContent>
-            <MudText>No devices yet. Devices appear here when they connect to the MQTT broker.</MudText>
-        </NoRecordsContent>
-        <LoadingContent>
-            <MudText>Loading...</MudText>
-        </LoadingContent>
-        <PagerContent>
-            <MudTablePager />
-        </PagerContent>
-    </MudTable>
+        </div>
+    }
 </div>

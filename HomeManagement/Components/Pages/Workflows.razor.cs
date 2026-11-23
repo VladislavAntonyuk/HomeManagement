@@ -2,7 +2,9 @@
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Workflows;
 using HomeManagement.Components.Dialogs;
+using HomeManagement.Components.Shared;
 using HomeManagement.Infrastructure.Database.Entities;
+using HomeManagement.Shared.Api;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
@@ -12,22 +14,64 @@ public partial class Workflows(
     ISnackbar snackbar,
     IDialogService dialogService,
     WorkflowService workflowService,
-    DeviceService deviceService) : ComponentBase
+    DeviceService deviceService,
+    TimeProvider timeProvider) : ComponentBase
 {
     private static readonly DialogOptions EditorOptions = new()
     {
         FullWidth = true,
-        MaxWidth = MaxWidth.ExtraExtraLarge,
+        MaxWidth = MaxWidth.Medium,
         Position = DialogPosition.Center,
         BackdropClick = false
     };
 
     private readonly HashSet<int> _runningWorkflows = [];
     private List<Workflow>? _workflows;
+    private string? _search;
+
+    private DateTimeOffset Now => timeProvider.GetUtcNow();
 
     protected override Task OnInitializedAsync() => ReloadAsync();
 
     private async Task ReloadAsync() => _workflows = await workflowService.GetWorkflowsAsync();
+
+    private IEnumerable<Workflow> FilteredWorkflows()
+    {
+        var workflows = _workflows ?? [];
+        return string.IsNullOrWhiteSpace(_search)
+            ? workflows
+            : workflows.Where(x => x.Name.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                                   || (x.Description?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
+    }
+
+    private string Summary() => _workflows is null
+        ? "Loading..."
+        : $"{_workflows.Count(x => x.IsEnabled)} of {_workflows.Count} enabled";
+
+    private static string TriggerIcon(WorkflowTrigger trigger) => trigger switch
+    {
+        DateTrigger => WorkflowIcons.DateTrigger,
+        TimeTrigger => WorkflowIcons.TimeTrigger,
+        DeviceResultTrigger => WorkflowIcons.DeviceValueTrigger,
+        DeviceStatusTrigger => WorkflowIcons.DeviceStatusTrigger
+    };
+
+    private static string StepIcon(WorkflowStep step) => step switch
+    {
+        DeviceActionStep => WorkflowIcons.DeviceActionStep,
+        DelayStep => WorkflowIcons.DelayStep,
+        NotifyStep => WorkflowIcons.NotifyStep
+    };
+
+    private static string FormatStep(WorkflowStep step) => step switch
+    {
+        DeviceActionStep action => $"{action.DeviceAction.Device.Name}: {action.DeviceAction.Action}",
+        DelayStep delay => $"Wait {DisplayFormatter.FormatDuration(delay.Delay)}",
+        NotifyStep notify => $"Notify \"{notify.Title}\""
+    };
+
+    private async Task SetEnabledAsync(Workflow workflow, bool enabled)
+        => await SaveAsync(() => workflowService.SetEnabledAsync(workflow.Id, enabled));
 
     private Task AddAsync() => EditAsync(null);
 

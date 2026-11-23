@@ -1,0 +1,36 @@
+.stat-tile {
+    height: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-radius: 16px;
+    background: var(--mud-palette-surface);
+    border: 1px solid var(--mud-palette-lines-default);
+}
+
+.stat-tile-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.stat-tile-text ::deep .stat-tile-label {
+    color: var(--mud-palette-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+}
+
+.stat-tile-text ::deep .stat-tile-value {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.stat-tile-caption {
+    margin-top: 0.25rem;
+    font-size: 0.8125rem;
+    color: var(--mud-palette-text-secondary);
+}

@@ -1,0 +1,194 @@
+.wf-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-top: 0.25rem;
+}
+
+.wf-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.wf-section + .wf-section {
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--mud-palette-lines-default);
+}
+
+.wf-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.wf-section-header ::deep .wf-section-title {
+    font-weight: 600;
+}
+
+.wf-section-header ::deep .wf-operator-toggle {
+    flex: 0 0 auto;
+}
+
+/* Two columns of fields on wide screens; wide fields span both. */
+.wf-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem;
+}
+
+@media (max-width: 599.98px) {
+    .wf-fields {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* MudSelect puts Class on an inner element, inside a wrapper that is the grid item. */
+.wf-fields ::deep .wf-full,
+.wf-fields ::deep .mud-select:has(> .wf-full),
+.wf-fields .wf-full {
+    grid-column: 1 / -1;
+}
+
+.wf-fields ::deep .mud-input-control,
+.wf-item-header ::deep .mud-input-control {
+    margin: 0;
+}
+
+.wf-enabled,
+.wf-repeat {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 3.5rem;
+}
+
+.wf-enabled ::deep .mud-switch,
+.wf-repeat ::deep .mud-switch {
+    margin: 0;
+}
+
+.wf-enabled ::deep .mud-typography-caption,
+.wf-repeat ::deep .mud-typography-caption {
+    padding-inline-start: 0.75rem;
+}
+
+.wf-repeat {
+    min-height: 0;
+}
+
+.wf-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.wf-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 14px;
+    background: var(--mud-palette-background-gray);
+    border: 1px solid var(--mud-palette-lines-default);
+}
+
+.wf-item-error {
+    border-color: var(--mud-palette-error);
+}
+
+.wf-item-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.wf-item-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--mud-palette-tertiary);
+    background: color-mix(in srgb, var(--mud-palette-tertiary) 16%, transparent);
+}
+
+.wf-item-header ::deep .mud-select:has(> .wf-kind) {
+    flex: 0 1 17rem;
+    min-width: 0;
+}
+
+.wf-item-tools {
+    display: flex;
+    align-items: center;
+    margin-inline-start: auto;
+}
+
+/* Phones: the number and buttons share the first line, the kind gets the full second line. */
+@media (max-width: 599.98px) {
+    .wf-item-header {
+        flex-wrap: wrap;
+    }
+
+    .wf-item-header ::deep .mud-select:has(> .wf-kind) {
+        order: 1;
+        flex: 1 1 100%;
+    }
+}
+
+.wf-kind-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+}
+
+.wf-connector {
+    align-self: flex-start;
+    margin: -0.25rem 0 -0.25rem 1.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--mud-palette-tertiary);
+    background: color-mix(in srgb, var(--mud-palette-tertiary) 14%, transparent);
+}
+
+.wf-preview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+}
+
+.wf-response {
+    max-height: 12rem;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    overflow: auto;
+    border-radius: 10px;
+    border: 1px solid var(--mud-palette-lines-default);
+    background: var(--mud-palette-surface);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.8125rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.wf-item ::deep .wf-item-message {
+    margin-top: -0.25rem;
+}
+
+.wf-section ::deep .wf-add {
+    border: 1px dashed color-mix(in srgb, var(--mud-palette-primary) 50%, transparent);
+    border-radius: 12px;
+    padding-block: 0.625rem;
+    text-transform: none;
+}

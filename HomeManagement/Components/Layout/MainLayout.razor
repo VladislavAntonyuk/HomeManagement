@@ -15,12 +15,14 @@
         <MudAppBar Elevation="1">
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
                 <MudLink Href="/">
-                    <img src="favicon.png" alt="Home Management" class="mud-icon-root mud-icon-size-large" />
+                    <img src="icon.svg" alt="Home Management" class="mud-icon-root mud-icon-size-large" />
                 </MudLink>
             </MudHidden>
-            <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="DrawerToggle" />
-            </MudHidden>
+            <AuthorizeView>
+                <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                    <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" aria-label="Menu" OnClick="DrawerToggle" />
+                </MudHidden>
+            </AuthorizeView>
             <MudHidden Breakpoint="Breakpoint.Xs">
                 <MudLink Href="/" Typo="Typo.h6" Class="ml-4" Color="Color.Inherit">Home Management</MudLink>
             </MudHidden>
@@ -34,17 +36,14 @@
                                  Color="Color.Inherit" />
         </MudAppBar>
 
-        <MudDrawer @bind-Open="_drawerOpen" Elevation="1" ClipMode="DrawerClipMode.Always">
-            <AuthorizeView>
-                <NavMenu />
-            </AuthorizeView>
-            <MudLink Href="https://www.buymeacoffee.com/vlad.antonyuk" Target="_blank">
-                <MudImage Src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png"
-                          Alt="Buy me A coffee"
-                          Fluid="true"
-                          Class="side-image" />
-            </MudLink>
-        </MudDrawer>
+        @* Signed-out visitors only see the sign-in page, which needs no navigation. *@
+        <AuthorizeView>
+            <MudDrawer @bind-Open="_drawerOpen" Elevation="0" ClipMode="DrawerClipMode.Always" Class="app-drawer">
+                <div class="app-drawer-content">
+                    <NavMenu />
+                </div>
+            </MudDrawer>
+        </AuthorizeView>
         <MudMainContent>
             <MudContainer MaxWidth="MaxWidth.False">
                 <ErrorBoundary @ref="_errorBoundary" MaximumErrorCount="5">

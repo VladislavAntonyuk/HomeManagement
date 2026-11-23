@@ -3,99 +3,230 @@
 
 <PageTitle>Home</PageTitle>
 
-<MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
-    <MudGrid Spacing="3">
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="pa-4" Style="height:100%">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Total Devices</MudText>
-                    <MudText Typo="Typo.h4">@_totalDevices</MudText>
-                </MudStack>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="pa-4" Style="height:100%">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Local IP</MudText>
-                    <MudText Typo="Typo.h6">@_localIp</MudText>
-                    <MudButton OnClick="RebootRouter" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Router">Reboot Router</MudButton>
-                    <MudButton OnClick="RebootRouterModem" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MobiledataOff">Reboot Modem</MudButton>
-                    <MudButton OnClick="TurnOffRouterLeds" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Lightbulb">Turn off LEDs</MudButton>
-                </MudStack>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="pa-4" Style="height:100%">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Uptime</MudText>
-                    <MudText Typo="Typo.h6" Style="white-space: pre-wrap; word-break: break-all;">@(_uptime ?? "Loading...")</MudText>
-                </MudStack>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="pa-4" Style="height:100%">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Temperature</MudText>
-                    <MudText Typo="Typo.h6" Style="white-space: pre-wrap; word-break: break-all;">@(_temperature ?? "Loading...")</MudText>
-                </MudStack>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="pa-4" Style="height:100%">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Disk Space</MudText>
-                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@(_diskSpace ?? "Loading...")</MudText>
-                </MudStack>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="pa-4" Style="height:100%">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">Network Data</MudText>
-                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@(_networkData ?? "Loading...")</MudText>
-                </MudStack>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="pa-4" Style="height:100%">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">CPU Info</MudText>
-                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@(_cpuInfo ?? "Loading...")</MudText>
-                </MudStack>
-            </MudCard>
-        </MudItem>
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="pa-4" Style="height:100%">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.subtitle2" Color="Color.Secondary">RAM Info</MudText>
-                    <MudText Typo="Typo.body2" Style="white-space: pre-wrap; word-break: break-all;">@(_ramInfo ?? "Loading...")</MudText>
-                </MudStack>
-            </MudCard>
-        </MudItem>
-    </MudGrid>
+<div class="dashboard">
+    <header class="dashboard-header">
+        <div class="dashboard-title">
+            <MudText Typo="Typo.h4" Class="dashboard-host">@_hostName</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@_osDescription</MudText>
+        </div>
+        <div class="dashboard-live" title="Refreshes every @RefreshInterval.TotalSeconds seconds">
+            <span class="dashboard-live-dot @(_updatedAt is null ? "dashboard-live-dot-waiting" : null)"></span>
+            <MudText Typo="Typo.caption">@(_updatedAt is { } updatedAt ? $"Live · updated {updatedAt:HH:mm:ss}" : "Connecting...")</MudText>
+        </div>
+    </header>
 
-    <MudGrid Class="mt-4" Spacing="3">
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4" Elevation="1">
-                <MudText Typo="Typo.h6" Class="mb-2">Server Controls</MudText>
-                <MudStack Spacing="2">
-                    <MudButton OnClick="Reboot" Color="Color.Error" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.RestartAlt">Reboot</MudButton>
-                    <MudButton OnClick="Shutdown" Color="Color.Error" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PowerSettingsNew">Shutdown</MudButton>
-                    <MudButton Href="/devices" Color="Color.Primary" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Devices">Manage Devices</MudButton>
-                </MudStack>
-            </MudPaper>
+    <MudGrid Spacing="3">
+        <MudItem xs="12" sm="6" lg="3">
+            <StatTile Label="Devices" Icon="@Icons.Material.Filled.Devices" Accent="Color.Primary" Value="@(_devices is { } devices ? $"{devices.Online} / {devices.Total} online" : null)">
+                <Caption>
+                    @if (_devices is { } summary)
+                    {
+                        <span>@summary.Offline offline · @summary.NotResponding not responding · </span>
+                        <MudLink Href="/devices" Typo="Typo.caption">Manage</MudLink>
+                    }
+                </Caption>
+            </StatTile>
         </MudItem>
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4" Elevation="1">
-                <MudText Typo="Typo.h6" Class="mb-2">Terminal</MudText>
-                <MudStack Spacing="1">
-                    <MudTextField @bind-Value="_terminalCommand" Immediate="true" Placeholder="Enter command..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Terminal" Class="terminal-input" OnKeyDown="OnTerminalKeyDown" />
-                    <MudButton OnClick="RunTerminalCommand" Color="Color.Primary" Variant="Variant.Filled">Run</MudButton>
-                    <MudPaper Class="terminal-output pa-2 mt-2" Style="background:black;color:#39ff14;font-family:monospace;min-height:100px;max-height:300px;overflow:auto;">
-                        @_terminalOutput
-                    </MudPaper>
-                </MudStack>
-            </MudPaper>
+        <MudItem xs="12" sm="6" lg="3">
+            <StatTile Label="Uptime" Icon="@Icons.Material.Filled.Timer" Accent="Color.Success" Value="@_uptime">
+                <Caption>Since @_bootedAt.ToString("MMM d, HH:mm")</Caption>
+            </StatTile>
+        </MudItem>
+        <MudItem xs="12" sm="6" lg="3">
+            <StatTile Label="Local IP" Icon="@Icons.Material.Filled.Lan" Accent="Color.Info" Value="@(_localIp ?? "No network")">
+                <Caption>@(LocalLink() is { } link ? $"{NetworkKindName(link.Kind)} · {link.Name}" : "Hub address")</Caption>
+            </StatTile>
+        </MudItem>
+        <MudItem xs="12" sm="6" lg="3">
+            <StatTile Label="Hottest sensor" Icon="@Icons.Material.Filled.Thermostat" Accent="@TemperatureColor(_hottest?.Celsius)" Value="@(_hottest is { } hottest ? $"{hottest.Celsius:0.#} °C" : "Not reported")">
+                <Caption>@(_hottest is { } hottest ? SensorName(hottest.Sensor) : null)</Caption>
+            </StatTile>
+        </MudItem>
+
+        <MudItem xs="12" md="6" lg="4">
+            <DashboardCard Title="Processor" Icon="@Icons.Material.Filled.Memory" Accent="Color.Primary">
+                <Actions>
+                    @if (_cpuUsage is { } headline)
+                    {
+                        <MudText Typo="Typo.h6" Class="dashboard-headline">@headline.ToString("0")%</MudText>
+                    }
+                </Actions>
+                <ChildContent>
+                    @if (!_metricsLoaded)
+                    {
+                        <MudSkeleton Height="56px" />
+                    }
+                    else
+                    {
+                        @if (_cpuUsage is { } usage)
+                        {
+                            <UsageMeter Label="Usage" Percent="usage" />
+                        }
+                        @if (_loadAverage.Count == 3)
+                        {
+                            <div class="dashboard-facts">
+                                <div><MudText Typo="Typo.caption" Class="mud-text-secondary">Load 1 min</MudText><MudText Typo="Typo.body1">@_loadAverage[0].ToString("0.00")</MudText></div>
+                                <div><MudText Typo="Typo.caption" Class="mud-text-secondary">5 min</MudText><MudText Typo="Typo.body1">@_loadAverage[1].ToString("0.00")</MudText></div>
+                                <div><MudText Typo="Typo.caption" Class="mud-text-secondary">15 min</MudText><MudText Typo="Typo.body1">@_loadAverage[2].ToString("0.00")</MudText></div>
+                            </div>
+                        }
+                        @if (_cpuModel is { } model)
+                        {
+                            <div class="dashboard-footnote">
+                                <MudText Typo="Typo.body2">@FormatCpuModel(model)</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@model.Architecture · @model.LogicalCpus threads</MudText>
+                            </div>
+                        }
+                    }
+                </ChildContent>
+            </DashboardCard>
+        </MudItem>
+
+        <MudItem xs="12" md="6" lg="4">
+            <DashboardCard Title="Memory" Icon="@Icons.Material.Filled.ViewModule" Accent="Color.Secondary">
+                <Actions>
+                    @if (_memory is { } headline)
+                    {
+                        <MudText Typo="Typo.h6" Class="dashboard-headline">@headline.UsedPercent.ToString("0")%</MudText>
+                    }
+                </Actions>
+                <ChildContent>
+                    @if (!_metricsLoaded)
+                    {
+                        <MudSkeleton Height="56px" />
+                    }
+                    else if (_memory is not { } memory)
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Not reported</MudText>
+                    }
+                    else
+                    {
+                        <UsageMeter Label="RAM" Percent="memory.UsedPercent" Detail="@($"{FormatSize(memory.UsedBytes)} of {FormatSize(memory.TotalBytes)}")" />
+                        @if (memory.SwapTotalBytes > 0)
+                        {
+                            <UsageMeter Label="Swap" Percent="memory.SwapUsedPercent" Detail="@($"{FormatSize(memory.SwapUsedBytes)} of {FormatSize(memory.SwapTotalBytes)}")" />
+                        }
+                        <div class="dashboard-facts dashboard-footnote">
+                            <div><MudText Typo="Typo.caption" Class="mud-text-secondary">Available</MudText><MudText Typo="Typo.body1">@FormatSize(memory.AvailableBytes)</MudText></div>
+                            <div><MudText Typo="Typo.caption" Class="mud-text-secondary">Cache</MudText><MudText Typo="Typo.body1">@FormatSize(memory.CacheBytes)</MudText></div>
+                            <div><MudText Typo="Typo.caption" Class="mud-text-secondary">Total</MudText><MudText Typo="Typo.body1">@FormatSize(memory.TotalBytes)</MudText></div>
+                        </div>
+                    }
+                </ChildContent>
+            </DashboardCard>
+        </MudItem>
+
+        <MudItem xs="12" md="12" lg="4">
+            <DashboardCard Title="Temperatures" Icon="@Icons.Material.Filled.DeviceThermostat" Accent="@TemperatureColor(_hottest?.Celsius)">
+                @if (_temperatures.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">This machine has no temperature sensors.</MudText>
+                }
+                else
+                {
+                    <div class="dashboard-sensors">
+                        @foreach (var sensor in _temperatures)
+                        {
+                            <div @key="sensor.Sensor" class="dashboard-sensor">
+                                <div class="dashboard-sensor-header">
+                                    <MudText Typo="Typo.body2" title="@sensor.Sensor">@SensorName(sensor.Sensor)</MudText>
+                                    <MudText Typo="Typo.body2" Color="@TemperatureColor(sensor.Celsius)"><b>@sensor.Celsius.ToString("0.#") °C</b></MudText>
+                                </div>
+                                <MudProgressLinear Value="@Math.Clamp(sensor.Celsius, 0, 100)" Color="@TemperatureColor(sensor.Celsius)" Rounded="true" Size="Size.Small" />
+                            </div>
+                        }
+                    </div>
+                }
+            </DashboardCard>
+        </MudItem>
+
+        <MudItem xs="12" lg="6">
+            <DashboardCard Title="Storage" Icon="@Icons.Material.Filled.Storage" Accent="Color.Warning">
+                @if (_disks is null)
+                {
+                    <MudSkeleton Height="56px" />
+                }
+                else if (_disks.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Not reported</MudText>
+                }
+                else
+                {
+                    <div class="dashboard-tiles">
+                        @foreach (var disk in _disks)
+                        {
+                            <UsageMeter @key="disk.MountPoint" Label="@disk.MountPoint" Percent="disk.UsedPercent" Detail="@($"{FormatSize(disk.AvailableBytes)} free of {FormatSize(disk.TotalBytes)} · {disk.FileSystem}")" />
+                        }
+                    </div>
+                }
+            </DashboardCard>
+        </MudItem>
+
+        <MudItem xs="12" lg="6">
+            <DashboardCard Title="Network" Icon="@Icons.Material.Filled.Hub" Accent="Color.Info">
+                @if (_network is null)
+                {
+                    <MudSkeleton Height="56px" />
+                }
+                else if (_network.Count == 0)
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Not reported</MudText>
+                }
+                else
+                {
+                    <div class="dashboard-tiles">
+                        @foreach (var link in _network)
+                        {
+                            <div @key="link.Name" class="network-link @(link.IsUp ? null : "network-link-down")">
+                                <MudIcon Icon="@NetworkIcon(link.Kind)" Color="@(link.IsUp ? Color.Success : Color.Default)" Size="Size.Small" />
+                                <div class="network-link-details">
+                                    <MudText Typo="Typo.body2">
+                                        <b>@NetworkKindName(link.Kind)</b>
+                                        <span class="mud-text-secondary">@link.Name@(link.SpeedMbps is { } speed ? $" · {speed} Mb/s" : null)@(link.IsUp ? null : " · down")</span>
+                                    </MudText>
+                                    @foreach (var address in link.Addresses)
+                                    {
+                                        <MudText Typo="Typo.caption" Class="network-address">@address</MudText>
+                                    }
+                                    @if (link.IsUp)
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">↓ @FormatSize(link.ReceivedBytes) · ↑ @FormatSize(link.SentBytes)</MudText>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </DashboardCard>
+        </MudItem>
+
+        <MudItem xs="12" lg="4">
+            <DashboardCard Title="Controls" Icon="@Icons.Material.Filled.Tune" Accent="Color.Tertiary">
+                <div class="dashboard-controls">
+                    <MudText Typo="Typo.overline" Class="mud-text-secondary">Router</MudText>
+                    <MudButton OnClick="RebootRouter" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Router" FullWidth="true">Reboot router</MudButton>
+                    <MudButton OnClick="RebootRouterModem" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MobiledataOff" FullWidth="true">Reboot modem</MudButton>
+                    <MudButton OnClick="TurnOffRouterLeds" Color="Color.Primary" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Lightbulb" FullWidth="true">Turn off LEDs</MudButton>
+                </div>
+                <div class="dashboard-controls">
+                    <MudText Typo="Typo.overline" Class="mud-text-secondary">Server</MudText>
+                    <MudButton OnClick="Reboot" Color="Color.Error" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.RestartAlt" FullWidth="true">Reboot</MudButton>
+                    <MudButton OnClick="Shutdown" Color="Color.Error" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.PowerSettingsNew" FullWidth="true">Shut down</MudButton>
+                </div>
+            </DashboardCard>
+        </MudItem>
+
+        <MudItem xs="12" lg="8">
+            <DashboardCard Title="Terminal" Icon="@Icons.Material.Filled.Terminal" Accent="Color.Success">
+                <div class="terminal">
+                    <pre class="terminal-output">@(string.IsNullOrEmpty(_terminalOutput) ? "Run a command on the hub, e.g. uptime or docker ps." : _terminalOutput)</pre>
+                    <div class="terminal-prompt">
+                        <span class="terminal-sign">$</span>
+                        <input class="terminal-input" @bind="_terminalCommand" @bind:event="oninput" @onkeydown="OnTerminalKeyDown" placeholder="Enter command..." spellcheck="false" autocomplete="off" aria-label="Command" />
+                        <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" Size="Size.Small" OnClick="RunTerminalCommand" Disabled="@(_terminalRunning || string.IsNullOrWhiteSpace(_terminalCommand))" aria-label="Run" />
+                    </div>
+                </div>
+            </DashboardCard>
         </MudItem>
     </MudGrid>
-</MudContainer>
+</div>

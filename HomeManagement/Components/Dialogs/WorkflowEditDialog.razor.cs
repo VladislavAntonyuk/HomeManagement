@@ -1,4 +1,5 @@
 ﻿using HomeManagement.Application.Workflows;
+using HomeManagement.Components.Shared;
 using Microsoft.AspNetCore.Components;
 using MudBlazor;
 
@@ -108,6 +109,40 @@ public partial class WorkflowEditDialog(WorkflowTriggerPreviewService previewSer
             trigger.IsPreviewLoading = false;
         }
     }
+
+    private static string TriggerKindName(TriggerKind kind) => kind switch
+    {
+        TriggerKind.Date => "Date",
+        TriggerKind.Time => "Time of day",
+        TriggerKind.DeviceResult => "Device value",
+        TriggerKind.DeviceStatus => "Device status",
+        _ => kind.ToString()
+    };
+
+    private static string TriggerKindIcon(TriggerKind kind) => kind switch
+    {
+        TriggerKind.Date => WorkflowIcons.DateTrigger,
+        TriggerKind.Time => WorkflowIcons.TimeTrigger,
+        TriggerKind.DeviceResult => WorkflowIcons.DeviceValueTrigger,
+        TriggerKind.DeviceStatus => WorkflowIcons.DeviceStatusTrigger,
+        _ => WorkflowIcons.Workflow
+    };
+
+    private static string StepKindName(StepKind kind) => kind switch
+    {
+        StepKind.DeviceAction => "Run device action",
+        StepKind.Delay => "Wait",
+        StepKind.Notify => "Send notification",
+        _ => kind.ToString()
+    };
+
+    private static string StepKindIcon(StepKind kind) => kind switch
+    {
+        StepKind.DeviceAction => WorkflowIcons.DeviceActionStep,
+        StepKind.Delay => WorkflowIcons.DelayStep,
+        StepKind.Notify => WorkflowIcons.NotifyStep,
+        _ => WorkflowIcons.Workflow
+    };
 
     private IReadOnlyList<ActionOption> ActionsOf(int? deviceId) => Devices.FirstOrDefault(x => x.Id == deviceId)?.Actions ?? [];
 
