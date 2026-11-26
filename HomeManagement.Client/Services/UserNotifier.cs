@@ -21,11 +21,11 @@ public sealed class UserNotifier
             }
         }
 
-        await Shell.Current.DisplayAlertAsync(title ?? (isError ? "Error" : "Done"), message, "OK");
+        await Shell.Current.DisplayAlertAsync(title ?? (isError ? AppResources.Error : AppResources.Done), message, AppResources.Ok);
     }
 
     public Task ShowErrorAsync(Exception exception) => ShowAsync(ApiErrors.ToMessage(exception), isError: true);
 
     public Task<bool> ConfirmAsync(string title, string message, string accept)
-        => Shell.Current.DisplayAlertAsync(title, message, accept, "Cancel");
+        => Shell.Current.DisplayAlertAsync(title, message, accept, AppResources.Cancel);
 }

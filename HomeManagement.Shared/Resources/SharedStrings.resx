@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="DaysAgo" xml:space="preserve">
+    <value>{0} d ago</value>
+  </data>
+  <data name="DurationDays" xml:space="preserve">
+    <value>{0} d</value>
+  </data>
+  <data name="DurationHours" xml:space="preserve">
+    <value>{0} h</value>
+  </data>
+  <data name="DurationMinutes" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="DurationSeconds" xml:space="preserve">
+    <value>{0} s</value>
+  </data>
+  <data name="HoursAgo" xml:space="preserve">
+    <value>{0} h ago</value>
+  </data>
+  <data name="JustNow" xml:space="preserve">
+    <value>just now</value>
+  </data>
+  <data name="MetricFreeMemory" xml:space="preserve">
+    <value>Free memory</value>
+  </data>
+  <data name="MetricTemperature" xml:space="preserve">
+    <value>Temperature</value>
+  </data>
+  <data name="MetricUptime" xml:space="preserve">
+    <value>Uptime</value>
+  </data>
+  <data name="MetricWifiSignal" xml:space="preserve">
+    <value>Wi-Fi signal</value>
+  </data>
+  <data name="MinutesAgo" xml:space="preserve">
+    <value>{0} min ago</value>
+  </data>
+  <data name="Never" xml:space="preserve">
+    <value>never</value>
+  </data>
+  <data name="SecondsAgo" xml:space="preserve">
+    <value>{0} s ago</value>
+  </data>
+  <data name="SizeBytes" xml:space="preserve">
+    <value>{0} B</value>
+  </data>
+  <data name="SizeGigabytes" xml:space="preserve">
+    <value>{0} GB</value>
+  </data>
+  <data name="SizeKilobytes" xml:space="preserve">
+    <value>{0} KB</value>
+  </data>
+  <data name="SizeMegabytes" xml:space="preserve">
+    <value>{0} MB</value>
+  </data>
+  <data name="SizeTerabytes" xml:space="preserve">
+    <value>{0} TB</value>
+  </data>
+  <data name="StatusNotResponding" xml:space="preserve">
+    <value>Not responding</value>
+  </data>
+  <data name="StatusOffline" xml:space="preserve">
+    <value>Offline</value>
+  </data>
+  <data name="StatusOnline" xml:space="preserve">
+    <value>Online</value>
+  </data>
+  <data name="StatusUnknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Value" xml:space="preserve">
+    <value>Value</value>
+  </data>
+</root>

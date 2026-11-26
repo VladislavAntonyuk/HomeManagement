@@ -1,4 +1,5 @@
-﻿using HomeManagement.Application.DeviceManagement;
+﻿using HomeManagement.Application.Dashboard;
+using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Components.Dialogs;
 using HomeManagement.Infrastructure.Database.Entities;
 using HomeManagement.Shared.Api;
@@ -12,6 +13,7 @@ public partial class Devices(
     IDialogService dialogService,
     DeviceService deviceService,
     DeviceStateStore deviceStateStore,
+    DashboardWidgetService widgetService,
     TimeProvider timeProvider) : ComponentBase, IDisposable
 {
     // Keeps "seen ... ago" and the device info current between status changes.
@@ -65,11 +67,11 @@ public partial class Devices(
     {
         if (_devices is null)
         {
-            return "Loading...";
+            return Strings.Common_Loading;
         }
 
         var online = _devices.Count(x => deviceStateStore.GetPresence(x.DeviceId).IsOnline);
-        return $"{online} of {_devices.Count} online";
+        return string.Format(Strings.Common_OnlineOf, online, _devices.Count);
     }
 
     private static List<DeviceAction> OrderActions(IEnumerable<DeviceAction> actions) =>
@@ -96,24 +98,6 @@ public partial class Devices(
         }
     }
 
-    /// <summary>
-    /// Devices name actions as they like, e.g. "start clip garden" or "RESTART"; show them all as a sentence.
-    /// </summary>
-    private static string FormatActionName(string action)
-    {
-        if (string.IsNullOrEmpty(action))
-        {
-            return action;
-        }
-
-        if (!action.Any(char.IsLower))
-        {
-            action = action.ToLowerInvariant();
-        }
-
-        return char.ToUpperInvariant(action[0]) + action[1..];
-    }
-
     private static string GetStatusCssColor(DevicePresence presence) => presence.Status switch
     {
         DevicePresenceStatus.NotResponding => "var(--mud-palette-warning)",
@@ -126,16 +110,16 @@ public partial class Devices(
     {
         if (presence.LastSeenUtc is not { } lastSeen)
         {
-            return "The device has not reported its status yet.";
+            return Strings.Devices_StatusNotReported;
         }
 
         var seen = lastSeen.ToLocalTime().ToString("G");
         return presence.Status switch
         {
-            DevicePresenceStatus.NotResponding => $"The device reports online, but sent nothing since {seen}. It probably lost power or network.",
-            DevicePresenceStatus.Online => $"Last message {seen}. Expected at least every {DisplayFormatter.FormatDuration(presence.HeartbeatInterval)}.",
-            DevicePresenceStatus.Offline => $"The device went offline. Last message {seen}.",
-            _ => $"Unknown status. Last message {seen}."
+            DevicePresenceStatus.NotResponding => string.Format(Strings.Devices_StatusNotResponding, seen),
+            DevicePresenceStatus.Online => string.Format(Strings.Devices_StatusOnline, seen, DisplayFormatter.FormatDuration(presence.HeartbeatInterval)),
+            DevicePresenceStatus.Offline => string.Format(Strings.Devices_StatusOffline, seen),
+            _ => string.Format(Strings.Devices_StatusUnknown, seen)
         };
     }
 
@@ -171,7 +155,7 @@ public partial class Devices(
         {
             { x => x.Model, new DeviceEditModel { Name = device.Name, Description = device.Description } }
         };
-        var dialog = await dialogService.ShowAsync<DeviceEditDialog>($"Edit {device.Name}", parameters, EditorOptions);
+        var dialog = await dialogService.ShowAsync<DeviceEditDialog>(string.Format(Strings.Common_EditTitle, device.Name), parameters, EditorOptions);
         if (await dialog.Result is not { Canceled: false, Data: DeviceEditModel model })
         {
             return;
@@ -186,14 +170,19 @@ public partial class Devices(
         var usages = await deviceService.GetWorkflowUsagesAsync(device.Id);
         if (usages.Count > 0)
         {
-            snackbar.Add($"'{device.Name}' is used by workflows: {string.Join(", ", usages)}. Remove it from those workflows first.", Severity.Warning);
+            snackbar.Add(string.Format(Strings.Device_UsedByWorkflows, device.Name, string.Join(", ", usages)), Severity.Warning);
             return;
         }
 
         var message = deviceStateStore.IsOnline(device.DeviceId)
-            ? $"'{device.Name}' is online, so it registers again the next time it connects. Delete it anyway?"
-            : $"Are you sure you want to delete '{device.Name}'?";
-        if (await dialogService.ConfirmAsync("Delete device", message))
+            ? string.Format(Strings.Devices_DeleteOnline, device.Name)
+            : string.Format(Strings.Devices_DeleteConfirm, device.Name);
+        if (await widgetService.CountForDeviceAsync(device.Id) is var widgets and > 0)
+        {
+            message += widgets == 1 ? Strings.Devices_DeleteWidget : string.Format(Strings.Devices_DeleteWidgets, widgets);
+        }
+
+        if (await dialogService.ConfirmAsync(Strings.Devices_DeleteTitle, message))
         {
             snackbar.Add(await deviceService.DeleteAsync(device.Id), Severity.Warning);
             await ReloadAsync();

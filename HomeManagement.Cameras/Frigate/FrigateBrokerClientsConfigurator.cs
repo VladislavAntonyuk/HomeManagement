@@ -30,6 +30,15 @@ public sealed class FrigateBrokerClientsConfigurator(IOptions<CamerasOptions> op
                     .WithAtLeastOnceQoS()
                     .OnError(policy => policy.Retry(3).ThenSkip()))
                 .Consume(endpoint => endpoint
+                    .ConsumeFrom(FrigateTopics.Stats)
+                    .DeserializeJson(serializer => serializer.Configure(o =>
+                    {
+                        o.PropertyNameCaseInsensitive = true;
+                        o.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+                    }).UseModel<FrigateStatsMessage>().IgnoreMessageTypeHeader())
+                    // The next stats come within a minute, so a broken one is only skipped.
+                    .OnError(policy => policy.Skip()))
+                .Consume(endpoint => endpoint
                     .ConsumeFrom(FrigateTopics.Available)
                     .ConsumeStrings(serializer => serializer.UseDiscriminator<FrigateAvailabilityPayload>())
                     .WithAtLeastOnceQoS())

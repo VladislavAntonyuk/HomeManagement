@@ -17,7 +17,7 @@ public interface IDeviceHandler
     }
 
     /// <summary>
-    /// Actions of the device, without the built-in info action.
+    /// Actions of the device.
     /// </summary>
     IReadOnlyList<DeviceAction> GetActions();
 
@@ -38,7 +38,14 @@ public interface IDeviceHandler
     Task WaitUntilReadyAsync(CancellationToken token) => Task.CompletedTask;
 
     /// <summary>
-    /// Metrics published in the device info.
+    /// Address published in the device info: the machine the device runs on by default.
+    /// A device that bridges to hardware elsewhere, e.g. through a cloud, returns the address of that hardware, or null when it is not known.
+    /// </summary>
+    string? GetAddress() => HostInfo.LocalIpAddress;
+
+    /// <summary>
+    /// Metrics published in the device info: those of the machine the device runs on by default.
+    /// A device that bridges to hardware elsewhere returns the metrics of that hardware instead.
     /// </summary>
     IReadOnlyDictionary<string, string> GetMetrics() => DeviceMetrics.GetDefault();
 }

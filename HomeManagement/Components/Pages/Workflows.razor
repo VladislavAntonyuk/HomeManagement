@@ -4,17 +4,17 @@
 @using Workflow = HomeManagement.Infrastructure.Database.Entities.Workflow
 @attribute [Authorize]
 
-<PageTitle>Workflows</PageTitle>
+<PageTitle>@Strings.Nav_Workflows</PageTitle>
 
 <div class="workflows">
-    <PageHeader Title="Workflows" Subtitle="@Summary()">
-        <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="Search workflows"
+    <PageHeader Title="@Strings.Nav_Workflows" Subtitle="@Summary()">
+        <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="@Strings.Workflows_Search"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
-        <MudTooltip Text="Refresh">
-            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Variant="Variant.Outlined" aria-label="Refresh" OnClick="ReloadAsync" />
+        <MudTooltip Text="@Strings.Common_Refresh">
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Variant="Variant.Outlined" aria-label="@Strings.Common_Refresh" OnClick="ReloadAsync" />
         </MudTooltip>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddAsync">Add</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddAsync">@Strings.Common_Add</MudButton>
     </PageHeader>
 
     @if (_workflows is null)
@@ -30,15 +30,15 @@
     {
         <div class="workflows-empty">
             <MudIcon Icon="@WorkflowIcons.Workflow" Size="Size.Large" Class="mud-text-secondary" />
-            <MudText Typo="Typo.body1">No workflows yet.</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">A workflow runs device actions, delays and notifications on a schedule, on device events or on demand.</MudText>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddAsync">Add workflow</MudButton>
+            <MudText Typo="Typo.body1">@Strings.Workflows_Empty</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Strings.Workflows_EmptyHint</MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddAsync">@Strings.Workflows_AddWorkflow</MudButton>
         </div>
     }
     else if (FilteredWorkflows().ToList() is { Count: 0 })
     {
         <div class="workflows-empty">
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">No workflows match "@_search".</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@string.Format(Strings.Workflows_NoMatch, _search)</MudText>
         </div>
     }
     else
@@ -57,19 +57,19 @@
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary workflow-description">@workflow.Description</MudText>
                             }
                         </div>
-                        <MudTooltip Text="@(workflow.IsEnabled ? "Enabled: runs when its triggers match" : "Disabled: runs only manually")">
+                        <MudTooltip Text="@(workflow.IsEnabled ? Strings.Workflows_EnabledTooltip : Strings.Workflows_DisabledTooltip)">
                             <MudSwitch T="bool" Value="workflow.IsEnabled" ValueChanged="enabled => SetEnabledAsync(workflow, enabled)"
-                                       Color="Color.Success" Class="workflow-switch" aria-label="@($"Enable {workflow.Name}")" />
+                                       Color="Color.Success" Class="workflow-switch" aria-label="@string.Format(Strings.Workflows_EnableAria, workflow.Name)" />
                         </MudTooltip>
-                        <CardMenu Label="@($"{workflow.Name} options")" OnEdit="() => EditAsync(workflow)" OnDelete="() => DeleteAsync(workflow)" />
+                        <CardMenu Label="@string.Format(Strings.Common_Options, workflow.Name)" OnEdit="() => EditAsync(workflow)" OnDelete="() => DeleteAsync(workflow)" />
                     </div>
 
                     <div class="workflow-section">
                         <div class="workflow-section-label">
-                            <MudText Typo="Typo.overline" Class="mud-text-secondary">When</MudText>
+                            <MudText Typo="Typo.overline" Class="mud-text-secondary">@Strings.Workflows_When</MudText>
                             @if (workflow.Triggers.Count > 0)
                             {
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">· @(workflow.RepeatWhileMatched ? "repeats while matched" : "once per match")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">· @(workflow.RepeatWhileMatched ? Strings.Workflows_RepeatsWhileMatched : Strings.Workflows_OncePerMatch)</MudText>
                             }
                         </div>
                         @if (workflow.Triggers.Count == 0)
@@ -87,7 +87,7 @@
                                     var trigger = workflow.Triggers[i];
                                     @if (i > 0)
                                     {
-                                        <span class="workflow-operator">@workflow.ConditionOperator.ToString().ToUpperInvariant()</span>
+                                        <span class="workflow-operator">@WorkflowFormatter.FormatConditionOperator(workflow.ConditionOperator)</span>
                                     }
                                     <div class="workflow-trigger">
                                         <MudIcon Icon="@TriggerIcon(trigger)" Size="Size.Small" />
@@ -100,11 +100,11 @@
 
                     <div class="workflow-section">
                         <div class="workflow-section-label">
-                            <MudText Typo="Typo.overline" Class="mud-text-secondary">Then</MudText>
+                            <MudText Typo="Typo.overline" Class="mud-text-secondary">@Strings.Workflows_Then</MudText>
                         </div>
                         @if (workflow.Steps.Count == 0)
                         {
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">No steps</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Strings.Workflows_NoSteps</MudText>
                         }
                         else
                         {
@@ -122,7 +122,7 @@
 
                     <div class="workflow-card-footer">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary" title="@workflow.LastTriggeredAtUtc?.ToLocalTime().ToString("G")">
-                            Last run @DisplayFormatter.FormatAgo(workflow.LastTriggeredAtUtc, Now)
+                            @string.Format(Strings.Workflows_LastRun, DisplayFormatter.FormatAgo(workflow.LastTriggeredAtUtc, Now))
                         </MudText>
                         <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="isRunning"
                                    StartIcon="@(isRunning ? null : Icons.Material.Filled.PlayArrow)" Class="workflow-run"
@@ -131,7 +131,7 @@
                             {
                                 <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="workflow-run-spinner" />
                             }
-                            Run
+                            @Strings.Common_Run
                         </MudButton>
                     </div>
                 </section>

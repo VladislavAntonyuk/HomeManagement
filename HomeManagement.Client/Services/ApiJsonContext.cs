@@ -6,6 +6,7 @@ namespace HomeManagement.Client.Services;
 
 [JsonSourceGenerationOptions(JsonSerializerDefaults.Web, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(DashboardDto))]
+[JsonSerializable(typeof(List<DashboardWidgetDto>))]
 [JsonSerializable(typeof(OperationResultDto))]
 [JsonSerializable(typeof(SetEnabledRequest))]
 [JsonSerializable(typeof(List<DeviceDto>))]

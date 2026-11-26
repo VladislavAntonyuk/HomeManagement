@@ -2,11 +2,13 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using HomeManagement.Shared.Resources;
 
 namespace HomeManagement.Shared.Api;
 
 /// <summary>
 /// Text for people, shared by the hub web UI, the MCP tools and the app, so all of them show the same words.
+/// Words and numbers follow <see cref="CultureInfo.CurrentUICulture"/> and <see cref="CultureInfo.CurrentCulture"/>.
 /// </summary>
 public static partial class DisplayFormatter
 {
@@ -14,37 +16,40 @@ public static partial class DisplayFormatter
 
     public static string FormatAgo(DateTimeOffset value, DateTimeOffset now) => (now - value) switch
     {
-        { TotalSeconds: < 10 } => "just now",
-        { TotalMinutes: < 1 } elapsed => $"{(int)elapsed.TotalSeconds} s ago",
-        { TotalHours: < 1 } elapsed => $"{(int)elapsed.TotalMinutes} min ago",
-        { TotalDays: < 1 } elapsed => $"{(int)elapsed.TotalHours} h ago",
-        var elapsed => $"{(int)elapsed.TotalDays} d ago"
+        { TotalSeconds: < 10 } => SharedStrings.JustNow,
+        { TotalMinutes: < 1 } elapsed => Format(SharedStrings.SecondsAgo, (int)elapsed.TotalSeconds),
+        { TotalHours: < 1 } elapsed => Format(SharedStrings.MinutesAgo, (int)elapsed.TotalMinutes),
+        { TotalDays: < 1 } elapsed => Format(SharedStrings.HoursAgo, (int)elapsed.TotalHours),
+        var elapsed => Format(SharedStrings.DaysAgo, (int)elapsed.TotalDays)
     };
 
-    public static string FormatAgo(DateTimeOffset? value, DateTimeOffset now, string never = "never")
-        => value is { } date ? FormatAgo(date, now) : never;
+    /// <summary>
+    /// Like <see cref="FormatAgo(DateTimeOffset, DateTimeOffset)"/>, or <paramref name="never"/>, "never" by default, when there is no date.
+    /// </summary>
+    public static string FormatAgo(DateTimeOffset? value, DateTimeOffset now, string? never = null)
+        => value is { } date ? FormatAgo(date, now) : never ?? SharedStrings.Never;
 
     public static string FormatDuration(TimeSpan value)
     {
         if (value.TotalMinutes < 1)
         {
-            return $"{(int)value.TotalSeconds} s";
+            return Format(SharedStrings.DurationSeconds, (int)value.TotalSeconds);
         }
 
         List<string> parts = [with(capacity: 2)];
         if (value.Days > 0)
         {
-            parts.Add($"{value.Days} d");
+            parts.Add(Format(SharedStrings.DurationDays, value.Days));
         }
 
         if (value.Hours > 0)
         {
-            parts.Add($"{value.Hours} h");
+            parts.Add(Format(SharedStrings.DurationHours, value.Hours));
         }
 
         if (value.Days == 0 && value.Minutes > 0)
         {
-            parts.Add($"{value.Minutes} min");
+            parts.Add(Format(SharedStrings.DurationMinutes, value.Minutes));
         }
 
         return string.Join(' ', parts);
@@ -59,10 +64,10 @@ public static partial class DisplayFormatter
         double? number = double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
         return (name, number) switch
         {
-            ("UptimeSeconds", { } seconds) => ("Uptime", FormatDuration(TimeSpan.FromSeconds(seconds))),
-            ("Rssi", { } rssi) => ("Wi-Fi signal", $"{rssi.ToString(CultureInfo.InvariantCulture)} dBm"),
-            ("FreeHeap", { } bytes) => ("Free memory", FormatBytes(bytes)),
-            ("Temperature", { } celsius) => ("Temperature", $"{celsius.ToString("0.#", CultureInfo.InvariantCulture)} °C"),
+            ("UptimeSeconds", { } seconds) => (SharedStrings.MetricUptime, FormatDuration(TimeSpan.FromSeconds(seconds))),
+            ("Rssi", { } rssi) => (SharedStrings.MetricWifiSignal, $"{rssi.ToString(CultureInfo.CurrentCulture)} dBm"),
+            ("FreeHeap", { } bytes) => (SharedStrings.MetricFreeMemory, FormatBytes((long)bytes)),
+            ("Temperature", { } celsius) => (SharedStrings.MetricTemperature, FormatTemperature(celsius)),
             _ => (ToLabel(name), value)
         };
     }
@@ -83,6 +88,47 @@ public static partial class DisplayFormatter
     {
         var text = TryFlatten(message) ?? message;
         return text.Length > MaxResultLength ? $"{text[..MaxResultLength]}..." : text;
+    }
+
+    /// <summary>
+    /// Shows the value of a dashboard widget: a single value gets its unit, e.g. "21.5 °C", anything longer is shown as <see cref="FormatActionResult"/>.
+    /// </summary>
+    public static string FormatWidgetValue(string value, string? unit)
+    {
+        var text = FormatActionResult(value);
+        return string.IsNullOrWhiteSpace(unit) || text.Contains('\n') ? text : $"{text} {unit.Trim()}";
+    }
+
+    /// <summary>
+    /// The label of a value a widget shows: the one the user gave it, or one made from the last part of its path, e.g. "$.battery.levelPercent" as "Level percent".
+    /// </summary>
+    public static string FormatPropertyLabel(string path, string? label)
+    {
+        if (!string.IsNullOrWhiteSpace(label))
+        {
+            return label;
+        }
+
+        var name = path[(path.LastIndexOf('.') + 1)..];
+        return name.StartsWith('$') ? SharedStrings.Value : ToLabel(name);
+    }
+
+    /// <summary>
+    /// Devices name actions as they like, e.g. "start clip garden" or "RESTART"; shows them all as a sentence.
+    /// </summary>
+    public static string FormatActionName(string action)
+    {
+        if (string.IsNullOrEmpty(action))
+        {
+            return action;
+        }
+
+        if (!action.Any(char.IsLower))
+        {
+            action = action.ToLowerInvariant();
+        }
+
+        return char.ToUpperInvariant(action[0]) + action[1..];
     }
 
     private static string? TryFlatten(string message)
@@ -142,12 +188,21 @@ public static partial class DisplayFormatter
         }
     }
 
-    private static string FormatBytes(double bytes) => bytes switch
+    /// <summary>
+    /// Shows a size in the biggest unit it has at least one of, e.g. "1.5 GB".
+    /// </summary>
+    public static string FormatBytes(long bytes) => bytes switch
     {
-        < 1024 => $"{bytes.ToString(CultureInfo.InvariantCulture)} B",
-        < 1024 * 1024 => $"{(bytes / 1024).ToString("0.#", CultureInfo.InvariantCulture)} KB",
-        _ => $"{(bytes / 1024 / 1024).ToString("0.#", CultureInfo.InvariantCulture)} MB"
+        < 1024 => Format(SharedStrings.SizeBytes, bytes),
+        < 1024L * 1024 => Format(SharedStrings.SizeKilobytes, (bytes / 1024.0).ToString("0.#", CultureInfo.CurrentCulture)),
+        < 1024L * 1024 * 1024 => Format(SharedStrings.SizeMegabytes, (bytes / 1024.0 / 1024).ToString("0.#", CultureInfo.CurrentCulture)),
+        < 1024L * 1024 * 1024 * 1024 => Format(SharedStrings.SizeGigabytes, (bytes / 1024.0 / 1024 / 1024).ToString("0.#", CultureInfo.CurrentCulture)),
+        _ => Format(SharedStrings.SizeTerabytes, (bytes / 1024.0 / 1024 / 1024 / 1024).ToString("0.##", CultureInfo.CurrentCulture))
     };
+
+    public static string FormatTemperature(double celsius) => $"{celsius.ToString("0.#", CultureInfo.CurrentCulture)} °C";
+
+    private static string Format(string format, object value) => string.Format(CultureInfo.CurrentCulture, format, value);
 
     private static string ToLabel(string name)
     {

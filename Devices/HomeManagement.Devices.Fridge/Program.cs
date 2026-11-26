@@ -191,7 +191,6 @@ public class Program
     {
         var actions = new ArrayList
         {
-            Action("INFO", "Get", InfoKey),
             Action("Temperature", "Get", TemperatureKey)
         };
 

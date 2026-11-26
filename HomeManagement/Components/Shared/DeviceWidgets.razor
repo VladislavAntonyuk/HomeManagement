@@ -1,0 +1,119 @@
+@using CommandType = HomeManagement.Shared.CommandType
+@using HomeManagement.Application.Dashboard
+
+<section class="widgets" aria-label="@Strings.Widgets_Title">
+    <div class="widgets-header">
+        <MudText Typo="Typo.h6" Class="widgets-title">@Strings.Widgets_Title</MudText>
+        @if (_widgets is { Count: > 0 })
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Rounded.Add" OnClick="AddAsync">@Strings.Widgets_Add</MudButton>
+        }
+    </div>
+
+    @if (_widgets is null)
+    {
+        <div class="widgets-grid">
+            @for (var i = 0; i < 2; i++)
+            {
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="140px" Class="widget-skeleton" />
+            }
+        </div>
+    }
+    else if (_widgets.Count == 0)
+    {
+        <div class="widgets-empty">
+            <MudIcon Icon="@Icons.Material.Rounded.Dashboard" Class="mud-text-secondary" />
+            <MudText Typo="Typo.body2" Class="mud-text-secondary widgets-empty-text">@Strings.Widgets_Empty</MudText>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Rounded.Add" OnClick="AddAsync">@Strings.Widgets_Add</MudButton>
+        </div>
+    }
+    else
+    {
+        <div class="widgets-grid">
+            @foreach (var (index, widget) in _widgets.Index())
+            {
+                var action = widget.DeviceAction;
+                var value = widgetService.Read(widget);
+                var title = DashboardWidgetService.GetTitle(widget);
+                var lines = Lines(value);
+                var isRunning = _runningWidgets.Contains(widget.Id);
+                <section @key="widget.Id" class="widget @(value.Presence.IsOnline ? null : "widget-stale")" style="--widget-status-color: @StatusCssColor(value.Presence.Status)">
+                    <div class="widget-header">
+                        <IconBadge Icon="@CommandTypeIcon(action.CommandType)" Accent="@CommandTypeAccent(action.CommandType)" />
+                        <div class="widget-heading">
+                            <MudText Typo="Typo.subtitle2" Class="widget-title" title="@title">@title</MudText>
+                            <MudText Typo="Typo.caption" Class="widget-device">
+                                <span class="widget-status-dot" title="@value.Presence.Status.DisplayName"></span>
+                                <span class="widget-device-name">@action.Device.Name</span>
+                                @if (!value.Presence.IsOnline)
+                                {
+                                    <span class="widget-device-status">· @value.Presence.Status.DisplayName.ToLower(System.Globalization.CultureInfo.CurrentCulture)</span>
+                                }
+                            </MudText>
+                        </div>
+                        @if (action.CommandType == CommandType.Post)
+                        {
+                            <MudTooltip Text="@string.Format(Strings.Widgets_RunTooltip, DisplayFormatter.FormatActionName(action.Action))">
+                                @if (isRunning)
+                                {
+                                    <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="widget-run-progress" />
+                                }
+                                else
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Rounded.PlayArrow" Size="Size.Small" Color="Color.Primary"
+                                                   Disabled="@(!value.Presence.IsOnline)" OnClick="() => RunAsync(widget)"
+                                                   aria-label="@string.Format(Strings.Widgets_RunAria, action.Action, action.Device.Name)" />
+                                }
+                            </MudTooltip>
+                        }
+                        <CardMenu Label="@string.Format(Strings.Common_Options, title)" OnEdit="() => EditAsync(widget)" OnDelete="() => DeleteAsync(widget)">
+                            <MudMenuItem Icon="@Icons.Material.Rounded.ArrowBack" Disabled="@(index == 0)" OnClick="() => MoveAsync(widget, -1)">@Strings.Widgets_MoveEarlier</MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Rounded.ArrowForward" Disabled="@(index == _widgets.Count - 1)" OnClick="() => MoveAsync(widget, 1)">@Strings.Widgets_MoveLater</MudMenuItem>
+                        </CardMenu>
+                    </div>
+
+                    <div class="widget-body">
+                        @if (value.Message is { } message)
+                        {
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@message</MudText>
+                        }
+                        else if (value.IsError)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Error" Class="widget-error">@value.Output</MudText>
+                        }
+                        else if (lines is [{ Label: null } single])
+                        {
+                            <MudText Typo="Typo.h5" Class="widget-value" title="@single.Value">@single.Value</MudText>
+                        }
+                        else
+                        {
+                            <dl class="widget-lines @(value.Properties.Count > 0 ? "widget-lines-chosen" : null)">
+                                @foreach (var line in lines)
+                                {
+                                    <div>
+                                        @if (line.Label is { } label)
+                                        {
+                                            <dt>@label</dt>
+                                            <dd class="@(line.IsMissing ? "widget-line-missing" : null)" title="@(line.IsMissing ? Strings.Widgets_NotInOutput : null)">@line.Value</dd>
+                                        }
+                                        else
+                                        {
+                                            <dd class="widget-line-text">@line.Value</dd>
+                                        }
+                                    </div>
+                                }
+                            </dl>
+                        }
+                    </div>
+
+                    @if (value.UpdatedAtUtc is { } updatedAt)
+                    {
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary widget-updated" title="@updatedAt.ToLocalTime().ToString("G")">
+                            @string.Format(Strings.Widgets_Updated, DisplayFormatter.FormatAgo(updatedAt, Now))
+                        </MudText>
+                    }
+                </section>
+            }
+        </div>
+    }
+</section>

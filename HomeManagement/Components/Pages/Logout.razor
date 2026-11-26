@@ -1,12 +1,12 @@
 @page "/Account/Logout"
 
-<PageTitle>Log out</PageTitle>
+<PageTitle>@Strings.Nav_LogOut</PageTitle>
 
-<AuthCard Title="Log out?" Subtitle="You will need your key to sign in again.">
+<AuthCard Title="@Strings.Logout_Title" Subtitle="@Strings.Logout_Subtitle">
     <form method="post" action="api/account/logout" class="logout-form">
         <AntiforgeryToken />
         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
-                   FullWidth="true" StartIcon="@Icons.Material.Rounded.Logout">Log out</MudButton>
-        <MudButton Href="/" Variant="Variant.Text" FullWidth="true">Cancel</MudButton>
+                   FullWidth="true" StartIcon="@Icons.Material.Rounded.Logout">@Strings.Nav_LogOut</MudButton>
+        <MudButton Href="/" Variant="Variant.Text" FullWidth="true">@Strings.Common_Cancel</MudButton>
     </form>
 </AuthCard>

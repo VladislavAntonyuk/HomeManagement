@@ -17,6 +17,7 @@ builder.AddServiceDefaults();
 
 builder.AddDatabase();
 
+builder.AddLocalizationSupport();
 builder.Services.AddMudServices();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -56,6 +57,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+app.UseRequestLocalization();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -65,6 +67,7 @@ app.UseAntiforgery();
 app.UseCameras();
 app.MapStaticAssets();
 app.MapLogin();
+app.MapCultureEndpoint();
 app.MapHomeApi();
 
 app.MapMcp("/mcp")

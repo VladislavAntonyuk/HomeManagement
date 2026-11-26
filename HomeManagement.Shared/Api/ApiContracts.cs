@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using HomeManagement.Shared.Resources;
 
 namespace HomeManagement.Shared.Api;
 
@@ -7,6 +8,7 @@ public static class ApiRoutes
     public const string ApiKeyHeader = "X-API-Key";
 
     public const string Dashboard = "/api/dashboard";
+    public const string DashboardWidgets = "/api/dashboard/widgets";
     public const string Devices = "/api/devices";
     public const string DeviceAction = "/api/devices/{deviceId}/actions/{actionId}";
     public const string Workflows = "/api/workflows";
@@ -36,10 +38,10 @@ public static class DevicePresenceStatusExtensions
     {
         public string DisplayName => status switch
         {
-            DevicePresenceStatus.Online => "Online",
-            DevicePresenceStatus.Offline => "Offline",
-            DevicePresenceStatus.NotResponding => "Not responding",
-            _ => "Unknown"
+            DevicePresenceStatus.Online => SharedStrings.StatusOnline,
+            DevicePresenceStatus.Offline => SharedStrings.StatusOffline,
+            DevicePresenceStatus.NotResponding => SharedStrings.StatusNotResponding,
+            _ => SharedStrings.StatusUnknown
         };
     }
 }
@@ -62,6 +64,38 @@ public sealed record DashboardDto(
     int EnabledWorkflows,
     DateTimeOffset? LastWorkflowRunAtUtc,
     HubInfoDto Hub);
+
+/// <summary>
+/// A value of the output a widget shows.
+/// </summary>
+/// <param name="Path">JSON path of the value, e.g. "$.temperature".</param>
+/// <param name="Label">The label the user gave the value, or null to make one from the path.</param>
+/// <param name="Value">The raw value, or null when the output does not have it.</param>
+public sealed record DashboardWidgetPropertyDto(string Path, string? Label, string? Unit, string? Value);
+
+/// <summary>
+/// The output of a device action, pinned to the home screen.
+/// </summary>
+/// <param name="Title">The title the user gave the widget, or the action name.</param>
+/// <param name="Output">The raw output when the widget shows all of it, or the error of a failed command.</param>
+/// <param name="Properties">The values the widget shows, in order. Empty when it shows the whole output, or there is no output.</param>
+/// <param name="IsError">The output is an error the device answered a command with.</param>
+/// <param name="UpdatedAtUtc">When the device reported the output.</param>
+/// <param name="Message">Why there is nothing to show, e.g. the device has not reported the value yet.</param>
+public sealed record DashboardWidgetDto(
+    int Id,
+    string Title,
+    int DeviceId,
+    string DeviceName,
+    int ActionId,
+    string ActionName,
+    CommandType CommandType,
+    DevicePresenceStatus Status,
+    string? Output,
+    IReadOnlyList<DashboardWidgetPropertyDto> Properties,
+    bool IsError,
+    DateTimeOffset? UpdatedAtUtc,
+    string? Message);
 
 public sealed record DeviceActionDto(int Id, string Name, CommandType CommandType);
 

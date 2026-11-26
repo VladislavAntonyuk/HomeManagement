@@ -4,6 +4,7 @@
       <Deploy />
     </Project>
     <Project Path="Devices/HomeManagement.Devices.ProcessDevice/HomeManagement.Devices.ProcessDevice.csproj" Id="8e7fa9c3-22c2-45e5-bd56-b3b8937f5eb6" />
+    <Project Path="Devices/HomeManagement.Devices.TuyaPlug/HomeManagement.Devices.TuyaPlug.csproj" />
   </Folder>
   <Folder Name="/Devices/BluetoothGpioController/">
     <File Path="Devices/BluetoothGpioController/README.md" />

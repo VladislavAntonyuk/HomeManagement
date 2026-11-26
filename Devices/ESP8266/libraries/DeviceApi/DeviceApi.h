@@ -30,7 +30,7 @@ struct MqttSettings {
 
 // The device in the protocol of HomeManagement/DeviceProtocol.md: connects to the MQTT broker with MQTT v5,
 // publishes its twin, status (with an "offline" last will) and telemetry, and executes commands.
-// INFO, RESTART and SHUTDOWN are built in. Requires the H4 scheduler: declare `H4 h4(baud);` in the sketch.
+// RESTART and SHUTDOWN are built in. Requires the H4 scheduler: declare `H4 h4(baud);` in the sketch.
 class MqttDevice {
 public:
   using CommandHandler = std::function<CommandResult(const String& command)>;

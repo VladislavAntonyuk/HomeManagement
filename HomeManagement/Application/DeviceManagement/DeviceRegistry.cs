@@ -96,13 +96,16 @@ public sealed class DeviceRegistry(
             .Concat(dbContext.Set<DeviceResultTrigger>()
                 .Where(x => removedIds.Contains(x.DeviceActionId))
                 .Select(x => x.DeviceActionId))
+            .Concat(dbContext.DashboardWidgets
+                .Where(x => removedIds.Contains(x.DeviceActionId))
+                .Select(x => x.DeviceActionId))
             .ToHashSetAsync(token);
 
         foreach (var action in removed)
         {
             if (usedIds.Contains(action.Id))
             {
-                logger.LogWarning("Device '{Name}' no longer reports action '{Action}', but it is kept because workflows use it.", device.Name, action.Action);
+                logger.LogWarning("Device '{Name}' no longer reports action '{Action}', but it is kept because workflows or dashboard widgets use it.", device.Name, action.Action);
                 continue;
             }
 

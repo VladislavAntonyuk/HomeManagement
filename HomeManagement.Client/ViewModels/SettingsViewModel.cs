@@ -1,11 +1,41 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HomeManagement.Client.Services;
 
 namespace HomeManagement.Client.ViewModels;
 
-public sealed partial class SettingsViewModel(HubSettings settings, IHomeManagementApi api) : ObservableObject
+public sealed partial class SettingsViewModel : ObservableObject
 {
+    private readonly HubSettings _settings;
+    private readonly IHomeManagementApi _api;
+    private readonly AppLanguage _language;
+
+    public SettingsViewModel(HubSettings settings, IHomeManagementApi api, AppLanguage language)
+    {
+        _settings = settings;
+        _api = api;
+        _language = language;
+        Languages =
+        [
+            new(AppLanguage.SystemDefault, AppResources.LanguageSystem),
+            new(AppLanguage.English, "English"),
+            new(AppLanguage.Ukrainian, "Українська")
+        ];
+        SelectedLanguage = Languages.First(x => x.Code == language.Code);
+    }
+
+    /// <summary>
+    /// The languages to pick from. Each language is named in itself.
+    /// </summary>
+    public LanguageOption[] Languages { get; }
+
+    /// <summary>
+    /// Changing it applies the language and rebuilds the pages.
+    /// </summary>
+    [ObservableProperty]
+    public partial LanguageOption SelectedLanguage { get; set; }
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     public partial string? HubUrl { get; set; }
@@ -25,10 +55,12 @@ public sealed partial class SettingsViewModel(HubSettings settings, IHomeManagem
     [RelayCommand]
     private async Task AppearingAsync()
     {
-        await settings.LoadAsync();
-        HubUrl ??= settings.HubUri?.ToString() ?? HubSettings.DefaultHubUrl;
-        ApiKey ??= settings.ApiKey;
+        await _settings.LoadAsync();
+        HubUrl ??= _settings.HubUri?.ToString() ?? HubSettings.DefaultHubUrl;
+        ApiKey ??= _settings.ApiKey;
     }
+
+    partial void OnSelectedLanguageChanged(LanguageOption value) => _language.Set(value.Code);
 
     private bool CanSave() => HubSettings.TryParseHubUrl(HubUrl, out _) && !string.IsNullOrWhiteSpace(ApiKey);
 
@@ -40,19 +72,27 @@ public sealed partial class SettingsViewModel(HubSettings settings, IHomeManagem
             return;
         }
 
-        await settings.SaveAsync(hubUri, ApiKey.Trim());
+        await _settings.SaveAsync(hubUri, ApiKey.Trim());
         HubUrl = hubUri.ToString();
-        ConnectionStatus = "Connecting...";
+        ConnectionStatus = AppResources.Connecting;
         IsConnected = false;
         try
         {
-            var dashboard = await api.GetDashboardAsync();
+            var dashboard = await _api.GetDashboardAsync();
             IsConnected = true;
-            ConnectionStatus = $"Saved. Connected to {dashboard.Hub.MachineName}: {dashboard.TotalDevices} devices, {dashboard.TotalWorkflows} workflows.";
+            ConnectionStatus = string.Format(CultureInfo.CurrentCulture, AppResources.ConnectedSummary, dashboard.Hub.MachineName, dashboard.TotalDevices, dashboard.TotalWorkflows);
         }
         catch (Exception e)
         {
             ConnectionStatus = ApiErrors.ToMessage(e);
         }
     }
+}
+
+/// <summary>
+/// A language the app can be shown in. An empty code follows the system language.
+/// </summary>
+public sealed record LanguageOption(string Code, string Name)
+{
+    public override string ToString() => Name;
 }

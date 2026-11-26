@@ -8,6 +8,9 @@ public interface IHomeManagementApi
     [Get(ApiRoutes.Dashboard)]
     Task<DashboardDto> GetDashboardAsync(CancellationToken token = default);
 
+    [Get(ApiRoutes.DashboardWidgets)]
+    Task<List<DashboardWidgetDto>> GetDashboardWidgetsAsync(CancellationToken token = default);
+
     [Get(ApiRoutes.Devices)]
     Task<List<DeviceDto>> GetDevicesAsync(CancellationToken token = default);
 

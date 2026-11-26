@@ -1,0 +1,120 @@
+@using CommandType = HomeManagement.Shared.CommandType
+@using HomeManagement.Infrastructure.Database.Entities
+
+<MudDialog>
+    <TitleContent>
+        <DialogTitle Icon="@Icons.Material.Rounded.Dashboard" Accent="Color.Info" Title="@DialogReference.Title"
+                     Subtitle="@Strings.WidgetEdit_Subtitle" />
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <div class="widget-form">
+                <MudSelect T="int?" Value="@Model.DeviceId" ValueChanged="OnDeviceChanged" Label="@Strings.Common_Device" Required="true" RequiredError="@Strings.Validation_ChooseDevice"
+                           ToStringFunc="DeviceName" Variant="Variant.Outlined">
+                    @foreach (var device in Devices)
+                    {
+                        <MudSelectItem T="int?" Value="@device.Id">@device.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="int?" Value="@Model.ActionId" ValueChanged="OnActionChanged" Label="@Strings.Common_Action" Required="true" RequiredError="@Strings.Validation_ChooseAction"
+                           Disabled="@(Model.DeviceId is null)" ToStringFunc="ActionName" Variant="Variant.Outlined">
+                    @foreach (var action in Actions)
+                    {
+                        <MudSelectItem T="int?" Value="@action.Id">
+                            <div class="widget-action-option">
+                                <span>@DisplayFormatter.FormatActionName(action.Action)</span>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@CommandTypeName(action.CommandType)</MudText>
+                            </div>
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                @if (SelectedAction is { } selected)
+                {
+                    <div class="widget-full widget-output">
+                        <div class="widget-output-header">
+                            <MudText Typo="Typo.subtitle2">@Strings.WidgetEdit_CurrentOutput</MudText>
+                            @if (selected.CommandType == CommandType.Post)
+                            {
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Rounded.PlayArrow"
+                                           OnClick="RunActionAsync" Disabled="_isRunning">
+                                    @(_isRunning ? Strings.Common_Running : Strings.WidgetEdit_RunAction)
+                                </MudButton>
+                            }
+                        </div>
+                        @if (selected.CommandType == CommandType.Post)
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@Strings.WidgetEdit_PostHelp</MudText>
+                        }
+
+                        @if (_preview is null)
+                        {
+                            <MudSkeleton Height="40px" />
+                        }
+                        else
+                        {
+                            @if (_preview.Message is { } message)
+                            {
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">@message</MudText>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(_preview.RawOutput))
+                            {
+                                <pre class="widget-raw-output">@_preview.RawOutput</pre>
+                            }
+                        }
+                    </div>
+
+                    <MudTextField @bind-Value="Model.Title" Label="@Strings.Common_Title" Placeholder="@DisplayFormatter.FormatActionName(selected.Action)" Class="widget-full"
+                                  Variant="Variant.Outlined" MaxLength="100" HelperText="@Strings.WidgetEdit_TitleHelp" />
+
+                    <MudSelect T="string" MultiSelection="true" SelectedValues="SelectedPaths" SelectedValuesChanged="OnPropertiesChanged"
+                               Label="@Strings.WidgetEdit_Show" Placeholder="@Strings.WidgetEdit_WholeOutput" Variant="Variant.Outlined" Class="widget-full"
+                               MultiSelectionTextFunc="PropertiesText" Clearable="true"
+                               HelperText="@Strings.WidgetEdit_ShowHelp">
+                        @foreach (var option in PropertyOptions)
+                        {
+                            <MudSelectItem T="string" Value="@option.Path">
+                                <div class="widget-action-option">
+                                    <span>@option.Path</span>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@option.Sample</MudText>
+                                </div>
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+
+                    @if (Model.Properties.Count > 0)
+                    {
+                        <div class="widget-full widget-properties">
+                            @foreach (var (index, property) in Model.Properties.Index())
+                            {
+                                <div @key="property.Path" class="widget-property">
+                                    <div class="widget-property-header">
+                                        <MudText Typo="Typo.body2" Class="widget-property-path">@property.Path</MudText>
+                                        <MudIconButton Icon="@Icons.Material.Rounded.ArrowUpward" Size="Size.Small" Disabled="@(index == 0)"
+                                                       OnClick="() => Move(property, -1)" aria-label="@string.Format(Strings.WidgetEdit_MovePropertyUp, property.Path)" />
+                                        <MudIconButton Icon="@Icons.Material.Rounded.ArrowDownward" Size="Size.Small" Disabled="@(index == Model.Properties.Count - 1)"
+                                                       OnClick="() => Move(property, 1)" aria-label="@string.Format(Strings.WidgetEdit_MovePropertyDown, property.Path)" />
+                                        <MudIconButton Icon="@Icons.Material.Rounded.Close" Size="Size.Small"
+                                                       OnClick="() => Model.Properties.Remove(property)" aria-label="@string.Format(Strings.WidgetEdit_RemoveProperty, property.Path)" />
+                                    </div>
+                                    <div class="widget-property-fields">
+                                        <MudTextField @bind-Value="property.Label" Label="@Strings.WidgetEdit_Label" Placeholder="@DisplayFormatter.FormatPropertyLabel(property.Path, null)"
+                                                      Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="50" />
+                                        <MudTextField @bind-Value="property.Unit" Label="@Strings.WidgetEdit_Unit" Placeholder="@Strings.WidgetEdit_UnitPlaceholder"
+                                                      Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="20" />
+                                    </div>
+                                </div>
+                            }
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@Strings.WidgetEdit_LabelsHelp</MudText>
+                        </div>
+                    }
+                }
+            </div>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" OnClick="Cancel">@Strings.Common_Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Rounded.Check" OnClick="Save">@Strings.Common_Save</MudButton>
+    </DialogActions>
+</MudDialog>

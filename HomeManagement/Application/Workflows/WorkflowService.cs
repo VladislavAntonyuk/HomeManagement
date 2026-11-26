@@ -33,28 +33,28 @@ public sealed class WorkflowService(
     }
 
     public Task<OperationResult> RunAsync(int id, CancellationToken token = default)
-        => RunAsync(x => x.Id == id, "Workflow not found.", token);
+        => RunAsync(x => x.Id == id, Strings.Workflow_NotFound, token);
 
     public Task<OperationResult> RunAsync(string name, CancellationToken token = default)
-        => RunAsync(x => x.Name == name, $"Workflow '{name}' not found.", token);
+        => RunAsync(x => x.Name == name, string.Format(Strings.Workflow_NotFoundNamed, name), token);
 
     public Task<OperationResult> SetEnabledAsync(int id, bool enabled, CancellationToken token = default)
-        => SetEnabledAsync(x => x.Id == id, enabled, "Workflow not found.", token);
+        => SetEnabledAsync(x => x.Id == id, enabled, Strings.Workflow_NotFound, token);
 
     public Task<OperationResult> SetEnabledAsync(string name, bool enabled, CancellationToken token = default)
-        => SetEnabledAsync(x => x.Name == name, enabled, $"Workflow '{name}' not found.", token);
+        => SetEnabledAsync(x => x.Name == name, enabled, string.Format(Strings.Workflow_NotFoundNamed, name), token);
 
     public async Task<OperationResult> AddAsync(Workflow workflow, CancellationToken token = default)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(token);
         if (await db.Workflows.AnyAsync(x => x.Name == workflow.Name, token))
         {
-            return OperationResult.Failure($"Another workflow is already called '{workflow.Name}'.");
+            return OperationResult.Failure(string.Format(Strings.Workflow_NameTaken, workflow.Name));
         }
 
         db.Workflows.Add(workflow);
         await db.SaveChangesAsync(token);
-        return OperationResult.Success($"Workflow '{workflow.Name}' added.");
+        return OperationResult.Success(string.Format(Strings.Workflow_Added, workflow.Name));
     }
 
     public async Task<OperationResult> UpdateAsync(int id, Workflow updated, CancellationToken token = default)
@@ -67,12 +67,12 @@ public sealed class WorkflowService(
             .FirstOrDefaultAsync(x => x.Id == id, token);
         if (workflow is null)
         {
-            return OperationResult.NotFound("Workflow not found.");
+            return OperationResult.NotFound(Strings.Workflow_NotFound);
         }
 
         if (await db.Workflows.AnyAsync(x => x.Id != id && x.Name == updated.Name, token))
         {
-            return OperationResult.Failure($"Another workflow is already called '{updated.Name}'.");
+            return OperationResult.Failure(string.Format(Strings.Workflow_NameTaken, updated.Name));
         }
 
         workflow.Name = updated.Name;
@@ -85,7 +85,7 @@ public sealed class WorkflowService(
         workflow.Steps = updated.Steps;
         workflow.WasMatched = null;
         await db.SaveChangesAsync(token);
-        return OperationResult.Success($"Workflow '{workflow.Name}' updated.");
+        return OperationResult.Success(string.Format(Strings.Workflow_Updated, workflow.Name));
     }
 
     public async Task<OperationResult> DeleteAsync(int id, CancellationToken token = default)
@@ -94,12 +94,12 @@ public sealed class WorkflowService(
         var workflow = await db.Workflows.AsTracking().FirstOrDefaultAsync(x => x.Id == id, token);
         if (workflow is null)
         {
-            return OperationResult.NotFound("Workflow not found.");
+            return OperationResult.NotFound(Strings.Workflow_NotFound);
         }
 
         db.Workflows.Remove(workflow);
         await db.SaveChangesAsync(token);
-        return OperationResult.Success($"Deleted workflow '{workflow.Name}'.");
+        return OperationResult.Success(string.Format(Strings.Workflow_Deleted, workflow.Name));
     }
 
     private async Task<OperationResult> RunAsync(Expression<Func<Workflow, bool>> predicate, string notFound, CancellationToken token)
@@ -116,8 +116,8 @@ public sealed class WorkflowService(
         await db.SaveChangesAsync(token);
 
         return result.IsSuccessful
-            ? OperationResult.Success($"Workflow '{workflow.Name}' executed, {result.ExecutedSteps} step(s) run.")
-            : OperationResult.Failure($"Workflow '{workflow.Name}' executed with errors: {string.Join(" | ", result.Errors)}");
+            ? OperationResult.Success(string.Format(Strings.Workflow_Executed, workflow.Name, result.ExecutedSteps))
+            : OperationResult.Failure(string.Format(Strings.Workflow_ExecutedWithErrors, workflow.Name, string.Join(" | ", result.Errors)));
     }
 
     private async Task<OperationResult> SetEnabledAsync(Expression<Func<Workflow, bool>> predicate, bool enabled, string notFound, CancellationToken token)
@@ -131,6 +131,6 @@ public sealed class WorkflowService(
 
         workflow.IsEnabled = enabled;
         await db.SaveChangesAsync(token);
-        return OperationResult.Success($"Workflow '{workflow.Name}' {(enabled ? "enabled" : "disabled")}.");
+        return OperationResult.Success(string.Format(enabled ? Strings.Workflow_Enabled : Strings.Workflow_Disabled, workflow.Name));
     }
 }

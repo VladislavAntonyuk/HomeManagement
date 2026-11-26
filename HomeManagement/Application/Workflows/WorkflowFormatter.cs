@@ -21,7 +21,7 @@ public static class WorkflowFormatter
     /// <summary>
     /// Describes a workflow without triggers, which runs only when someone runs it.
     /// </summary>
-    public const string ManualTrigger = "Run manually";
+    public static string ManualTrigger => Strings.WorkflowFormat_Manual;
 
     public static readonly IReadOnlyList<WorkflowComparisonOperator> DateOperators =
     [
@@ -72,27 +72,43 @@ public static class WorkflowFormatter
 
     public static string FormatOperator(OperatorSubject subject, WorkflowComparisonOperator op) => (subject, op) switch
     {
-        (OperatorSubject.Time, WorkflowComparisonOperator.Equal) => "at",
-        (OperatorSubject.Date, WorkflowComparisonOperator.Equal) => "on",
-        (OperatorSubject.Date, WorkflowComparisonOperator.NotEqual) => "not on",
-        (OperatorSubject.Time, WorkflowComparisonOperator.GreaterThanOrEqual) => "at or after",
-        (OperatorSubject.Time, WorkflowComparisonOperator.LessThanOrEqual) => "at or before",
-        (OperatorSubject.Date, WorkflowComparisonOperator.GreaterThanOrEqual) => "on or after",
-        (OperatorSubject.Date, WorkflowComparisonOperator.LessThanOrEqual) => "on or before",
-        (OperatorSubject.Date or OperatorSubject.Time, WorkflowComparisonOperator.GreaterThan) => "after",
-        (OperatorSubject.Date or OperatorSubject.Time, WorkflowComparisonOperator.LessThan) => "before",
+        (OperatorSubject.Time, WorkflowComparisonOperator.Equal) => Strings.Operator_TimeAt,
+        (OperatorSubject.Date, WorkflowComparisonOperator.Equal) => Strings.Operator_DateOn,
+        (OperatorSubject.Date, WorkflowComparisonOperator.NotEqual) => Strings.Operator_DateNotOn,
+        (OperatorSubject.Time, WorkflowComparisonOperator.GreaterThanOrEqual) => Strings.Operator_TimeAtOrAfter,
+        (OperatorSubject.Time, WorkflowComparisonOperator.LessThanOrEqual) => Strings.Operator_TimeAtOrBefore,
+        (OperatorSubject.Date, WorkflowComparisonOperator.GreaterThanOrEqual) => Strings.Operator_DateOnOrAfter,
+        (OperatorSubject.Date, WorkflowComparisonOperator.LessThanOrEqual) => Strings.Operator_DateOnOrBefore,
+        (OperatorSubject.Date or OperatorSubject.Time, WorkflowComparisonOperator.GreaterThan) => Strings.Operator_After,
+        (OperatorSubject.Date or OperatorSubject.Time, WorkflowComparisonOperator.LessThan) => Strings.Operator_Before,
         (_, WorkflowComparisonOperator.Equal) => "=",
         (_, WorkflowComparisonOperator.NotEqual) => "!=",
         (_, WorkflowComparisonOperator.GreaterThan) => ">",
         (_, WorkflowComparisonOperator.GreaterThanOrEqual) => ">=",
         (_, WorkflowComparisonOperator.LessThan) => "<",
         (_, WorkflowComparisonOperator.LessThanOrEqual) => "<=",
-        (_, WorkflowComparisonOperator.Between) => "between",
-        (_, WorkflowComparisonOperator.NotBetween) => "not between",
-        (_, WorkflowComparisonOperator.Contains) => "contains",
-        (_, WorkflowComparisonOperator.NotContains) => "not contains",
+        (_, WorkflowComparisonOperator.Between) => Strings.Operator_Between,
+        (_, WorkflowComparisonOperator.NotBetween) => Strings.Operator_NotBetween,
+        (_, WorkflowComparisonOperator.Contains) => Strings.Operator_Contains,
+        (_, WorkflowComparisonOperator.NotContains) => Strings.Operator_NotContains,
         _ => op.ToString()
     };
+
+    /// <summary>
+    /// How triggers combine, e.g. "AND".
+    /// </summary>
+    public static string FormatConditionOperator(WorkflowConditionOperator op)
+        => op is WorkflowConditionOperator.Or ? Strings.Common_Or : Strings.Common_And;
+
+    public static string FormatTimeReference(WorkflowTimeReference reference) => reference switch
+    {
+        WorkflowTimeReference.Sunrise => Strings.TimeReference_Sunrise,
+        WorkflowTimeReference.Sunset => Strings.TimeReference_Sunset,
+        _ => Strings.TimeReference_Fixed
+    };
+
+    public static string FormatDeviceStatus(DeviceStatus status)
+        => status is DeviceStatus.Offline ? Strings.DeviceStatus_Offline : Strings.DeviceStatus_Online;
 
     public static bool IsRange(WorkflowComparisonOperator? op)
         => op is WorkflowComparisonOperator.Between or WorkflowComparisonOperator.NotBetween;
@@ -100,15 +116,17 @@ public static class WorkflowFormatter
     public static string FormatTrigger(Workflow workflow)
         => workflow.Triggers.Count == 0
             ? ManualTrigger
-            : string.Join(workflow.ConditionOperator is WorkflowConditionOperator.Or ? " OR " : " AND ", workflow.Triggers.Select(Format));
+            : string.Join($" {FormatConditionOperator(workflow.ConditionOperator)} ", workflow.Triggers.Select(Format));
 
     public static string Format(WorkflowTrigger trigger) => trigger switch
     {
-        DateTrigger date => FormatRange("Date", OperatorSubject.Date, date.Operator, FormatDate(date.Date), date.DateTo is { } to ? FormatDate(to) : "?"),
-        TimeTrigger time => FormatRange("Time", OperatorSubject.Time, time.Operator, FormatTime(time.From), time.To is { } to ? FormatTime(to) : "?"),
+        DateTrigger date => FormatRange(Strings.WorkflowFormat_Date, OperatorSubject.Date, date.Operator, FormatDate(date.Date), date.DateTo is { } to ? FormatDate(to) : "?"),
+        TimeTrigger time => FormatRange(Strings.WorkflowFormat_Time, OperatorSubject.Time, time.Operator, FormatTime(time.From), time.To is { } to ? FormatTime(to) : "?"),
         DeviceResultTrigger result
             => $"{result.DeviceAction.Device.Name}/{result.DeviceAction.Action}:{result.PropertyPath} {FormatOperator(OperatorSubject.Value, result.Operator)} {result.ExpectedValue}",
-        DeviceStatusTrigger status => $"{status.Device.Name} goes {status.ExpectedStatus.ToString().ToLowerInvariant()}"
+        DeviceStatusTrigger status => string.Format(
+            status.ExpectedStatus is DeviceStatus.Offline ? Strings.WorkflowFormat_GoesOffline : Strings.WorkflowFormat_GoesOnline,
+            status.Device.Name)
     };
 
     private static string FormatDate(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
@@ -118,20 +136,17 @@ public static class WorkflowFormatter
         var offset = point.OffsetMinutes switch
         {
             0 => string.Empty,
-            > 0 => $" +{point.OffsetMinutes}m",
-            _ => $" {point.OffsetMinutes}m"
+            > 0 => " " + string.Format(Strings.WorkflowFormat_OffsetMinutes, $"+{point.OffsetMinutes}"),
+            _ => " " + string.Format(Strings.WorkflowFormat_OffsetMinutes, point.OffsetMinutes)
         };
 
-        return point.Reference switch
-        {
-            WorkflowTimeReference.Sunrise => $"Sunrise{offset}",
-            WorkflowTimeReference.Sunset => $"Sunset{offset}",
-            _ => point.FixedTime?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "?"
-        };
+        return point.Reference is WorkflowTimeReference.Fixed
+            ? point.FixedTime?.ToString("HH:mm", CultureInfo.InvariantCulture) ?? "?"
+            : FormatTimeReference(point.Reference) + offset;
     }
 
     private static string FormatRange(string subject, OperatorSubject operatorSubject, WorkflowComparisonOperator op, string from, string to)
         => IsRange(op)
-            ? $"{subject} {FormatOperator(operatorSubject, op)} {from} and {to}"
-            : $"{subject} {FormatOperator(operatorSubject, op)} {from}";
+            ? string.Format(Strings.WorkflowFormat_Range, subject, FormatOperator(operatorSubject, op), from, to)
+            : string.Format(Strings.WorkflowFormat_Single, subject, FormatOperator(operatorSubject, op), from);
 }

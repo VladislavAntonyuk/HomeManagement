@@ -3,7 +3,7 @@
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:DataType="WorkflowsViewModel"
              Shell.NavBarIsVisible="False"
-             Title="Workflows">
+             Title="{x:Static AppResources.Workflows}">
 
     <ContentPage.Behaviors>
         <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Appearing" Command="{Binding AppearingCommand}" />
@@ -13,7 +13,7 @@
     <Grid>
         <Grid RowDefinitions="Auto,Auto,*" Padding="16,16,16,0" RowSpacing="12" IsVisible="{Binding IsConfigured}">
             <Grid ColumnDefinitions="*,Auto">
-                <Label Text="Workflows" Style="{StaticResource PageTitle}" />
+                <Label Text="{x:Static AppResources.Workflows}" Style="{StaticResource PageTitle}" />
                 <Label Grid.Column="1" Text="{Binding Summary}" Style="{StaticResource Caption}" VerticalOptions="Center" />
             </Grid>
 
@@ -30,7 +30,7 @@
                     <CollectionView.EmptyView>
                         <Grid>
                             <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" HorizontalOptions="Center" VerticalOptions="Center" />
-                            <Label Text="No workflows" Style="{StaticResource Caption}" HorizontalOptions="Center" VerticalOptions="Center" IsVisible="{!IsLoading}" />
+                            <Label Text="{x:Static AppResources.NoWorkflows}" Style="{StaticResource Caption}" HorizontalOptions="Center" VerticalOptions="Center" IsVisible="{!IsLoading}" />
                         </Grid>
                     </CollectionView.EmptyView>
 
@@ -54,7 +54,8 @@
                                     <Label Grid.Row="2" Grid.ColumnSpan="2" FontSize="13">
                                         <Label.FormattedText>
                                             <FormattedString>
-                                                <Span Text="When " Style="{StaticResource Caption}" />
+                                                <Span Text="{x:Static AppResources.WorkflowWhen}" Style="{StaticResource Caption}" />
+                                                <Span Text=" " />
                                                 <Span Text="{Binding Trigger}" />
                                             </FormattedString>
                                         </Label.FormattedText>
@@ -62,7 +63,7 @@
 
                                     <Label Grid.Row="3" Text="{Binding Details}" Style="{StaticResource Caption}" VerticalOptions="Center" />
                                     <Button Grid.Row="3" Grid.Column="1"
-                                            Text="Run now"
+                                            Text="{x:Static AppResources.RunNow}"
                                             Command="{Binding RunCommand}"
                                             Style="{StaticResource SecondaryButton}" />
                                 </Grid>

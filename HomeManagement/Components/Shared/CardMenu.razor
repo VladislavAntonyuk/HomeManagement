@@ -1,6 +1,7 @@
-<MudMenu @ref="_menu" Icon="@Icons.Material.Rounded.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" aria-label="@Label">
-    <MudMenuItem Icon="@Icons.Material.Rounded.Edit" OnClick="() => RunAsync(OnEdit)">Edit</MudMenuItem>
-    <MudMenuItem Icon="@Icons.Material.Rounded.DeleteOutline" IconColor="Color.Error" OnClick="() => RunAsync(OnDelete)">Delete</MudMenuItem>
+<MudMenu @ref="_menu" Icon="@Icons.Material.Rounded.MoreVert" Size="Size.Small" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" AriaLabel="@Label">
+    @ChildContent
+    <MudMenuItem Icon="@Icons.Material.Rounded.Edit" OnClick="() => RunAsync(OnEdit)">@Strings.Common_Edit</MudMenuItem>
+    <MudMenuItem Icon="@Icons.Material.Rounded.DeleteOutline" IconColor="Color.Error" OnClick="() => RunAsync(OnDelete)">@Strings.Common_Delete</MudMenuItem>
 </MudMenu>
 
 @code {
@@ -11,6 +12,12 @@
 
     [Parameter]
     public EventCallback OnEdit { get; set; }
+
+    /// <summary>
+    /// More items, shown before Edit.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
 
     [Parameter]
     public EventCallback OnDelete { get; set; }

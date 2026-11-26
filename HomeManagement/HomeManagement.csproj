@@ -33,6 +33,17 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Using Include="HomeManagement.Resources" />
+		<EmbeddedResource Update="Resources\Strings.resx">
+			<Generator>MSBuild:Compile</Generator>
+			<StronglyTypedFileName>$(IntermediateOutputPath)Strings.Designer.cs</StronglyTypedFileName>
+			<StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+			<StronglyTypedNamespace>HomeManagement.Resources</StronglyTypedNamespace>
+			<StronglyTypedClassName>Strings</StronglyTypedClassName>
+		</EmbeddedResource>
+	</ItemGroup>
+
+	<ItemGroup>
 	  <ProjectReference Include="..\HomeManagement.Cameras\HomeManagement.Cameras.csproj" />
 	  <ProjectReference Include="..\HomeManagement.DeviceSdk\HomeManagement.DeviceSdk.csproj" />
 	  <ProjectReference Include="..\HomeManagement.ServiceDefaults\HomeManagement.ServiceDefaults.csproj" />

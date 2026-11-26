@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="AppTitle" xml:space="preserve">
+    <value>Home Management</value>
+  </data>
+  <data name="CameraLive" xml:space="preserve">
+    <value>LIVE</value>
+  </data>
+  <data name="Cameras" xml:space="preserve">
+    <value>Cameras</value>
+  </data>
+  <data name="CamerasHint" xml:space="preserve">
+    <value>Tap a camera for live view</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="ConnectDescription" xml:space="preserve">
+    <value>Enter the address of the Home Management hub and the key you sign in with.</value>
+  </data>
+  <data name="ConnectedSummary" xml:space="preserve">
+    <value>Saved. Connected to {0}: {1} devices, {2} workflows.</value>
+  </data>
+  <data name="Connecting" xml:space="preserve">
+    <value>Connecting...</value>
+  </data>
+  <data name="ConnectTitle" xml:space="preserve">
+    <value>Connect to your hub</value>
+  </data>
+  <data name="Dashboard" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
+  <data name="DashboardLastRun" xml:space="preserve">
+    <value>Last run {0}</value>
+  </data>
+  <data name="DeviceLastSeen" xml:space="preserve">
+    <value>Last seen {0}</value>
+  </data>
+  <data name="Devices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="DevicesNotRespondingCount" xml:space="preserve">
+    <value>{0} not responding</value>
+  </data>
+  <data name="DevicesOfflineCount" xml:space="preserve">
+    <value>{0} offline</value>
+  </data>
+  <data name="DevicesOnlineOf" xml:space="preserve">
+    <value>of {0} online</value>
+  </data>
+  <data name="DevicesSummary" xml:space="preserve">
+    <value>{0} of {1} online</value>
+  </data>
+  <data name="DeviceWidgets" xml:space="preserve">
+    <value>Device widgets</value>
+  </data>
+  <data name="Done" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="Error" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="ErrorFrameTooLarge" xml:space="preserve">
+    <value>MJPEG frame is too large.</value>
+  </data>
+  <data name="ErrorNotConfigured" xml:space="preserve">
+    <value>Set the hub address and key in Settings.</value>
+  </data>
+  <data name="ErrorStatus" xml:space="preserve">
+    <value>The hub answered {0} {1}.</value>
+  </data>
+  <data name="ErrorTimeout" xml:space="preserve">
+    <value>The hub did not answer in time.</value>
+  </data>
+  <data name="ErrorUnauthorized" xml:space="preserve">
+    <value>The hub rejected the key. Check it in Settings.</value>
+  </data>
+  <data name="ErrorUnreachable" xml:space="preserve">
+    <value>The hub is not reachable. Check the address in Settings and your network.</value>
+  </data>
+  <data name="FramesPerSecond" xml:space="preserve">
+    <value>{0:0.#} fps</value>
+  </data>
+  <data name="Home" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="Hub" xml:space="preserve">
+    <value>Hub</value>
+  </data>
+  <data name="Key" xml:space="preserve">
+    <value>Key</value>
+  </data>
+  <data name="KeyPlaceholder" xml:space="preserve">
+    <value>The key you sign in to the hub with</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="LanguageSystem" xml:space="preserve">
+    <value>System default</value>
+  </data>
+  <data name="Loading" xml:space="preserve">
+    <value>Loading...</value>
+  </data>
+  <data name="NoCameras" xml:space="preserve">
+    <value>No cameras</value>
+  </data>
+  <data name="NoDevices" xml:space="preserve">
+    <value>No devices</value>
+  </data>
+  <data name="NoWorkflows" xml:space="preserve">
+    <value>No workflows</value>
+  </data>
+  <data name="Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="OpenSettings" xml:space="preserve">
+    <value>Open settings</value>
+  </data>
+  <data name="QualityHigh" xml:space="preserve">
+    <value>High · 1080p</value>
+  </data>
+  <data name="QualityLow" xml:space="preserve">
+    <value>Low · 360p</value>
+  </data>
+  <data name="QualityMedium" xml:space="preserve">
+    <value>Medium · 720p</value>
+  </data>
+  <data name="Reconnecting" xml:space="preserve">
+    <value>Reconnecting...</value>
+  </data>
+  <data name="Run" xml:space="preserve">
+    <value>Run</value>
+  </data>
+  <data name="RunNow" xml:space="preserve">
+    <value>Run now</value>
+  </data>
+  <data name="RunWorkflowMessage" xml:space="preserve">
+    <value>Run &apos;{0}&apos; now, regardless of its trigger?</value>
+  </data>
+  <data name="RunWorkflowTitle" xml:space="preserve">
+    <value>Run workflow</value>
+  </data>
+  <data name="SaveAndConnect" xml:space="preserve">
+    <value>Save and connect</value>
+  </data>
+  <data name="SearchDevices" xml:space="preserve">
+    <value>Search devices</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SnapshotTime" xml:space="preserve">
+    <value>Snapshot {0:HH:mm:ss}</value>
+  </data>
+  <data name="SnapshotUnavailable" xml:space="preserve">
+    <value>Unavailable</value>
+  </data>
+  <data name="StreamEnded" xml:space="preserve">
+    <value>Stream ended.</value>
+  </data>
+  <data name="System" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Temperature" xml:space="preserve">
+    <value>Temperature</value>
+  </data>
+  <data name="Uptime" xml:space="preserve">
+    <value>Uptime</value>
+  </data>
+  <data name="WidgetUpdated" xml:space="preserve">
+    <value>Updated {0}</value>
+  </data>
+  <data name="WorkflowLastRun" xml:space="preserve">
+    <value>last run {0}</value>
+  </data>
+  <data name="WorkflowRepeats" xml:space="preserve">
+    <value>repeats while matched</value>
+  </data>
+  <data name="Workflows" xml:space="preserve">
+    <value>Workflows</value>
+  </data>
+  <data name="WorkflowsEnabledOf" xml:space="preserve">
+    <value>of {0} enabled</value>
+  </data>
+  <data name="WorkflowsSummary" xml:space="preserve">
+    <value>{0} of {1} enabled</value>
+  </data>
+  <data name="WorkflowStepsMany" xml:space="preserve">
+    <value>{0} steps</value>
+  </data>
+  <data name="WorkflowStepsOne" xml:space="preserve">
+    <value>1 step</value>
+  </data>
+  <data name="WorkflowWhen" xml:space="preserve">
+    <value>When</value>
+  </data>
+</root>

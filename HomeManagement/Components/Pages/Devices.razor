@@ -2,15 +2,15 @@
 @using HomeManagement.Infrastructure.Database.Entities
 @attribute [Authorize]
 
-<PageTitle>Devices</PageTitle>
+<PageTitle>@Strings.Nav_Devices</PageTitle>
 
 <div class="devices">
-    <PageHeader Title="Devices" Subtitle="@Summary()">
-        <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="Search devices"
+    <PageHeader Title="@Strings.Nav_Devices" Subtitle="@Summary()">
+        <MudTextField T="string" @bind-Value="_search" Immediate="true" Placeholder="@Strings.Devices_Search"
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true" />
-        <MudTooltip Text="Refresh">
-            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Variant="Variant.Outlined" aria-label="Refresh" OnClick="ReloadAsync" />
+        <MudTooltip Text="@Strings.Common_Refresh">
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Variant="Variant.Outlined" aria-label="@Strings.Common_Refresh" OnClick="ReloadAsync" />
         </MudTooltip>
     </PageHeader>
 
@@ -27,14 +27,14 @@
     {
         <div class="devices-empty">
             <MudIcon Icon="@Icons.Material.Filled.DevicesOther" Size="Size.Large" Class="mud-text-secondary" />
-            <MudText Typo="Typo.body1">No devices yet.</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Devices appear here when they connect to the MQTT broker.</MudText>
+            <MudText Typo="Typo.body1">@Strings.Devices_Empty</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@Strings.Devices_EmptyHint</MudText>
         </div>
     }
     else if (FilteredDevices().ToList() is { Count: 0 })
     {
         <div class="devices-empty">
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">No devices match "@_search".</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">@string.Format(Strings.Devices_NoMatch, _search)</MudText>
         </div>
     }
     else
@@ -55,7 +55,7 @@
                             <MudText Typo="Typo.subtitle1" Class="device-name">@device.Name</MudText>
                             <MudText Typo="Typo.caption" Class="device-id mud-text-secondary">@device.DeviceId</MudText>
                         </div>
-                        <CardMenu Label="@($"{device.Name} options")" OnEdit="() => EditAsync(device)" OnDelete="() => DeleteAsync(device)" />
+                        <CardMenu Label="@string.Format(Strings.Common_Options, device.Name)" OnEdit="() => EditAsync(device)" OnDelete="() => DeleteAsync(device)" />
                     </div>
 
                     <div class="device-status">
@@ -67,7 +67,7 @@
                         </MudTooltip>
                         @if (presence.LastSeenUtc is { } lastSeen)
                         {
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Seen @DisplayFormatter.FormatAgo(lastSeen, Now)</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@string.Format(Strings.Devices_Seen, DisplayFormatter.FormatAgo(lastSeen, Now))</MudText>
                         }
                     </div>
 
@@ -89,7 +89,7 @@
                                     {
                                         <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="device-action-spinner" />
                                     }
-                                    @FormatActionName(action.Action)
+                                    @DisplayFormatter.FormatActionName(action.Action)
                                 </MudButton>
                             }
                             @if (device.Actions.Count > CollapsedActionCount)
@@ -98,7 +98,7 @@
                                            EndIcon="@(showAllActions ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
                                            aria-expanded="@(showAllActions ? "true" : "false")"
                                            OnClick="() => Toggle(_expandedActions, device)">
-                                    @(showAllActions ? "Show less" : $"{device.Actions.Count - CollapsedActionCount} more")
+                                    @(showAllActions ? Strings.Devices_ShowLess : string.Format(Strings.Devices_More, device.Actions.Count - CollapsedActionCount))
                                 </MudButton>
                             }
                         </div>
@@ -110,7 +110,7 @@
                                    EndIcon="@(isExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
                                    aria-expanded="@(isExpanded ? "true" : "false")"
                                    OnClick="() => Toggle(_expandedDevices, device)">
-                            Details
+                            @Strings.Devices_Details
                         </MudButton>
                     </div>
 
@@ -118,15 +118,18 @@
                     {
                         @if (overview.Info is null)
                         {
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@device.Name has not reported device info yet.</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@string.Format(Strings.Devices_NoInfo, device.Name)</MudText>
                         }
                         else
                         {
                             <dl class="device-details">
-                                <div>
-                                    <dt>Address</dt>
-                                    <dd>@(string.IsNullOrEmpty(overview.Info.Address) ? "-" : overview.Info.Address)</dd>
-                                </div>
+                                @if (!string.IsNullOrEmpty(overview.Info.Address))
+                                {
+                                    <div>
+                                        <dt>@Strings.Devices_Address</dt>
+                                        <dd>@overview.Info.Address</dd>
+                                    </div>
+                                }
                                 @foreach (var metric in overview.Metrics)
                                 {
                                     <div>
@@ -135,13 +138,13 @@
                                     </div>
                                 }
                                 <div>
-                                    <dt>Heartbeat</dt>
-                                    <dd>Every @DisplayFormatter.FormatDuration(presence.HeartbeatInterval)</dd>
+                                    <dt>@Strings.Devices_Heartbeat</dt>
+                                    <dd>@string.Format(Strings.Devices_Every, DisplayFormatter.FormatDuration(presence.HeartbeatInterval))</dd>
                                 </div>
                                 @if (overview.InfoReceivedAtUtc is { } infoReceived)
                                 {
                                     <div>
-                                        <dt>Info updated</dt>
+                                        <dt>@Strings.Devices_InfoUpdated</dt>
                                         <dd title="@infoReceived.ToLocalTime().ToString("G")">@DisplayFormatter.FormatAgo(infoReceived, Now)</dd>
                                     </div>
                                 }

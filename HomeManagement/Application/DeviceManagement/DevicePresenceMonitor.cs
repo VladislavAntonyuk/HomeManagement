@@ -21,7 +21,7 @@ public sealed class DevicePresenceMonitor(
             foreach (var (deviceId, lastSeen) in stateStore.CheckHeartbeats())
             {
                 logger.LogWarning("Device '{DeviceId}' reports online, but sent nothing since {LastSeenUtc}. Showing it as offline.", deviceId, lastSeen);
-                deviceHub.FailPendingCommands(deviceId, $"Device '{deviceId}' stopped responding.");
+                deviceHub.FailPendingCommands(deviceId, string.Format(Strings.Device_StoppedResponding, deviceId));
             }
         }
     }

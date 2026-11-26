@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HomeManagement.Client.Services;
@@ -20,9 +21,9 @@ public sealed partial class CameraViewModel(ICameraStreamApi streamApi) : Observ
 
     public StreamQuality[] Qualities { get; } =
     [
-        new("Low · 360p", 360, 5),
-        new("Medium · 720p", 720, 10),
-        new("High · 1080p", 1080, 15)
+        new(AppResources.QualityLow, 360, 5),
+        new(AppResources.QualityMedium, 720, 10),
+        new(AppResources.QualityHigh, 1080, 15)
     ];
 
     [ObservableProperty]
@@ -35,7 +36,7 @@ public sealed partial class CameraViewModel(ICameraStreamApi streamApi) : Observ
     public partial StreamQuality SelectedQuality { get; set; } = null!;
 
     [ObservableProperty]
-    public partial string? Status { get; private set; } = "Connecting...";
+    public partial string? Status { get; private set; } = AppResources.Connecting;
 
     [ObservableProperty]
     public partial string Fps { get; private set; } = string.Empty;
@@ -76,7 +77,7 @@ public sealed partial class CameraViewModel(ICameraStreamApi streamApi) : Observ
         {
             try
             {
-                Status = Frame is null ? "Connecting..." : "Reconnecting...";
+                Status = Frame is null ? AppResources.Connecting : AppResources.Reconnecting;
                 await using var stream = await streamApi.GetCameraStreamAsync(camera, quality.Height, quality.Fps, token);
 
                 var frames = 0;
@@ -89,13 +90,13 @@ public sealed partial class CameraViewModel(ICameraStreamApi streamApi) : Observ
                     frames++;
                     if (watch.Elapsed >= TimeSpan.FromSeconds(1))
                     {
-                        Fps = $"{frames / watch.Elapsed.TotalSeconds:0.#} fps";
+                        Fps = string.Format(CultureInfo.CurrentCulture, AppResources.FramesPerSecond, frames / watch.Elapsed.TotalSeconds);
                         frames = 0;
                         watch.Restart();
                     }
                 }
 
-                Status = "Stream ended.";
+                Status = AppResources.StreamEnded;
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {

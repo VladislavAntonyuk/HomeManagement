@@ -25,7 +25,7 @@ public class WorkflowTriggerPreviewService(
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(token);
         if (await dbContext.Set<DeviceAction>().Include(x => x.Device).FirstOrDefaultAsync(x => x.Id == actionId, token) is not { } action)
         {
-            return new WorkflowTriggerPreview("The action no longer exists.", null, []);
+            return new WorkflowTriggerPreview(Strings.Widget_ActionGone, null, []);
         }
 
         var execution = await deviceActionExecutor.ExecuteAsync(action.Device, action, token);
@@ -37,7 +37,7 @@ public class WorkflowTriggerPreviewService(
         var response = execution.RawResponse ?? execution.Message;
         var properties = JsonValueReader.GetProperties(response);
         return properties.Count == 0
-            ? new WorkflowTriggerPreview("No comparable values found in the response.", response, [])
+            ? new WorkflowTriggerPreview(Strings.Workflow_NoComparableValues, response, [])
             : new WorkflowTriggerPreview(null, response, properties);
     }
 }

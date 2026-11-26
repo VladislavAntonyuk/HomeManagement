@@ -1,24 +1,24 @@
 <Shell x:Class="HomeManagement.Client.AppShell"
-       Title="Home Management">
+       Title="{x:Static AppResources.AppTitle}">
 
     <TabBar>
-        <ShellContent Title="Dashboard"
+        <ShellContent Title="{x:Static AppResources.Dashboard}"
                       Icon="tab_dashboard.png"
                       Route="dashboard"
                       ContentTemplate="{DataTemplate DashboardPage}" />
-        <ShellContent Title="Devices"
+        <ShellContent Title="{x:Static AppResources.Devices}"
                       Icon="tab_devices.png"
                       Route="devices"
                       ContentTemplate="{DataTemplate DevicesPage}" />
-        <ShellContent Title="Workflows"
+        <ShellContent Title="{x:Static AppResources.Workflows}"
                       Icon="tab_workflows.png"
                       Route="workflows"
                       ContentTemplate="{DataTemplate WorkflowsPage}" />
-        <ShellContent Title="Cameras"
+        <ShellContent Title="{x:Static AppResources.Cameras}"
                       Icon="tab_cameras.png"
                       Route="cameras"
                       ContentTemplate="{DataTemplate CamerasPage}" />
-        <ShellContent Title="Settings"
+        <ShellContent Title="{x:Static AppResources.Settings}"
                       Icon="tab_settings.png"
                       Route="settings"
                       ContentTemplate="{DataTemplate SettingsPage}" />

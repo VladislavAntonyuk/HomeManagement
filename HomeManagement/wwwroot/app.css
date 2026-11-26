@@ -62,3 +62,23 @@ h1:focus {
 .mud-snackbar-content-message {
     white-space: pre-line;
 }
+
+/* A select option with a hint on the right. Select popovers render outside the component, so this cannot be scoped CSS. */
+.widget-action-option {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.widget-action-option > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mud-list-item-text:has(> .widget-action-option) {
+    flex: 1;
+    min-width: 0;
+}

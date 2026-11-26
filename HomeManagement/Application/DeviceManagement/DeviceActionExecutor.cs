@@ -37,13 +37,13 @@ public static class DeviceActionResultExtensions
         public string Message => result switch
         {
             ActionSucceeded { Output: { Length: > 0 } output } => output,
-            ActionSucceeded succeeded => $"{succeeded.Action} successfully executed",
-            ActionDeviceOffline offline => $"'{offline.DeviceName}' is offline.",
+            ActionSucceeded succeeded => string.Format(Strings.Action_Succeeded, succeeded.Action),
+            ActionDeviceOffline offline => string.Format(Strings.Action_DeviceOffline, offline.DeviceName),
             // Events are not retained, so the hub only knows the ones that happened since it started.
-            ActionValueMissing { IsEvent: true } missing => $"No '{missing.Action}' from '{missing.DeviceName}' since the hub started.",
-            ActionValueMissing missing => $"'{missing.DeviceName}' has not reported '{missing.Action}' yet.",
+            ActionValueMissing { IsEvent: true } missing => string.Format(Strings.Action_NoEventSinceStart, missing.Action, missing.DeviceName),
+            ActionValueMissing missing => string.Format(Strings.Action_NotReportedYet, missing.DeviceName, missing.Action),
             ActionFailed { Output: { Length: > 0 } output } => output,
-            ActionFailed => "Error has occurred"
+            ActionFailed => Strings.Common_ErrorOccurred
         };
 
         /// <summary>
@@ -75,6 +75,7 @@ public sealed class DeviceActionExecutor(DeviceHub deviceHub, DeviceStateStore s
         }
 
         var response = await deviceHub.SendCommandAsync(device.DeviceId, action.Command, token);
+        stateStore.SetCommandOutput(device.DeviceId, action.Command, response);
         return response.IsSuccess ? new ActionSucceeded(action.Action, response.Output) : new ActionFailed(response.Output);
     }
 }

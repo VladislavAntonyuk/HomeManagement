@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using HomeManagement.Application.Dashboard;
 using HomeManagement.Application.DeviceManagement;
 
 namespace HomeManagement.Infrastructure.Extensions;
@@ -14,6 +15,7 @@ public static class DeviceExtensions
         builder.Services.AddSingleton<DeviceHub>();
         builder.Services.AddSingleton<DeviceActionExecutor>();
         builder.Services.AddSingleton<DeviceService>();
+        builder.Services.AddSingleton<DashboardWidgetService>();
         builder.Services.AddHostedService<DevicePresenceMonitor>();
     }
 }

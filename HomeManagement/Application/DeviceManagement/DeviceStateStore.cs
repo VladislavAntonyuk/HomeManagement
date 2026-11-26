@@ -9,6 +9,11 @@ namespace HomeManagement.Application.DeviceManagement;
 public sealed record DeviceTelemetry(string Payload, DateTimeOffset ReceivedAtUtc);
 
 /// <summary>
+/// What the device answered the last time a command ran, or why it did not answer.
+/// </summary>
+public sealed record DeviceCommandOutput(bool IsSuccess, string Output, DateTimeOffset ReceivedAtUtc);
+
+/// <summary>
 /// Latest status and telemetry reported by devices. Rebuilt from retained MQTT messages after every hub start.
 /// </summary>
 public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DevicePresenceOptions> options)
@@ -29,6 +34,11 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
     /// Raised when a device reports a telemetry value that differs from the previous one.
     /// </summary>
     public event Action? TelemetryChanged;
+
+    /// <summary>
+    /// Raised when a command finished, so its output changed.
+    /// </summary>
+    public event Action? CommandOutputChanged;
 
     public bool IsOnline(string deviceId) => GetPresence(deviceId).IsOnline;
 
@@ -54,6 +64,22 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
 
     public DeviceTelemetry? GetTelemetry(string deviceId, string key)
         => _devices.TryGetValue(deviceId, out var state) && state.Telemetry.TryGetValue(key, out var telemetry) ? telemetry : null;
+
+    /// <summary>
+    /// The output of the last run of a command since the hub started, or null when it did not run.
+    /// </summary>
+    public DeviceCommandOutput? GetCommandOutput(string deviceId, string command)
+        => _devices.TryGetValue(deviceId, out var state) && state.CommandOutputs.TryGetValue(command, out var output) ? output : null;
+
+    /// <summary>
+    /// Keeps the output of a command. It does not count as a message of the device, because a timeout is recorded too.
+    /// </summary>
+    public void SetCommandOutput(string deviceId, string command, CommandResponse response)
+    {
+        var state = _devices.GetOrAdd(deviceId, _ => new DeviceState());
+        state.CommandOutputs[command] = new DeviceCommandOutput(response.IsSuccess, response.Output, timeProvider.GetUtcNow());
+        CommandOutputChanged?.Invoke();
+    }
 
     public IReadOnlyCollection<string> GetTelemetryKeys(string deviceId)
         => _devices.TryGetValue(deviceId, out var state) ? state.Telemetry.Keys.ToList() : [];
@@ -225,5 +251,7 @@ public sealed class DeviceStateStore(TimeProvider timeProvider, IOptions<DeviceP
         public DeviceInfo? Info { get; set; }
 
         public ConcurrentDictionary<string, DeviceTelemetry> Telemetry { get; } = new(StringComparer.Ordinal);
+
+        public ConcurrentDictionary<string, DeviceCommandOutput> CommandOutputs { get; } = new(StringComparer.Ordinal);
     }
 }

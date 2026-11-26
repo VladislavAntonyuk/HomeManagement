@@ -15,25 +15,37 @@
         <MudAppBar Elevation="1">
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
                 <MudLink Href="/">
-                    <img src="icon.svg" alt="Home Management" class="mud-icon-root mud-icon-size-large" />
+                    <img src="icon.svg" alt="@Strings.Layout_AppName" class="mud-icon-root mud-icon-size-large" />
                 </MudLink>
             </MudHidden>
             <AuthorizeView>
                 <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                    <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" aria-label="Menu" OnClick="DrawerToggle" />
+                    <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" Edge="Edge.Start" aria-label="@Strings.Layout_Menu" OnClick="DrawerToggle" />
                 </MudHidden>
             </AuthorizeView>
             <MudHidden Breakpoint="Breakpoint.Xs">
-                <MudLink Href="/" Typo="Typo.h6" Class="ml-4" Color="Color.Inherit">Home Management</MudLink>
+                <MudLink Href="/" Typo="Typo.h6" Class="ml-4" Color="Color.Inherit">@Strings.Layout_AppName</MudLink>
             </MudHidden>
             <MudHidden Breakpoint="Breakpoint.Xs" Invert="true">
-                <MudLink Href="/" Typo="Typo.subtitle2" Color="Color.Inherit">Home Management</MudLink>
+                <MudLink Href="/" Typo="Typo.subtitle2" Color="Color.Inherit">@Strings.Layout_AppName</MudLink>
             </MudHidden>
             <MudSpacer />
+            <MudMenu Icon="@Icons.Material.Filled.Translate" Color="Color.Inherit" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
+                     AriaLabel="@Strings.Layout_Language" title="@Strings.Layout_Language">
+                @foreach (var culture in AppCultures.All)
+                {
+                    var isCurrent = culture == AppCultures.Current;
+                    <MudMenuItem @key="culture.Culture.Name" OnClick="() => SetCulture(culture)"
+                                 Icon="@(isCurrent ? Icons.Material.Filled.Check : null)" lang="@culture.Culture.Name">
+                        @culture.NativeName
+                    </MudMenuItem>
+                }
+            </MudMenu>
             <MudToggleIconButton @bind-Toggled="_rightToLeft"
                                  Icon="@Icons.Material.Filled.FormatTextdirectionRToL"
                                  ToggledIcon="@Icons.Material.Filled.FormatTextdirectionRToL"
-                                 Color="Color.Inherit" />
+                                 Color="Color.Inherit"
+                                 aria-label="@Strings.Layout_RightToLeft" title="@Strings.Layout_RightToLeft" />
         </MudAppBar>
 
         @* Signed-out visitors only see the sign-in page, which needs no navigation. *@
@@ -52,7 +64,7 @@
                     </ChildContent>
                     <ErrorContent Context="exception">
                         <MudAlert Severity="Severity.Error" Class="mt-4">
-                            <MudText Typo="Typo.h6">Error has occurred</MudText>
+                            <MudText Typo="Typo.h6">@Strings.Common_ErrorOccurred</MudText>
                             <MudText Typo="Typo.body2">@exception.Message</MudText>
                         </MudAlert>
                     </ErrorContent>
@@ -80,6 +92,15 @@
 
     public void Dispose() => NavigationManager.LocationChanged -= OnLocationChanged;
 
+    // The language is read once per connection, so the page reloads to show the new one.
+    private void SetCulture(AppCulture culture)
+    {
+        var page = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.NavigateTo(
+            $"culture/set?culture={Uri.EscapeDataString(culture.Culture.Name)}&redirectUri={Uri.EscapeDataString(page)}",
+            forceLoad: true);
+    }
+
     void DrawerToggle()
     {
         _drawerOpen = !_drawerOpen;
@@ -87,7 +108,7 @@
 }
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    @Strings.Layout_UnhandledError
+    <a href="." class="reload">@Strings.Layout_Reload</a>
+    <span class="dismiss" title="@Strings.Layout_Dismiss">🗙</span>
 </div>

@@ -1,0 +1,1098 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Action_DeviceOffline" xml:space="preserve">
+    <value>«{0}» офлайн.</value>
+  </data>
+  <data name="Action_NoEventSinceStart" xml:space="preserve">
+    <value>Від запуску хаба «{1}» не надсилав «{0}».</value>
+  </data>
+  <data name="Action_NotFound" xml:space="preserve">
+    <value>Дію не знайдено</value>
+  </data>
+  <data name="Action_NotFoundNamed" xml:space="preserve">
+    <value>Дію «{0}» не знайдено</value>
+  </data>
+  <data name="Action_NotReportedYet" xml:space="preserve">
+    <value>«{0}» ще не повідомив «{1}».</value>
+  </data>
+  <data name="Action_Succeeded" xml:space="preserve">
+    <value>«{0}» успішно виконано</value>
+  </data>
+  <data name="CommandType_Event" xml:space="preserve">
+    <value>Остання подія</value>
+  </data>
+  <data name="CommandType_Get" xml:space="preserve">
+    <value>Поточне значення</value>
+  </data>
+  <data name="CommandType_Post" xml:space="preserve">
+    <value>Результат команди</value>
+  </data>
+  <data name="Common_Action" xml:space="preserve">
+    <value>Дія</value>
+  </data>
+  <data name="Common_Add" xml:space="preserve">
+    <value>Додати</value>
+  </data>
+  <data name="Common_And" xml:space="preserve">
+    <value>І</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Скасувати</value>
+  </data>
+  <data name="Common_ConfirmDelete" xml:space="preserve">
+    <value>Підтвердження видалення</value>
+  </data>
+  <data name="Common_Delete" xml:space="preserve">
+    <value>Видалити</value>
+  </data>
+  <data name="Common_Description" xml:space="preserve">
+    <value>Опис</value>
+  </data>
+  <data name="Common_Device" xml:space="preserve">
+    <value>Пристрій</value>
+  </data>
+  <data name="Common_Edit" xml:space="preserve">
+    <value>Редагувати</value>
+  </data>
+  <data name="Common_EditTitle" xml:space="preserve">
+    <value>Редагування: {0}</value>
+  </data>
+  <data name="Common_EnterName" xml:space="preserve">
+    <value>Введіть назву.</value>
+  </data>
+  <data name="Common_ErrorOccurred" xml:space="preserve">
+    <value>Сталася помилка</value>
+  </data>
+  <data name="Common_Loading" xml:space="preserve">
+    <value>Завантаження...</value>
+  </data>
+  <data name="Common_MoveDown" xml:space="preserve">
+    <value>Нижче</value>
+  </data>
+  <data name="Common_MoveUp" xml:space="preserve">
+    <value>Вище</value>
+  </data>
+  <data name="Common_Name" xml:space="preserve">
+    <value>Назва</value>
+  </data>
+  <data name="Common_NotReported" xml:space="preserve">
+    <value>Немає даних</value>
+  </data>
+  <data name="Common_OnlineOf" xml:space="preserve">
+    <value>Онлайн {0} з {1}</value>
+  </data>
+  <data name="Common_Options" xml:space="preserve">
+    <value>Параметри: {0}</value>
+  </data>
+  <data name="Common_Or" xml:space="preserve">
+    <value>АБО</value>
+  </data>
+  <data name="Common_Refresh" xml:space="preserve">
+    <value>Оновити</value>
+  </data>
+  <data name="Common_Remove" xml:space="preserve">
+    <value>Прибрати</value>
+  </data>
+  <data name="Common_Run" xml:space="preserve">
+    <value>Запустити</value>
+  </data>
+  <data name="Common_Running" xml:space="preserve">
+    <value>Виконується...</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Зберегти</value>
+  </data>
+  <data name="Common_Title" xml:space="preserve">
+    <value>Заголовок</value>
+  </data>
+  <data name="Device_Deleted" xml:space="preserve">
+    <value>«{0}» видалено.</value>
+  </data>
+  <data name="Device_EmptyResponse" xml:space="preserve">
+    <value>Порожня відповідь.</value>
+  </data>
+  <data name="Device_NameTaken" xml:space="preserve">
+    <value>Інший пристрій уже має назву «{0}».</value>
+  </data>
+  <data name="Device_NoResponse" xml:space="preserve">
+    <value>Пристрій «{0}» не відповів за {1} с.</value>
+  </data>
+  <data name="Device_NotFound" xml:space="preserve">
+    <value>Пристрій не знайдено.</value>
+  </data>
+  <data name="Device_NotFoundNamed" xml:space="preserve">
+    <value>Пристрій «{0}» не знайдено.</value>
+  </data>
+  <data name="Device_StoppedResponding" xml:space="preserve">
+    <value>Пристрій «{0}» перестав відповідати.</value>
+  </data>
+  <data name="Device_Updated" xml:space="preserve">
+    <value>«{0}» оновлено.</value>
+  </data>
+  <data name="Device_UsedByWorkflows" xml:space="preserve">
+    <value>«{0}» використовується в сценаріях: {1}. Спочатку приберіть його з цих сценаріїв.</value>
+  </data>
+  <data name="Device_WentOffline" xml:space="preserve">
+    <value>Пристрій «{0}» перейшов в офлайн.</value>
+  </data>
+  <data name="DeviceEdit_DescriptionHelp" xml:space="preserve">
+    <value>Необов’язково. Показується на картці пристрою.</value>
+  </data>
+  <data name="DeviceEdit_Subtitle" xml:space="preserve">
+    <value>Назвіть і опишіть пристрій. Свої дії він повідомляє сам.</value>
+  </data>
+  <data name="Devices_Address" xml:space="preserve">
+    <value>Адреса</value>
+  </data>
+  <data name="Devices_DeleteConfirm" xml:space="preserve">
+    <value>Видалити «{0}»?</value>
+  </data>
+  <data name="Devices_DeleteOnline" xml:space="preserve">
+    <value>«{0}» онлайн, тож зареєструється знову під час наступного підключення. Усе одно видалити?</value>
+  </data>
+  <data name="Devices_DeleteTitle" xml:space="preserve">
+    <value>Видалення пристрою</value>
+  </data>
+  <data name="Devices_DeleteWidget" xml:space="preserve">
+    <value> Його віджет на головному екрані теж буде видалено.</value>
+  </data>
+  <data name="Devices_DeleteWidgets" xml:space="preserve">
+    <value> Його віджети на головному екрані теж буде видалено (кількість: {0}).</value>
+  </data>
+  <data name="Devices_Details" xml:space="preserve">
+    <value>Подробиці</value>
+  </data>
+  <data name="Devices_Empty" xml:space="preserve">
+    <value>Пристроїв ще немає.</value>
+  </data>
+  <data name="Devices_EmptyHint" xml:space="preserve">
+    <value>Пристрої з’являються тут, коли підключаються до MQTT-брокера.</value>
+  </data>
+  <data name="Devices_Every" xml:space="preserve">
+    <value>Кожні {0}</value>
+  </data>
+  <data name="Devices_Heartbeat" xml:space="preserve">
+    <value>Сигнал активності</value>
+  </data>
+  <data name="Devices_InfoUpdated" xml:space="preserve">
+    <value>Інформацію оновлено</value>
+  </data>
+  <data name="Devices_More" xml:space="preserve">
+    <value>Ще {0}</value>
+  </data>
+  <data name="Devices_NoInfo" xml:space="preserve">
+    <value>Пристрій «{0}» ще не надіслав інформацію про себе.</value>
+  </data>
+  <data name="Devices_NoMatch" xml:space="preserve">
+    <value>Немає пристроїв за запитом «{0}».</value>
+  </data>
+  <data name="Devices_Search" xml:space="preserve">
+    <value>Пошук пристроїв</value>
+  </data>
+  <data name="Devices_Seen" xml:space="preserve">
+    <value>Остання активність: {0}</value>
+  </data>
+  <data name="Devices_ShowLess" xml:space="preserve">
+    <value>Згорнути</value>
+  </data>
+  <data name="Devices_StatusNotReported" xml:space="preserve">
+    <value>Пристрій ще не повідомив свій стан.</value>
+  </data>
+  <data name="Devices_StatusNotResponding" xml:space="preserve">
+    <value>Пристрій вважається онлайн, але нічого не надсилав з {0}. Імовірно, зникло живлення або мережа.</value>
+  </data>
+  <data name="Devices_StatusOffline" xml:space="preserve">
+    <value>Пристрій перейшов в офлайн. Останнє повідомлення: {0}.</value>
+  </data>
+  <data name="Devices_StatusOnline" xml:space="preserve">
+    <value>Останнє повідомлення: {0}. Очікується щонайменше кожні {1}.</value>
+  </data>
+  <data name="Devices_StatusUnknown" xml:space="preserve">
+    <value>Невідомий стан. Останнє повідомлення: {0}.</value>
+  </data>
+  <data name="DeviceStatus_Offline" xml:space="preserve">
+    <value>Офлайн</value>
+  </data>
+  <data name="DeviceStatus_Online" xml:space="preserve">
+    <value>Онлайн</value>
+  </data>
+  <data name="Error_Heading" xml:space="preserve">
+    <value>Помилка.</value>
+  </data>
+  <data name="Error_Message" xml:space="preserve">
+    <value>Під час обробки запиту сталася помилка.</value>
+  </data>
+  <data name="Error_PageTitle" xml:space="preserve">
+    <value>Помилка</value>
+  </data>
+  <data name="Error_RequestId" xml:space="preserve">
+    <value>ID запиту:</value>
+  </data>
+  <data name="Home_Available" xml:space="preserve">
+    <value>Доступно</value>
+  </data>
+  <data name="Home_Cache" xml:space="preserve">
+    <value>Кеш</value>
+  </data>
+  <data name="Home_Command" xml:space="preserve">
+    <value>Команда</value>
+  </data>
+  <data name="Home_CommandTimeout" xml:space="preserve">
+    <value>Команда не завершилася за {0} с.</value>
+  </data>
+  <data name="Home_Connecting" xml:space="preserve">
+    <value>Підключення...</value>
+  </data>
+  <data name="Home_Controls" xml:space="preserve">
+    <value>Керування</value>
+  </data>
+  <data name="Home_Cores" xml:space="preserve">
+    <value>Ядер: {0}</value>
+  </data>
+  <data name="Home_DevicesCaption" xml:space="preserve">
+    <value>Офлайн: {0} · не відповідають: {1} ·</value>
+  </data>
+  <data name="Home_DevicesOnline" xml:space="preserve">
+    <value>{0} / {1} онлайн</value>
+  </data>
+  <data name="Home_EnterCommand" xml:space="preserve">
+    <value>Введіть команду...</value>
+  </data>
+  <data name="Home_FreeOf" xml:space="preserve">
+    <value>Вільно {0} з {1} · {2}</value>
+  </data>
+  <data name="Home_HottestSensor" xml:space="preserve">
+    <value>Найгарячіший датчик</value>
+  </data>
+  <data name="Home_HubAddress" xml:space="preserve">
+    <value>Адреса хаба</value>
+  </data>
+  <data name="Home_LedsOff" xml:space="preserve">
+    <value>Індикатори маршрутизатора вимкнено.</value>
+  </data>
+  <data name="Home_LedsOffFailed" xml:space="preserve">
+    <value>Не вдалося вимкнути індикатори маршрутизатора: {0}</value>
+  </data>
+  <data name="Home_LinkDown" xml:space="preserve">
+    <value> · вимкнено</value>
+  </data>
+  <data name="Home_LinkSpeed" xml:space="preserve">
+    <value> · {0} Мбіт/с</value>
+  </data>
+  <data name="Home_LiveUpdated" xml:space="preserve">
+    <value>Наживо · оновлено о {0}</value>
+  </data>
+  <data name="Home_Load1" xml:space="preserve">
+    <value>Навантаження 1 хв</value>
+  </data>
+  <data name="Home_Load15" xml:space="preserve">
+    <value>15 хв</value>
+  </data>
+  <data name="Home_Load5" xml:space="preserve">
+    <value>5 хв</value>
+  </data>
+  <data name="Home_LocalIp" xml:space="preserve">
+    <value>Локальна IP-адреса</value>
+  </data>
+  <data name="Home_Manage" xml:space="preserve">
+    <value>Керувати</value>
+  </data>
+  <data name="Home_Memory" xml:space="preserve">
+    <value>Пам’ять</value>
+  </data>
+  <data name="Home_ModemRebooted" xml:space="preserve">
+    <value>Модем перезавантажено.</value>
+  </data>
+  <data name="Home_ModemRebootFailed" xml:space="preserve">
+    <value>Не вдалося перезавантажити модем: {0}</value>
+  </data>
+  <data name="Home_Network" xml:space="preserve">
+    <value>Мережа</value>
+  </data>
+  <data name="Home_NoNetwork" xml:space="preserve">
+    <value>Немає мережі</value>
+  </data>
+  <data name="Home_NoSensors" xml:space="preserve">
+    <value>На цьому комп’ютері немає датчиків температури.</value>
+  </data>
+  <data name="Home_Processor" xml:space="preserve">
+    <value>Процесор</value>
+  </data>
+  <data name="Home_Ram" xml:space="preserve">
+    <value>ОЗП</value>
+  </data>
+  <data name="Home_Reboot" xml:space="preserve">
+    <value>Перезавантажити</value>
+  </data>
+  <data name="Home_Rebooting" xml:space="preserve">
+    <value>Перезавантаження...</value>
+  </data>
+  <data name="Home_RebootModem" xml:space="preserve">
+    <value>Перезавантажити модем</value>
+  </data>
+  <data name="Home_RebootModemMessage" xml:space="preserve">
+    <value>Перезавантажити модем? Інтернет буде недоступний кілька хвилин.</value>
+  </data>
+  <data name="Home_RebootRouter" xml:space="preserve">
+    <value>Перезавантажити маршрутизатор</value>
+  </data>
+  <data name="Home_RebootRouterMessage" xml:space="preserve">
+    <value>Перезавантажити маршрутизатор? Мережа буде недоступна кілька хвилин.</value>
+  </data>
+  <data name="Home_RebootServerMessage" xml:space="preserve">
+    <value>Перезавантажити сервер Home Management?</value>
+  </data>
+  <data name="Home_RebootServerTitle" xml:space="preserve">
+    <value>Перезавантаження сервера</value>
+  </data>
+  <data name="Home_RefreshesEvery" xml:space="preserve">
+    <value>Оновлюється кожні {0} с</value>
+  </data>
+  <data name="Home_Router" xml:space="preserve">
+    <value>Маршрутизатор</value>
+  </data>
+  <data name="Home_RouterRebooted" xml:space="preserve">
+    <value>Маршрутизатор перезавантажено.</value>
+  </data>
+  <data name="Home_RouterRebootFailed" xml:space="preserve">
+    <value>Не вдалося перезавантажити маршрутизатор: {0}</value>
+  </data>
+  <data name="Home_Server" xml:space="preserve">
+    <value>Сервер</value>
+  </data>
+  <data name="Home_ShutDown" xml:space="preserve">
+    <value>Вимкнути</value>
+  </data>
+  <data name="Home_ShutDownMessage" xml:space="preserve">
+    <value>Вимкнути сервер Home Management? Його доведеться вмикати вручну.</value>
+  </data>
+  <data name="Home_ShutDownTitle" xml:space="preserve">
+    <value>Вимкнення сервера</value>
+  </data>
+  <data name="Home_ShuttingDown" xml:space="preserve">
+    <value>Вимкнення...</value>
+  </data>
+  <data name="Home_Since" xml:space="preserve">
+    <value>З {0}</value>
+  </data>
+  <data name="Home_SinceFormat" xml:space="preserve">
+    <value>d MMM, HH:mm</value>
+  </data>
+  <data name="Home_Storage" xml:space="preserve">
+    <value>Сховище</value>
+  </data>
+  <data name="Home_Swap" xml:space="preserve">
+    <value>Підкачка</value>
+  </data>
+  <data name="Home_Temperatures" xml:space="preserve">
+    <value>Температура</value>
+  </data>
+  <data name="Home_Terminal" xml:space="preserve">
+    <value>Термінал</value>
+  </data>
+  <data name="Home_TerminalHint" xml:space="preserve">
+    <value>Виконайте команду на хабі, наприклад uptime або docker ps.</value>
+  </data>
+  <data name="Home_Threads" xml:space="preserve">
+    <value>{0} · потоків: {1}</value>
+  </data>
+  <data name="Home_Total" xml:space="preserve">
+    <value>Усього</value>
+  </data>
+  <data name="Home_TurnOffLeds" xml:space="preserve">
+    <value>Вимкнути індикатори</value>
+  </data>
+  <data name="Home_Uptime" xml:space="preserve">
+    <value>Час роботи</value>
+  </data>
+  <data name="Home_Usage" xml:space="preserve">
+    <value>Навантаження</value>
+  </data>
+  <data name="Home_UsedOf" xml:space="preserve">
+    <value>{0} з {1}</value>
+  </data>
+  <data name="Layout_AppName" xml:space="preserve">
+    <value>Home Management</value>
+  </data>
+  <data name="Layout_Dismiss" xml:space="preserve">
+    <value>Закрити</value>
+  </data>
+  <data name="Layout_Language" xml:space="preserve">
+    <value>Мова</value>
+  </data>
+  <data name="Layout_Menu" xml:space="preserve">
+    <value>Меню</value>
+  </data>
+  <data name="Layout_Reload" xml:space="preserve">
+    <value>Перезавантажити</value>
+  </data>
+  <data name="Layout_RightToLeft" xml:space="preserve">
+    <value>Розміщення справа наліво</value>
+  </data>
+  <data name="Layout_UnhandledError" xml:space="preserve">
+    <value>Сталася неочікувана помилка.</value>
+  </data>
+  <data name="Login_HideKey" xml:space="preserve">
+    <value>Сховати ключ</value>
+  </data>
+  <data name="Login_InvalidKey" xml:space="preserve">
+    <value>Неправильний ключ. Перевірте його й спробуйте ще раз.</value>
+  </data>
+  <data name="Login_Key" xml:space="preserve">
+    <value>Ключ</value>
+  </data>
+  <data name="Login_PageTitle" xml:space="preserve">
+    <value>Вхід</value>
+  </data>
+  <data name="Login_RememberMe" xml:space="preserve">
+    <value>Запам’ятати мене</value>
+  </data>
+  <data name="Login_ShowKey" xml:space="preserve">
+    <value>Показати ключ</value>
+  </data>
+  <data name="Login_SignIn" xml:space="preserve">
+    <value>Увійти</value>
+  </data>
+  <data name="Login_Subtitle" xml:space="preserve">
+    <value>Увійдіть у Home Management</value>
+  </data>
+  <data name="Login_Username" xml:space="preserve">
+    <value>Ім’я користувача</value>
+  </data>
+  <data name="Login_Welcome" xml:space="preserve">
+    <value>З поверненням</value>
+  </data>
+  <data name="Logout_Subtitle" xml:space="preserve">
+    <value>Щоб увійти знову, знадобиться ваш ключ.</value>
+  </data>
+  <data name="Logout_Title" xml:space="preserve">
+    <value>Вийти?</value>
+  </data>
+  <data name="Mud_MudAlert_Close" xml:space="preserve">
+    <value>Закрити</value>
+  </data>
+  <data name="Mud_MudBaseDatePicker_NextMonth" xml:space="preserve">
+    <value>Наступний місяць {0}</value>
+  </data>
+  <data name="Mud_MudBaseDatePicker_NextYear" xml:space="preserve">
+    <value>Наступний рік {0}</value>
+  </data>
+  <data name="Mud_MudBaseDatePicker_Open" xml:space="preserve">
+    <value>Відкрити</value>
+  </data>
+  <data name="Mud_MudBaseDatePicker_PrevMonth" xml:space="preserve">
+    <value>Попередній місяць {0}</value>
+  </data>
+  <data name="Mud_MudBaseDatePicker_PrevYear" xml:space="preserve">
+    <value>Попередній рік {0}</value>
+  </data>
+  <data name="Mud_MudChip_Close" xml:space="preserve">
+    <value>Закрити</value>
+  </data>
+  <data name="Mud_MudDialog_Close" xml:space="preserve">
+    <value>Закрити</value>
+  </data>
+  <data name="Mud_MudFormComponent_Required" xml:space="preserve">
+    <value>Обов’язкове поле</value>
+  </data>
+  <data name="Mud_MudInput_Clear" xml:space="preserve">
+    <value>Очистити</value>
+  </data>
+  <data name="Mud_MudInput_Decrement" xml:space="preserve">
+    <value>Зменшити</value>
+  </data>
+  <data name="Mud_MudInput_Increment" xml:space="preserve">
+    <value>Збільшити</value>
+  </data>
+  <data name="Mud_MudNavGroup_ToggleExpand" xml:space="preserve">
+    <value>Розгорнути або згорнути {0}</value>
+  </data>
+  <data name="Mud_MudSelect_SelectAll" xml:space="preserve">
+    <value>Вибрати все</value>
+  </data>
+  <data name="Mud_MudSnackbar_Close" xml:space="preserve">
+    <value>Закрити</value>
+  </data>
+  <data name="Mud_MudTimePicker_Open" xml:space="preserve">
+    <value>Відкрити</value>
+  </data>
+  <data name="Nav_Apps" xml:space="preserve">
+    <value>Застосунки</value>
+  </data>
+  <data name="Nav_BuyMeACoffee" xml:space="preserve">
+    <value>Пригостіть мене кавою</value>
+  </data>
+  <data name="Nav_Devices" xml:space="preserve">
+    <value>Пристрої</value>
+  </data>
+  <data name="Nav_Home" xml:space="preserve">
+    <value>Головна</value>
+  </data>
+  <data name="Nav_IpCameras" xml:space="preserve">
+    <value>IP-камери</value>
+  </data>
+  <data name="Nav_LogOut" xml:space="preserve">
+    <value>Вийти</value>
+  </data>
+  <data name="Nav_Main" xml:space="preserve">
+    <value>Головне меню</value>
+  </data>
+  <data name="Nav_Overview" xml:space="preserve">
+    <value>Огляд</value>
+  </data>
+  <data name="Nav_SignedInAs" xml:space="preserve">
+    <value>Ви увійшли як</value>
+  </data>
+  <data name="Nav_Workflows" xml:space="preserve">
+    <value>Сценарії</value>
+  </data>
+  <data name="NotFound_Message" xml:space="preserve">
+    <value>На жаль, такої сторінки не існує.</value>
+  </data>
+  <data name="NotFound_Title" xml:space="preserve">
+    <value>Не знайдено</value>
+  </data>
+  <data name="Operator_After" xml:space="preserve">
+    <value>після</value>
+  </data>
+  <data name="Operator_Before" xml:space="preserve">
+    <value>до</value>
+  </data>
+  <data name="Operator_Between" xml:space="preserve">
+    <value>між</value>
+  </data>
+  <data name="Operator_Contains" xml:space="preserve">
+    <value>містить</value>
+  </data>
+  <data name="Operator_DateNotOn" xml:space="preserve">
+    <value>не дорівнює</value>
+  </data>
+  <data name="Operator_DateOn" xml:space="preserve">
+    <value>дорівнює</value>
+  </data>
+  <data name="Operator_DateOnOrAfter" xml:space="preserve">
+    <value>не раніше</value>
+  </data>
+  <data name="Operator_DateOnOrBefore" xml:space="preserve">
+    <value>не пізніше</value>
+  </data>
+  <data name="Operator_NotBetween" xml:space="preserve">
+    <value>не між</value>
+  </data>
+  <data name="Operator_NotContains" xml:space="preserve">
+    <value>не містить</value>
+  </data>
+  <data name="Operator_TimeAt" xml:space="preserve">
+    <value>о</value>
+  </data>
+  <data name="Operator_TimeAtOrAfter" xml:space="preserve">
+    <value>не раніше</value>
+  </data>
+  <data name="Operator_TimeAtOrBefore" xml:space="preserve">
+    <value>не пізніше</value>
+  </data>
+  <data name="Reconnect_Failed" xml:space="preserve">
+    <value>Не вдалося підключитися.</value>
+  </data>
+  <data name="Reconnect_Paused" xml:space="preserve">
+    <value>Сервер призупинив сеанс.</value>
+  </data>
+  <data name="Reconnect_Rejoining" xml:space="preserve">
+    <value>Повторне підключення до сервера...</value>
+  </data>
+  <data name="Reconnect_ReloadPage" xml:space="preserve">
+    <value>Перезавантажте сторінку.</value>
+  </data>
+  <data name="Reconnect_Resume" xml:space="preserve">
+    <value>Продовжити</value>
+  </data>
+  <data name="Reconnect_ResumeFailed" xml:space="preserve">
+    <value>Не вдалося відновити сеанс.</value>
+  </data>
+  <data name="Reconnect_Retry" xml:space="preserve">
+    <value>Повторити</value>
+  </data>
+  <data name="Reconnect_RetryAfter" xml:space="preserve">
+    <value>с.</value>
+  </data>
+  <data name="Reconnect_RetryBefore" xml:space="preserve">
+    <value>Не вдалося підключитися... Наступна спроба через</value>
+  </data>
+  <data name="Reconnect_RetryOrReload" xml:space="preserve">
+    <value>Спробуйте ще раз або перезавантажте сторінку.</value>
+  </data>
+  <data name="Router_AuthFailed" xml:space="preserve">
+    <value>Не вдалося автентифікуватися</value>
+  </data>
+  <data name="Router_NotConfigured" xml:space="preserve">
+    <value>Адресу маршрутизатора не налаштовано (Router:IpAddress).</value>
+  </data>
+  <data name="StepKind_Delay" xml:space="preserve">
+    <value>Зачекати</value>
+  </data>
+  <data name="StepKind_DeviceAction" xml:space="preserve">
+    <value>Виконати дію пристрою</value>
+  </data>
+  <data name="StepKind_Notify" xml:space="preserve">
+    <value>Надіслати сповіщення</value>
+  </data>
+  <data name="TimeReference_Fixed" xml:space="preserve">
+    <value>Точний час</value>
+  </data>
+  <data name="TimeReference_Sunrise" xml:space="preserve">
+    <value>Схід сонця</value>
+  </data>
+  <data name="TimeReference_Sunset" xml:space="preserve">
+    <value>Захід сонця</value>
+  </data>
+  <data name="TriggerKind_Date" xml:space="preserve">
+    <value>Дата</value>
+  </data>
+  <data name="TriggerKind_DeviceResult" xml:space="preserve">
+    <value>Значення пристрою</value>
+  </data>
+  <data name="TriggerKind_DeviceStatus" xml:space="preserve">
+    <value>Стан пристрою</value>
+  </data>
+  <data name="TriggerKind_Time" xml:space="preserve">
+    <value>Час доби</value>
+  </data>
+  <data name="Validation_ChooseAction" xml:space="preserve">
+    <value>Виберіть дію.</value>
+  </data>
+  <data name="Validation_ChooseDevice" xml:space="preserve">
+    <value>Виберіть пристрій.</value>
+  </data>
+  <data name="Validation_DelayPositive" xml:space="preserve">
+    <value>Пауза має бути довшою за 0 секунд.</value>
+  </data>
+  <data name="Validation_EndBeforeStart" xml:space="preserve">
+    <value>Кінцева дата не може бути раніше за початкову.</value>
+  </data>
+  <data name="Validation_EnterExpectedValue" xml:space="preserve">
+    <value>Введіть очікуване значення.</value>
+  </data>
+  <data name="Validation_EnterMessage" xml:space="preserve">
+    <value>Введіть повідомлення.</value>
+  </data>
+  <data name="Validation_EnterTitle" xml:space="preserve">
+    <value>Введіть заголовок.</value>
+  </data>
+  <data name="Validation_ExpectedNumber" xml:space="preserve">
+    <value>Очікуване значення має бути числом.</value>
+  </data>
+  <data name="Validation_PreviewAndSelect" xml:space="preserve">
+    <value>Перегляньте відповідь і виберіть властивість.</value>
+  </data>
+  <data name="Validation_SelectDate" xml:space="preserve">
+    <value>Виберіть дату.</value>
+  </data>
+  <data name="Validation_SelectDevice" xml:space="preserve">
+    <value>Виберіть пристрій.</value>
+  </data>
+  <data name="Validation_SelectDeviceAndAction" xml:space="preserve">
+    <value>Виберіть пристрій і дію.</value>
+  </data>
+  <data name="Validation_SelectEndDate" xml:space="preserve">
+    <value>Виберіть кінцеву дату.</value>
+  </data>
+  <data name="Validation_SelectEndTime" xml:space="preserve">
+    <value>Виберіть кінцевий час.</value>
+  </data>
+  <data name="Validation_SelectTime" xml:space="preserve">
+    <value>Виберіть час.</value>
+  </data>
+  <data name="Widget_ActionGone" xml:space="preserve">
+    <value>Цієї дії більше не існує.</value>
+  </data>
+  <data name="Widget_Added" xml:space="preserve">
+    <value>Віджет додано на головний екран.</value>
+  </data>
+  <data name="Widget_FailedNoReason" xml:space="preserve">
+    <value>Дія завершилася помилкою без пояснення.</value>
+  </data>
+  <data name="Widget_Moved" xml:space="preserve">
+    <value>Віджет переміщено.</value>
+  </data>
+  <data name="Widget_NoEventSinceStart" xml:space="preserve">
+    <value>Від запуску хаба подій «{0}» не було.</value>
+  </data>
+  <data name="Widget_NoneOfValues" xml:space="preserve">
+    <value>У результаті немає жодного з вибраних значень.</value>
+  </data>
+  <data name="Widget_NoOutput" xml:space="preserve">
+    <value>Дія нічого не повернула.</value>
+  </data>
+  <data name="Widget_NotFound" xml:space="preserve">
+    <value>Віджет не знайдено.</value>
+  </data>
+  <data name="Widget_PropertiesUnknownFailed" xml:space="preserve">
+    <value>Останній запуск завершився помилкою, тому властивості невідомі.</value>
+  </data>
+  <data name="Widget_PropertiesUnknownNotReported" xml:space="preserve">
+    <value>«{0}» ще не повідомив «{1}», тому властивості невідомі.</value>
+  </data>
+  <data name="Widget_Removed" xml:space="preserve">
+    <value>Віджет прибрано з головного екрана.</value>
+  </data>
+  <data name="Widget_RunToSeeOutput" xml:space="preserve">
+    <value>Виконайте дію, щоб побачити її результат.</value>
+  </data>
+  <data name="Widget_RunToSeeProperties" xml:space="preserve">
+    <value>Виконайте дію, щоб побачити її властивості.</value>
+  </data>
+  <data name="Widget_Updated" xml:space="preserve">
+    <value>Віджет оновлено.</value>
+  </data>
+  <data name="WidgetEdit_CurrentOutput" xml:space="preserve">
+    <value>Поточний результат</value>
+  </data>
+  <data name="WidgetEdit_Label" xml:space="preserve">
+    <value>Підпис</value>
+  </data>
+  <data name="WidgetEdit_LabelsHelp" xml:space="preserve">
+    <value>Підписи необов’язкові й показуються, коли віджет має кілька значень.</value>
+  </data>
+  <data name="WidgetEdit_MovePropertyDown" xml:space="preserve">
+    <value>Перемістити {0} нижче</value>
+  </data>
+  <data name="WidgetEdit_MovePropertyUp" xml:space="preserve">
+    <value>Перемістити {0} вище</value>
+  </data>
+  <data name="WidgetEdit_NotInOutput" xml:space="preserve">
+    <value>немає в результаті</value>
+  </data>
+  <data name="WidgetEdit_PostHelp" xml:space="preserve">
+    <value>Головний екран показує, що дія повернула під час останнього запуску. Вона запускається лише вручну.</value>
+  </data>
+  <data name="WidgetEdit_RemoveProperty" xml:space="preserve">
+    <value>Прибрати {0}</value>
+  </data>
+  <data name="WidgetEdit_RunAction" xml:space="preserve">
+    <value>Виконати дію</value>
+  </data>
+  <data name="WidgetEdit_Show" xml:space="preserve">
+    <value>Показувати</value>
+  </data>
+  <data name="WidgetEdit_ShowHelp" xml:space="preserve">
+    <value>Виберіть значення з JSON-результату, наприклад температуру й вологість. Якщо нічого не вибрано, показується весь результат.</value>
+  </data>
+  <data name="WidgetEdit_Subtitle" xml:space="preserve">
+    <value>Показуйте результат дії пристрою на головному екрані.</value>
+  </data>
+  <data name="WidgetEdit_TitleHelp" xml:space="preserve">
+    <value>Необов’язково. Якщо порожньо, використовується назва дії.</value>
+  </data>
+  <data name="WidgetEdit_Unit" xml:space="preserve">
+    <value>Одиниця</value>
+  </data>
+  <data name="WidgetEdit_UnitPlaceholder" xml:space="preserve">
+    <value>напр. °C</value>
+  </data>
+  <data name="WidgetEdit_WholeOutput" xml:space="preserve">
+    <value>Увесь результат</value>
+  </data>
+  <data name="Widgets_Add" xml:space="preserve">
+    <value>Додати віджет</value>
+  </data>
+  <data name="Widgets_Empty" xml:space="preserve">
+    <value>Закріпіть результат дії пристрою, наприклад температуру чи рівень заряду, щоб бачити його тут.</value>
+  </data>
+  <data name="Widgets_MoveEarlier" xml:space="preserve">
+    <value>Перемістити раніше</value>
+  </data>
+  <data name="Widgets_MoveLater" xml:space="preserve">
+    <value>Перемістити пізніше</value>
+  </data>
+  <data name="Widgets_NoDevices" xml:space="preserve">
+    <value>Пристроїв ще немає. Вони з’являються, коли підключаються до MQTT-брокера.</value>
+  </data>
+  <data name="Widgets_NotInOutput" xml:space="preserve">
+    <value>Немає в результаті</value>
+  </data>
+  <data name="Widgets_RemoveConfirm" xml:space="preserve">
+    <value>Прибрати «{0}» з головного екрана?</value>
+  </data>
+  <data name="Widgets_RemoveTitle" xml:space="preserve">
+    <value>Видалення віджета</value>
+  </data>
+  <data name="Widgets_RunAria" xml:space="preserve">
+    <value>Виконати {0} на {1}</value>
+  </data>
+  <data name="Widgets_RunTooltip" xml:space="preserve">
+    <value>Виконати: {0}</value>
+  </data>
+  <data name="Widgets_Title" xml:space="preserve">
+    <value>Віджети пристроїв</value>
+  </data>
+  <data name="Widgets_Updated" xml:space="preserve">
+    <value>Оновлено {0}</value>
+  </data>
+  <data name="Workflow_Added" xml:space="preserve">
+    <value>Сценарій «{0}» додано.</value>
+  </data>
+  <data name="Workflow_Deleted" xml:space="preserve">
+    <value>Сценарій «{0}» видалено.</value>
+  </data>
+  <data name="Workflow_Disabled" xml:space="preserve">
+    <value>Сценарій «{0}» вимкнено.</value>
+  </data>
+  <data name="Workflow_Enabled" xml:space="preserve">
+    <value>Сценарій «{0}» увімкнено.</value>
+  </data>
+  <data name="Workflow_Executed" xml:space="preserve">
+    <value>Сценарій «{0}» виконано. Виконано кроків: {1}.</value>
+  </data>
+  <data name="Workflow_ExecutedWithErrors" xml:space="preserve">
+    <value>Сценарій «{0}» виконано з помилками: {1}</value>
+  </data>
+  <data name="Workflow_NameTaken" xml:space="preserve">
+    <value>Інший сценарій уже має назву «{0}».</value>
+  </data>
+  <data name="Workflow_NoComparableValues" xml:space="preserve">
+    <value>У відповіді немає значень для порівняння.</value>
+  </data>
+  <data name="Workflow_NotFound" xml:space="preserve">
+    <value>Сценарій не знайдено.</value>
+  </data>
+  <data name="Workflow_NotFoundNamed" xml:space="preserve">
+    <value>Сценарій «{0}» не знайдено.</value>
+  </data>
+  <data name="Workflow_NotifyFailed" xml:space="preserve">
+    <value>Не вдалося надіслати сповіщення: {0}</value>
+  </data>
+  <data name="Workflow_Updated" xml:space="preserve">
+    <value>Сценарій «{0}» оновлено.</value>
+  </data>
+  <data name="WorkflowEdit_AddOneStep" xml:space="preserve">
+    <value>Додайте хоча б один крок.</value>
+  </data>
+  <data name="WorkflowEdit_AddStep" xml:space="preserve">
+    <value>Додати крок</value>
+  </data>
+  <data name="WorkflowEdit_AddTrigger" xml:space="preserve">
+    <value>Додати тригер</value>
+  </data>
+  <data name="WorkflowEdit_All" xml:space="preserve">
+    <value>Усі (І)</value>
+  </data>
+  <data name="WorkflowEdit_Any" xml:space="preserve">
+    <value>Будь-який (АБО)</value>
+  </data>
+  <data name="WorkflowEdit_CompleteFields" xml:space="preserve">
+    <value>Заповніть виділені поля.</value>
+  </data>
+  <data name="WorkflowEdit_Condition" xml:space="preserve">
+    <value>Умова</value>
+  </data>
+  <data name="WorkflowEdit_Date" xml:space="preserve">
+    <value>Дата</value>
+  </data>
+  <data name="WorkflowEdit_Delay" xml:space="preserve">
+    <value>Пауза (секунди)</value>
+  </data>
+  <data name="WorkflowEdit_DeleteStep" xml:space="preserve">
+    <value>Видалити крок</value>
+  </data>
+  <data name="WorkflowEdit_DeleteStepConfirm" xml:space="preserve">
+    <value>Видалити цей крок?</value>
+  </data>
+  <data name="WorkflowEdit_DeleteTrigger" xml:space="preserve">
+    <value>Видалити тригер</value>
+  </data>
+  <data name="WorkflowEdit_DeleteTriggerConfirm" xml:space="preserve">
+    <value>Видалити цей тригер?</value>
+  </data>
+  <data name="WorkflowEdit_Disabled" xml:space="preserve">
+    <value>Вимкнено</value>
+  </data>
+  <data name="WorkflowEdit_Enabled" xml:space="preserve">
+    <value>Увімкнено</value>
+  </data>
+  <data name="WorkflowEdit_ExpectedValue" xml:space="preserve">
+    <value>Очікуване значення</value>
+  </data>
+  <data name="WorkflowEdit_FixedTime" xml:space="preserve">
+    <value>Точний час</value>
+  </data>
+  <data name="WorkflowEdit_From" xml:space="preserve">
+    <value>Від</value>
+  </data>
+  <data name="WorkflowEdit_Goes" xml:space="preserve">
+    <value>Переходить у стан</value>
+  </data>
+  <data name="WorkflowEdit_JsonProperty" xml:space="preserve">
+    <value>Властивість JSON</value>
+  </data>
+  <data name="WorkflowEdit_Message" xml:space="preserve">
+    <value>Повідомлення</value>
+  </data>
+  <data name="WorkflowEdit_MoveStepDown" xml:space="preserve">
+    <value>Перемістити крок нижче</value>
+  </data>
+  <data name="WorkflowEdit_MoveStepUp" xml:space="preserve">
+    <value>Перемістити крок вище</value>
+  </data>
+  <data name="WorkflowEdit_MoveTriggerDown" xml:space="preserve">
+    <value>Перемістити тригер нижче</value>
+  </data>
+  <data name="WorkflowEdit_MoveTriggerUp" xml:space="preserve">
+    <value>Перемістити тригер вище</value>
+  </data>
+  <data name="WorkflowEdit_NoTriggers" xml:space="preserve">
+    <value>Тригерів немає: сценарій запускається лише вручну.</value>
+  </data>
+  <data name="WorkflowEdit_Offset" xml:space="preserve">
+    <value>Зсув (хвилини)</value>
+  </data>
+  <data name="WorkflowEdit_OffsetHelp" xml:space="preserve">
+    <value>Від’ємний означає раніше</value>
+  </data>
+  <data name="WorkflowEdit_Placeholders" xml:space="preserve">
+    <value>Підстановки: {Trigger.Device}, {Trigger.Expected}, {Trigger.Current}, {Trigger.Result.snapshotUrl}, {LastStep.Message}.</value>
+  </data>
+  <data name="WorkflowEdit_PreviewHelp" xml:space="preserve">
+    <value>Один раз виконує дію, щоб показати властивості, які можна порівнювати.</value>
+  </data>
+  <data name="WorkflowEdit_PreviewResponse" xml:space="preserve">
+    <value>Переглянути відповідь</value>
+  </data>
+  <data name="WorkflowEdit_Repeat" xml:space="preserve">
+    <value>Повторювати, поки тригери спрацьовують</value>
+  </data>
+  <data name="WorkflowEdit_RepeatOff" xml:space="preserve">
+    <value>Запускається один раз щоразу, коли тригери починають спрацьовувати.</value>
+  </data>
+  <data name="WorkflowEdit_RepeatOn" xml:space="preserve">
+    <value>Запускається під час кожної перевірки, поки тригери спрацьовують, наприклад для тривог.</value>
+  </data>
+  <data name="WorkflowEdit_RunsManually" xml:space="preserve">
+    <value>Запускається лише вручну.</value>
+  </data>
+  <data name="WorkflowEdit_RunsWhenMatch" xml:space="preserve">
+    <value>Запускається, коли спрацьовують тригери.</value>
+  </data>
+  <data name="WorkflowEdit_StatusHelp" xml:space="preserve">
+    <value>Запускається один раз щоразу, коли пристрій переходить у цей стан. Щоб дізнаватися про обидва стани, додайте інший через АБО.</value>
+  </data>
+  <data name="WorkflowEdit_Step" xml:space="preserve">
+    <value>Крок</value>
+  </data>
+  <data name="WorkflowEdit_StepsHelp" xml:space="preserve">
+    <value>Кроки виконуються по черзі. Помилка одного кроку не зупиняє наступні.</value>
+  </data>
+  <data name="WorkflowEdit_Subtitle" xml:space="preserve">
+    <value>Виберіть, коли запускається сценарій і що він робить.</value>
+  </data>
+  <data name="WorkflowEdit_Time" xml:space="preserve">
+    <value>Час</value>
+  </data>
+  <data name="WorkflowEdit_TimeEqualHelp" xml:space="preserve">
+    <value>Спрацьовує раз на день, протягом кількох хвилин після настання цього часу.</value>
+  </data>
+  <data name="WorkflowEdit_To" xml:space="preserve">
+    <value>До</value>
+  </data>
+  <data name="WorkflowEdit_Trigger" xml:space="preserve">
+    <value>Тригер</value>
+  </data>
+  <data name="WorkflowEdit_TriggersMatch" xml:space="preserve">
+    <value>Сценарій запускається, коли спрацьовують ці тригери.</value>
+  </data>
+  <data name="WorkflowEdit_Waits" xml:space="preserve">
+    <value>Очікування: {0}</value>
+  </data>
+  <data name="WorkflowFormat_Date" xml:space="preserve">
+    <value>Дата</value>
+  </data>
+  <data name="WorkflowFormat_GoesOffline" xml:space="preserve">
+    <value>{0} переходить в офлайн</value>
+  </data>
+  <data name="WorkflowFormat_GoesOnline" xml:space="preserve">
+    <value>{0} переходить в онлайн</value>
+  </data>
+  <data name="WorkflowFormat_Manual" xml:space="preserve">
+    <value>Запуск вручну</value>
+  </data>
+  <data name="WorkflowFormat_OffsetMinutes" xml:space="preserve">
+    <value>{0} хв</value>
+  </data>
+  <data name="WorkflowFormat_Range" xml:space="preserve">
+    <value>{0} {1} {2} і {3}</value>
+  </data>
+  <data name="WorkflowFormat_Single" xml:space="preserve">
+    <value>{0} {1} {2}</value>
+  </data>
+  <data name="WorkflowFormat_Time" xml:space="preserve">
+    <value>Час</value>
+  </data>
+  <data name="Workflows_AddWorkflow" xml:space="preserve">
+    <value>Додати сценарій</value>
+  </data>
+  <data name="Workflows_DeleteConfirm" xml:space="preserve">
+    <value>Видалити сценарій «{0}»?</value>
+  </data>
+  <data name="Workflows_DeleteTitle" xml:space="preserve">
+    <value>Видалення сценарію</value>
+  </data>
+  <data name="Workflows_DisabledTooltip" xml:space="preserve">
+    <value>Вимкнено: запускається лише вручну</value>
+  </data>
+  <data name="Workflows_Empty" xml:space="preserve">
+    <value>Сценаріїв ще немає.</value>
+  </data>
+  <data name="Workflows_EmptyHint" xml:space="preserve">
+    <value>Сценарій виконує дії пристроїв, паузи та сповіщення за розкладом, за подіями пристроїв або на вимогу.</value>
+  </data>
+  <data name="Workflows_EnableAria" xml:space="preserve">
+    <value>Увімкнути {0}</value>
+  </data>
+  <data name="Workflows_EnabledTooltip" xml:space="preserve">
+    <value>Увімкнено: запускається, коли спрацьовують тригери</value>
+  </data>
+  <data name="Workflows_LastRun" xml:space="preserve">
+    <value>Останній запуск: {0}</value>
+  </data>
+  <data name="Workflows_NoMatch" xml:space="preserve">
+    <value>Немає сценаріїв за запитом «{0}».</value>
+  </data>
+  <data name="Workflows_NoSteps" xml:space="preserve">
+    <value>Немає кроків</value>
+  </data>
+  <data name="Workflows_OncePerMatch" xml:space="preserve">
+    <value>один раз на спрацювання</value>
+  </data>
+  <data name="Workflows_RepeatsWhileMatched" xml:space="preserve">
+    <value>повторюється, поки тригери спрацьовують</value>
+  </data>
+  <data name="Workflows_Search" xml:space="preserve">
+    <value>Пошук сценаріїв</value>
+  </data>
+  <data name="Workflows_StepNotify" xml:space="preserve">
+    <value>Сповістити «{0}»</value>
+  </data>
+  <data name="Workflows_StepWait" xml:space="preserve">
+    <value>Зачекати {0}</value>
+  </data>
+  <data name="Workflows_Summary" xml:space="preserve">
+    <value>Увімкнено {0} з {1}</value>
+  </data>
+  <data name="Workflows_Then" xml:space="preserve">
+    <value>Тоді</value>
+  </data>
+  <data name="Workflows_When" xml:space="preserve">
+    <value>Коли</value>
+  </data>
+</root>

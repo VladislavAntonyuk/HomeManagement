@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HomeManagement.Shared.Api;
@@ -30,7 +31,7 @@ public sealed partial class WorkflowsViewModel(IHomeManagementApi api, UserNotif
             Workflows.First(x => x.Id == workflow.Id).Update(workflow);
         }
 
-        Summary = $"{workflows.Count(x => x.IsEnabled)} of {workflows.Count} enabled";
+        Summary = string.Format(CultureInfo.CurrentCulture, AppResources.WorkflowsSummary, workflows.Count(x => x.IsEnabled), workflows.Count);
     }
 }
 
@@ -73,9 +74,10 @@ public sealed partial class WorkflowItemViewModel : ObservableObject
         Name = workflow.Name;
         Description = string.IsNullOrWhiteSpace(workflow.Description) ? null : workflow.Description;
         Trigger = workflow.Trigger;
-        var steps = workflow.Steps == 1 ? "1 step" : $"{workflow.Steps} steps";
-        var repeat = workflow.RepeatWhileMatched ? " · repeats while matched" : string.Empty;
-        Details = $"{steps}{repeat} · last run {DisplayFormatter.FormatAgo(workflow.LastTriggeredAtUtc, DateTimeOffset.UtcNow)}";
+        var steps = workflow.Steps == 1 ? AppResources.WorkflowStepsOne : string.Format(CultureInfo.CurrentCulture, AppResources.WorkflowStepsMany, workflow.Steps);
+        var repeat = workflow.RepeatWhileMatched ? $" · {AppResources.WorkflowRepeats}" : string.Empty;
+        var lastRun = string.Format(CultureInfo.CurrentCulture, AppResources.WorkflowLastRun, DisplayFormatter.FormatAgo(workflow.LastTriggeredAtUtc, DateTimeOffset.UtcNow));
+        Details = $"{steps}{repeat} · {lastRun}";
         if (!IsUpdating)
         {
             _isApplyingServerState = true;
@@ -113,7 +115,7 @@ public sealed partial class WorkflowItemViewModel : ObservableObject
     [RelayCommand]
     private async Task RunAsync()
     {
-        if (!await _notifier.ConfirmAsync("Run workflow", $"Run '{Name}' now, regardless of its trigger?", "Run"))
+        if (!await _notifier.ConfirmAsync(AppResources.RunWorkflowTitle, string.Format(CultureInfo.CurrentCulture, AppResources.RunWorkflowMessage, Name), AppResources.Run))
         {
             return;
         }

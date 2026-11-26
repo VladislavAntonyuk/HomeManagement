@@ -3,7 +3,7 @@
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:DataType="DashboardViewModel"
              Shell.NavBarIsVisible="False"
-             Title="Dashboard">
+             Title="{x:Static AppResources.Dashboard}">
 
     <ContentPage.Behaviors>
         <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Appearing" Command="{Binding AppearingCommand}" />
@@ -13,7 +13,7 @@
     <Grid>
         <ScrollView IsVisible="{Binding IsConfigured}">
             <VerticalStackLayout Spacing="16" Padding="16,16,16,0">
-                <Label Text="Home" Style="{StaticResource PageTitle}" />
+                <Label Text="{x:Static AppResources.Home}" Style="{StaticResource PageTitle}" />
 
                 <Border Style="{StaticResource ErrorBanner}" IsVisible="{ErrorMessage != null}">
                     <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
@@ -69,15 +69,15 @@
                             <TapGestureRecognizer Command="{Binding GoToCommand}" CommandParameter="//devices" />
                         </Border.GestureRecognizers>
                         <VerticalStackLayout Spacing="8">
-                            <Label Text="Devices" Style="{StaticResource Caption}" />
+                            <Label Text="{x:Static AppResources.Devices}" Style="{StaticResource Caption}" />
                             <HorizontalStackLayout Spacing="6">
                                 <Label Text="{Binding Dashboard.OnlineDevices}" Style="{StaticResource BigValue}" TextColor="{StaticResource StatusOnline}" />
-                                <Label Text="{$'of {Dashboard?.TotalDevices} online'}" VerticalOptions="End" Margin="0,0,0,6" />
+                                <Label Text="{Binding DevicesOnlineOf}" VerticalOptions="End" Margin="0,0,0,6" />
                             </HorizontalStackLayout>
                             <ProgressBar Progress="{Binding OnlineShare}" ProgressColor="{StaticResource StatusOnline}" />
                             <HorizontalStackLayout Spacing="12">
-                                <Label Text="{$'{Dashboard?.OfflineDevices} offline'}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusOffline}" />
-                                <Label Text="{$'{Dashboard?.NotRespondingDevices} not responding'}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusWarning}" />
+                                <Label Text="{Binding DevicesOffline}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusOffline}" />
+                                <Label Text="{Binding DevicesNotResponding}" Style="{StaticResource Caption}" TextColor="{StaticResource StatusWarning}" />
                             </HorizontalStackLayout>
                         </VerticalStackLayout>
                     </Border>
@@ -87,37 +87,80 @@
                             <TapGestureRecognizer Command="{Binding GoToCommand}" CommandParameter="//workflows" />
                         </Border.GestureRecognizers>
                         <VerticalStackLayout Spacing="8">
-                            <Label Text="Workflows" Style="{StaticResource Caption}" />
+                            <Label Text="{x:Static AppResources.Workflows}" Style="{StaticResource Caption}" />
                             <HorizontalStackLayout Spacing="6">
                                 <Label Text="{Binding Dashboard.EnabledWorkflows}" Style="{StaticResource BigValue}" />
-                                <Label Text="{$'of {Dashboard?.TotalWorkflows} enabled'}" VerticalOptions="End" Margin="0,0,0,6" />
+                                <Label Text="{Binding WorkflowsEnabledOf}" VerticalOptions="End" Margin="0,0,0,6" />
                             </HorizontalStackLayout>
-                            <Label Text="{$'Last run {LastWorkflowRun}'}" Style="{StaticResource Caption}" />
+                            <Label Text="{Binding LastWorkflowRun}" Style="{StaticResource Caption}" />
                         </VerticalStackLayout>
                     </Border>
 
                     <Border x:Name="HubTile" Grid.Row="2" Style="{StaticResource Card}">
                         <VerticalStackLayout Spacing="8">
-                            <Label Text="Hub" Style="{StaticResource Caption}" />
+                            <Label Text="{x:Static AppResources.Hub}" Style="{StaticResource Caption}" />
                             <Label Text="{Binding Dashboard.Hub.MachineName}" Style="{StaticResource CardTitle}" />
                             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="4">
-                                <Label Text="Address" Style="{StaticResource Caption}" />
+                                <Label Text="{x:Static AppResources.Address}" Style="{StaticResource Caption}" />
                                 <Label Grid.Column="1" Text="{Dashboard?.Hub.LocalIp ?? '-'}" />
-                                <Label Grid.Row="1" Text="Uptime" Style="{StaticResource Caption}" />
+                                <Label Grid.Row="1" Text="{x:Static AppResources.Uptime}" Style="{StaticResource Caption}" />
                                 <Label Grid.Row="1" Grid.Column="1" Text="{Binding HubUptime}" />
-                                <Label Grid.Row="2" Text="Temperature" Style="{StaticResource Caption}" />
-                                <Label Grid.Row="2" Grid.Column="1" Text="{Dashboard?.Hub.TemperatureCelsius == null ? '-' : $'{Dashboard!.Hub.TemperatureCelsius:0.#} °C'}" />
-                                <Label Grid.Row="3" Text="System" Style="{StaticResource Caption}" />
+                                <Label Grid.Row="2" Text="{x:Static AppResources.Temperature}" Style="{StaticResource Caption}" />
+                                <Label Grid.Row="2" Grid.Column="1" Text="{Binding HubTemperature}" />
+                                <Label Grid.Row="3" Text="{x:Static AppResources.System}" Style="{StaticResource Caption}" />
                                 <Label Grid.Row="3" Grid.Column="1" Text="{Binding Dashboard.Hub.OperatingSystem}" LineBreakMode="TailTruncation" />
                             </Grid>
                         </VerticalStackLayout>
                     </Border>
                 </Grid>
 
+                <VerticalStackLayout Spacing="12" IsVisible="{Widgets.Count > 0}">
+                    <Label Text="{x:Static AppResources.DeviceWidgets}" Style="{StaticResource CardTitle}" />
+                    <VerticalStackLayout BindableLayout.ItemsSource="{Binding Widgets}" Spacing="12">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="DashboardWidgetItemViewModel">
+                                <Border Style="{StaticResource Card}">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
+                                        <VerticalStackLayout Spacing="2" VerticalOptions="Center">
+                                            <Label Text="{Binding Title}" Style="{StaticResource CardTitle}" />
+                                            <HorizontalStackLayout Spacing="6">
+                                                <Ellipse WidthRequest="8" HeightRequest="8" Fill="{Status.Color}" VerticalOptions="Center" />
+                                                <Label Text="{Binding Device}" Style="{StaticResource Caption}" LineBreakMode="TailTruncation" />
+                                            </HorizontalStackLayout>
+                                        </VerticalStackLayout>
+
+                                        <HorizontalStackLayout Grid.Column="1" Spacing="12" VerticalOptions="Center">
+                                            <Label Text="{Binding Text}" Style="{StaticResource BigValue}" FontSize="24" VerticalOptions="Center"
+                                                   IsVisible="{Binding IsSingleValue}" Opacity="{IsOnline ? 1.0 : 0.6}" />
+                                            <Grid IsVisible="{Binding CanRun}" VerticalOptions="Center">
+                                                <Button Text="{x:Static AppResources.Run}" Command="{Binding RunCommand}" IsEnabled="{Binding IsOnline}" Style="{StaticResource SecondaryButton}" />
+                                                <ActivityIndicator IsRunning="{Binding RunCommand.IsRunning}" IsVisible="{Binding RunCommand.IsRunning}"
+                                                                   HeightRequest="20" WidthRequest="20" HorizontalOptions="Center" VerticalOptions="Center" />
+                                            </Grid>
+                                        </HorizontalStackLayout>
+
+                                        <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Text}" Style="{StaticResource Caption}" FontSize="14" IsVisible="{!HasValue}" />
+                                        <Label Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Text}" FontSize="13" MaxLines="12" LineBreakMode="TailTruncation"
+                                               IsVisible="{Binding IsMultiLine}" Opacity="{IsOnline ? 1.0 : 0.6}">
+                                            <Label.Triggers>
+                                                <DataTrigger TargetType="Label" Binding="{Binding IsError}" Value="True">
+                                                    <Setter Property="TextColor" Value="{StaticResource StatusOffline}" />
+                                                </DataTrigger>
+                                            </Label.Triggers>
+                                        </Label>
+
+                                        <Label Grid.Row="2" Grid.ColumnSpan="2" Text="{Binding Updated}" Style="{StaticResource Caption}" IsVisible="{Updated != null}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+
                 <FlexLayout Wrap="Wrap" AlignItems="Start" AlignContent="Start" Padding="0,0,0,8">
-                    <Button Text="Devices" Command="{Binding GoToCommand}" CommandParameter="//devices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
-                    <Button Text="Workflows" Command="{Binding GoToCommand}" CommandParameter="//workflows" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
-                    <Button Text="Cameras" Command="{Binding GoToCommand}" CommandParameter="//cameras" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
+                    <Button Text="{x:Static AppResources.Devices}" Command="{Binding GoToCommand}" CommandParameter="//devices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
+                    <Button Text="{x:Static AppResources.Workflows}" Command="{Binding GoToCommand}" CommandParameter="//workflows" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
+                    <Button Text="{x:Static AppResources.Cameras}" Command="{Binding GoToCommand}" CommandParameter="//cameras" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
                 </FlexLayout>
             </VerticalStackLayout>
         </ScrollView>

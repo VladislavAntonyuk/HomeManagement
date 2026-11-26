@@ -17,4 +17,5 @@ The folders on disk match the solution folders in `HomeManagement.slnx`.
   - [ESP8266](Devices/ESP8266) and [ESP32](Devices/ESP32): Arduino sketches.
   - [HomeManagement.Devices.Fridge](Devices/HomeManagement.Devices.Fridge): nanoFramework.
   - [HomeManagement.Devices.ProcessDevice](Devices/HomeManagement.Devices.ProcessDevice): .NET agent for Linux boards.
+  - [HomeManagement.Devices.TuyaPlug](Devices/HomeManagement.Devices.TuyaPlug): .NET agent for a Tuya smart plug, through the Tuya cloud.
   - [BluetoothGpioController](Devices/BluetoothGpioController) and [IPCamera](Devices/IPCamera).

@@ -82,4 +82,19 @@
 		<ProjectReference Include="..\HomeManagement.Shared\HomeManagement.Shared.csproj" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<!-- Public, so XAML can use {x:Static AppResources.Key} -->
+		<EmbeddedResource Update="Resources\Strings\AppResources.resx">
+			<Generator>MSBuild:Compile</Generator>
+			<StronglyTypedFileName>$(IntermediateOutputPath)AppResources.Designer.cs</StronglyTypedFileName>
+			<StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+			<StronglyTypedNamespace>HomeManagement.Client.Resources.Strings</StronglyTypedNamespace>
+			<StronglyTypedClassName>AppResources</StronglyTypedClassName>
+			<PublicClass>true</PublicClass>
+		</EmbeddedResource>
+	</ItemGroup>
+
+	<!-- The WinUI XAML compiler builds a first pass of the code before resources are generated; give it AppResources too. -->
+	<Target Name="GenerateResourcesBeforeXamlPreCompile" BeforeTargets="XamlPreCompile" DependsOnTargets="PrepareResourceNames;ResGen" />
+
 </Project>

@@ -1,4 +1,5 @@
 using HomeManagement.Application;
+using HomeManagement.Application.Dashboard;
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Workflows;
 using HomeManagement.Cameras;
@@ -21,6 +22,7 @@ public static class HomeApi
             .WithTags("Home Management API");
 
         api.MapGet(ApiRoutes.Dashboard, GetDashboardAsync);
+        api.MapGet(ApiRoutes.DashboardWidgets, GetDashboardWidgetsAsync);
         api.MapGet(ApiRoutes.Devices, GetDevicesAsync);
         api.MapPost(ApiRoutes.DeviceAction, RunDeviceActionAsync);
         api.MapGet(ApiRoutes.Workflows, GetWorkflowsAsync);
@@ -46,6 +48,9 @@ public static class HomeApi
             workflows.LastRunAtUtc,
             GetHubInfo());
     }
+
+    private static async Task<List<DashboardWidgetDto>> GetDashboardWidgetsAsync(DashboardWidgetService widgetService, CancellationToken token)
+        => [.. (await widgetService.ListAsync(token)).Select(x => x.ToDto(widgetService.Read(x)))];
 
     private static async Task<List<DeviceDto>> GetDevicesAsync(DeviceService deviceService, CancellationToken token)
         => [.. (await deviceService.GetDevicesAsync(token)).Select(x => x.ToDto())];

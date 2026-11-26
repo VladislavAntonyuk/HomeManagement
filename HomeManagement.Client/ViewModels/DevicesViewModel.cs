@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HomeManagement.Shared;
@@ -41,7 +42,7 @@ public sealed partial class DevicesViewModel(IHomeManagementApi api, UserNotifie
         }
 
         var online = devices.Count(x => x.Status == DevicePresenceStatus.Online);
-        Summary = $"{online} of {devices.Count} online";
+        Summary = string.Format(CultureInfo.CurrentCulture, AppResources.DevicesSummary, online, devices.Count);
         ApplyFilter();
     }
 
@@ -126,7 +127,7 @@ public sealed partial class DeviceItemViewModel : ObservableObject
         Description = string.IsNullOrWhiteSpace(device.Description) ? null : device.Description;
         Status = device.Status;
         StatusText = device.Status.DisplayName;
-        LastSeen = $"Last seen {DisplayFormatter.FormatAgo(device.LastSeenUtc, DateTimeOffset.UtcNow)}";
+        LastSeen = string.Format(CultureInfo.CurrentCulture, AppResources.DeviceLastSeen, DisplayFormatter.FormatAgo(device.LastSeenUtc, DateTimeOffset.UtcNow));
         Address = device.Address;
         if (!Metrics.SequenceEqual(device.Metrics))
         {

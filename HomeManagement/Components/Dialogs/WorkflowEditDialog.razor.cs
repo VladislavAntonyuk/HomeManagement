@@ -32,11 +32,11 @@ public partial class WorkflowEditDialog(WorkflowTriggerPreviewService previewSer
 
         if (Model.Steps.Count == 0)
         {
-            _saveError = "Add at least one step.";
+            _saveError = Strings.WorkflowEdit_AddOneStep;
         }
         else if (!_form.IsValid || Model.Triggers.Any(x => x.Error is not null) || Model.Steps.Any(x => x.Error is not null))
         {
-            _saveError = "Complete the highlighted fields.";
+            _saveError = Strings.WorkflowEdit_CompleteFields;
         }
 
         if (_saveError is null)
@@ -51,9 +51,9 @@ public partial class WorkflowEditDialog(WorkflowTriggerPreviewService previewSer
 
     private void AddStep() => Model.Steps.Add(new StepEditModel());
 
-    private async Task RemoveAsync<T>(List<T> items, T item, string name)
+    private async Task RemoveAsync<T>(List<T> items, T item, string question)
     {
-        if (await dialogService.ConfirmAsync("Confirm delete", $"Are you sure you want to delete this {name}?"))
+        if (await dialogService.ConfirmAsync(Strings.Common_ConfirmDelete, question))
         {
             items.Remove(item);
         }
@@ -112,10 +112,10 @@ public partial class WorkflowEditDialog(WorkflowTriggerPreviewService previewSer
 
     private static string TriggerKindName(TriggerKind kind) => kind switch
     {
-        TriggerKind.Date => "Date",
-        TriggerKind.Time => "Time of day",
-        TriggerKind.DeviceResult => "Device value",
-        TriggerKind.DeviceStatus => "Device status",
+        TriggerKind.Date => Strings.TriggerKind_Date,
+        TriggerKind.Time => Strings.TriggerKind_Time,
+        TriggerKind.DeviceResult => Strings.TriggerKind_DeviceResult,
+        TriggerKind.DeviceStatus => Strings.TriggerKind_DeviceStatus,
         _ => kind.ToString()
     };
 
@@ -130,9 +130,9 @@ public partial class WorkflowEditDialog(WorkflowTriggerPreviewService previewSer
 
     private static string StepKindName(StepKind kind) => kind switch
     {
-        StepKind.DeviceAction => "Run device action",
-        StepKind.Delay => "Wait",
-        StepKind.Notify => "Send notification",
+        StepKind.DeviceAction => Strings.StepKind_DeviceAction,
+        StepKind.Delay => Strings.StepKind_Delay,
+        StepKind.Notify => Strings.StepKind_Notify,
         _ => kind.ToString()
     };
 

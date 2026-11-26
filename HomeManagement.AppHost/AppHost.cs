@@ -16,4 +16,9 @@ builder.AddDotnetProject("homemanagement-devices-processdevice", "../Devices/Hom
     .WithExplicitStart()
     .WaitFor(hub);
 
+builder.AddDotnetProject("homemanagement-devices-tuyaplug", "../Devices/HomeManagement.Devices.TuyaPlug/HomeManagement.Devices.TuyaPlug.csproj")
+    .WithReference(mqtt)
+    .WithExplicitStart()
+    .WaitFor(hub);
+
 builder.Build().Run();

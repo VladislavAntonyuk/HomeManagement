@@ -1,14 +1,16 @@
-<section class="stat-tile">
-    <IconBadge Icon="@Icon" Accent="@Accent" />
-    <div class="stat-tile-text">
-        <MudText Typo="Typo.caption" Class="stat-tile-label">@Label</MudText>
-        <MudText Typo="Typo.h5" Class="stat-tile-value" title="@Value">@(Value ?? "…")</MudText>
-        @if (Caption is not null)
-        {
-            <div class="stat-tile-caption">@Caption</div>
-        }
-    </div>
-</section>
+<div class="stat-tile-container">
+    <section class="stat-tile">
+        <IconBadge Icon="@Icon" Accent="@Accent" />
+        <div class="stat-tile-text">
+            <MudText Typo="Typo.caption" Class="stat-tile-label">@Label</MudText>
+            <MudText Typo="Typo.h5" Class="stat-tile-value" title="@Value">@(Value ?? "…")</MudText>
+            @if (Caption is not null)
+            {
+                <div class="stat-tile-caption">@Caption</div>
+            }
+        </div>
+    </section>
+</div>
 
 @code {
     [Parameter, EditorRequired]

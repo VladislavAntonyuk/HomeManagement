@@ -136,7 +136,6 @@ void MqttDevice::onConnected() {
 
 void MqttDevice::publishTwin() {
   static const DeviceAction builtInActions[] = {
-    { "INFO", "Get", InfoKey },
     { "RESTART", "Post", RestartKey },
     { "SHUTDOWN", "Post", ShutdownKey }
   };

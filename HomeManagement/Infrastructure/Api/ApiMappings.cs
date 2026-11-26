@@ -1,4 +1,5 @@
 using HomeManagement.Application;
+using HomeManagement.Application.Dashboard;
 using HomeManagement.Application.DeviceManagement;
 using HomeManagement.Application.Workflows;
 using HomeManagement.Infrastructure.Database.Entities;
@@ -28,6 +29,24 @@ public static class ApiMappings
         /// The address the device reported, or null when it did not report one.
         /// </summary>
         public string? Address => string.IsNullOrEmpty(overview.Info?.Address) ? null : overview.Info.Address;
+    }
+
+    extension(DashboardWidget widget)
+    {
+        public DashboardWidgetDto ToDto(DashboardWidgetValue value) => new(
+            widget.Id,
+            DashboardWidgetService.GetTitle(widget),
+            widget.DeviceAction.DeviceId,
+            widget.DeviceAction.Device.Name,
+            widget.DeviceActionId,
+            widget.DeviceAction.Action,
+            widget.DeviceAction.CommandType,
+            value.Presence.Status,
+            value.Output,
+            [.. value.Properties.Select(x => new DashboardWidgetPropertyDto(x.Property.Path, x.Property.Label, x.Property.Unit, x.Value))],
+            value.IsError,
+            value.UpdatedAtUtc,
+            value.Message);
     }
 
     extension(Workflow workflow)

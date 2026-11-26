@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Text.Json;
 using HomeManagement.DeviceSdk;
 using HomeManagement.Shared;
@@ -42,6 +43,7 @@ public sealed class FrigateDeviceHandler(
     // Completes when the cameras and profiles are read, or Frigate is known to be offline.
     private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private volatile FrigateConfig _config = FrigateConfig.Empty;
+    private volatile FrigateStatsMessage? _stats;
     private bool? _isAvailable;
     private string? _profile;
 
@@ -123,14 +125,56 @@ public sealed class FrigateDeviceHandler(
 
     public Task WaitUntilReadyAsync(CancellationToken token) => _ready.Task.WaitAsync(token);
 
-    public IReadOnlyDictionary<string, string> GetMetrics() => new Dictionary<string, string>(DeviceMetrics.GetDefault())
+    /// <summary>
+    /// The host people open Frigate at. The module runs in the hub, so the machine's own address would be the hub's, and Frigate's stats carry none.
+    /// </summary>
+    public string? GetAddress()
+        => Uri.TryCreate(options.Value.FrigatePublicUrl, UriKind.Absolute, out var url) ? url.Host : null;
+
+    /// <summary>
+    /// Metrics of Frigate from its latest stats, not of the hub machine the module runs on.
+    /// Only the camera count until the first stats arrive, and while Frigate is offline.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> GetMetrics()
     {
-        ["Cameras"] = _config.Cameras.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)
-    };
+        var metrics = new Dictionary<string, string>
+        {
+            ["Cameras"] = _config.Cameras.Count.ToString(CultureInfo.InvariantCulture)
+        };
+        if (_stats is not { } stats)
+        {
+            return metrics;
+        }
+
+        if (stats.Service is { } service)
+        {
+            metrics["UptimeSeconds"] = service.Uptime.ToString(CultureInfo.InvariantCulture);
+            if (!string.IsNullOrEmpty(service.Version))
+            {
+                metrics["Version"] = service.Version;
+            }
+        }
+
+        // The hottest sensor: GPU and NPU usually share one die, and a Coral matters as much as the board.
+        if (stats.GetTemperatures().DefaultIfEmpty(double.NaN).Max() is var temperature && !double.IsNaN(temperature))
+        {
+            metrics["Temperature"] = temperature.ToString(CultureInfo.InvariantCulture);
+        }
+
+        return metrics;
+    }
+
+    public void OnStats(FrigateStatsMessage message) => _stats = message;
 
     public async Task OnAvailabilityAsync(StringMessage<FrigateAvailabilityPayload> message)
     {
         _isAvailable = message.Content == FrigateTopics.Online;
+        if (_isAvailable == false)
+        {
+            // Stats of a stopped Frigate would show it as still running.
+            _stats = null;
+        }
+
         await telemetryPublisher.TryPublishAsync(StateKey, SerializeState());
         if (_isAvailable == false)
         {

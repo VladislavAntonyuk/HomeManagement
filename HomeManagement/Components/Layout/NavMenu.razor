@@ -1,32 +1,32 @@
-<nav class="nav" aria-label="Main">
+<nav class="nav" aria-label="@Strings.Nav_Main">
     <AuthorizeView>
         <div class="nav-user">
             <span class="nav-user-avatar" aria-hidden="true">@Initial(context.User.Identity?.Name)</span>
             <div class="nav-user-text">
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">Signed in as</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@Strings.Nav_SignedInAs</MudText>
                 <MudText Typo="Typo.subtitle2" Class="nav-user-name">@context.User.Identity?.Name</MudText>
             </div>
         </div>
     </AuthorizeView>
 
     <MudNavMenu Class="nav-menu" Rounded="true" Margin="Margin.Dense" Color="Color.Primary">
-        <MudText Typo="Typo.overline" Class="nav-section mud-text-secondary">Overview</MudText>
-        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.Dashboard">Home</MudNavLink>
-        <MudNavLink Href="/devices" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Rounded.Devices">Devices</MudNavLink>
-        <MudNavLink Href="/workflows" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Rounded.AccountTree">Workflows</MudNavLink>
+        <MudText Typo="Typo.overline" Class="nav-section mud-text-secondary">@Strings.Nav_Overview</MudText>
+        <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.Dashboard">@Strings.Nav_Home</MudNavLink>
+        <MudNavLink Href="/devices" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Rounded.Devices">@Strings.Nav_Devices</MudNavLink>
+        <MudNavLink Href="/workflows" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Rounded.AccountTree">@Strings.Nav_Workflows</MudNavLink>
 
-        <MudText Typo="Typo.overline" Class="nav-section mud-text-secondary">Apps</MudText>
+        <MudText Typo="Typo.overline" Class="nav-section mud-text-secondary">@Strings.Nav_Apps</MudText>
         <MudNavLink Href="@($"{_baseUri.Scheme}://cameras.{_baseUri.Host}/")" Match="NavLinkMatch.Prefix" Target="_blank" Icon="@Icons.Material.Rounded.Videocam">
-            <span class="nav-external">IP Cameras <MudIcon Icon="@Icons.Material.Rounded.OpenInNew" Size="Size.Small" /></span>
+            <span class="nav-external">@Strings.Nav_IpCameras <MudIcon Icon="@Icons.Material.Rounded.OpenInNew" Size="Size.Small" /></span>
         </MudNavLink>
     </MudNavMenu>
 
     <div class="nav-bottom">
         <MudNavMenu Class="nav-menu" Rounded="true" Margin="Margin.Dense">
-            <MudNavLink Href="/account/logout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Rounded.Logout">Log out</MudNavLink>
+            <MudNavLink Href="/account/logout" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Rounded.Logout">@Strings.Nav_LogOut</MudNavLink>
         </MudNavMenu>
         <a href="https://www.buymeacoffee.com/vlad.antonyuk" target="_blank" rel="noopener" class="nav-coffee">
-            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy me a coffee" />
+            <img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="@Strings.Nav_BuyMeACoffee" />
         </a>
     </div>
 </nav>

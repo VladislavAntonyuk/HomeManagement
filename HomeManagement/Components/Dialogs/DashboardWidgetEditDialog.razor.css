@@ -1,0 +1,92 @@
+/* Two columns of fields on wide screens; wide fields span both. */
+.widget-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem;
+    padding-top: 0.25rem;
+}
+
+@media (max-width: 599.98px) {
+    .widget-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* MudSelect puts Class on an inner element, inside a wrapper that is the grid item. */
+.widget-form ::deep .widget-full,
+.widget-form ::deep .mud-select:has(> .widget-full),
+.widget-form .widget-full {
+    grid-column: 1 / -1;
+}
+
+.widget-form ::deep .mud-input-control {
+    margin: 0;
+}
+
+.widget-output {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    border-radius: 12px;
+    background: var(--mud-palette-background-gray);
+}
+
+.widget-output-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 2rem;
+}
+
+.widget-raw-output {
+    max-height: 12rem;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    overflow: auto;
+    border-radius: 10px;
+    border: 1px solid var(--mud-palette-lines-default);
+    background: var(--mud-palette-surface);
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 0.8125rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.widget-properties {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.widget-property {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 0.75rem 1rem 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--mud-palette-lines-default);
+}
+
+.widget-property-header {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.widget-property-header ::deep .widget-property-path {
+    flex: 1;
+    min-width: 0;
+    font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+
+.widget-property-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 0.75rem;
+    padding-right: 0.25rem;
+}

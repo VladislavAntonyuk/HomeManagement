@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Address" xml:space="preserve">
+    <value>Адреса</value>
+  </data>
+  <data name="AppTitle" xml:space="preserve">
+    <value>Home Management</value>
+  </data>
+  <data name="CameraLive" xml:space="preserve">
+    <value>НАЖИВО</value>
+  </data>
+  <data name="Cameras" xml:space="preserve">
+    <value>Камери</value>
+  </data>
+  <data name="CamerasHint" xml:space="preserve">
+    <value>Оберіть камеру для перегляду наживо</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Скасувати</value>
+  </data>
+  <data name="ConnectDescription" xml:space="preserve">
+    <value>Введіть адресу хаба Home Management і ключ, яким ви входите.</value>
+  </data>
+  <data name="ConnectedSummary" xml:space="preserve">
+    <value>Збережено. Підключено до {0}. Пристроїв: {1}, сценаріїв: {2}.</value>
+  </data>
+  <data name="Connecting" xml:space="preserve">
+    <value>Підключення...</value>
+  </data>
+  <data name="ConnectTitle" xml:space="preserve">
+    <value>Підключіться до хаба</value>
+  </data>
+  <data name="Dashboard" xml:space="preserve">
+    <value>Панель</value>
+  </data>
+  <data name="DashboardLastRun" xml:space="preserve">
+    <value>Останній запуск: {0}</value>
+  </data>
+  <data name="DeviceLastSeen" xml:space="preserve">
+    <value>Востаннє в мережі: {0}</value>
+  </data>
+  <data name="Devices" xml:space="preserve">
+    <value>Пристрої</value>
+  </data>
+  <data name="DevicesNotRespondingCount" xml:space="preserve">
+    <value>Не відповідають: {0}</value>
+  </data>
+  <data name="DevicesOfflineCount" xml:space="preserve">
+    <value>Офлайн: {0}</value>
+  </data>
+  <data name="DevicesOnlineOf" xml:space="preserve">
+    <value>з {0} онлайн</value>
+  </data>
+  <data name="DevicesSummary" xml:space="preserve">
+    <value>Онлайн: {0} з {1}</value>
+  </data>
+  <data name="DeviceWidgets" xml:space="preserve">
+    <value>Віджети пристроїв</value>
+  </data>
+  <data name="Done" xml:space="preserve">
+    <value>Готово</value>
+  </data>
+  <data name="Error" xml:space="preserve">
+    <value>Помилка</value>
+  </data>
+  <data name="ErrorFrameTooLarge" xml:space="preserve">
+    <value>Кадр MJPEG завеликий.</value>
+  </data>
+  <data name="ErrorNotConfigured" xml:space="preserve">
+    <value>Вкажіть адресу хаба й ключ у налаштуваннях.</value>
+  </data>
+  <data name="ErrorStatus" xml:space="preserve">
+    <value>Хаб відповів: {0} {1}.</value>
+  </data>
+  <data name="ErrorTimeout" xml:space="preserve">
+    <value>Хаб не відповів вчасно.</value>
+  </data>
+  <data name="ErrorUnauthorized" xml:space="preserve">
+    <value>Хаб відхилив ключ. Перевірте його в налаштуваннях.</value>
+  </data>
+  <data name="ErrorUnreachable" xml:space="preserve">
+    <value>Хаб недоступний. Перевірте адресу в налаштуваннях і підключення до мережі.</value>
+  </data>
+  <data name="FramesPerSecond" xml:space="preserve">
+    <value>{0:0.#} кадр/с</value>
+  </data>
+  <data name="Home" xml:space="preserve">
+    <value>Головна</value>
+  </data>
+  <data name="Hub" xml:space="preserve">
+    <value>Хаб</value>
+  </data>
+  <data name="Key" xml:space="preserve">
+    <value>Ключ</value>
+  </data>
+  <data name="KeyPlaceholder" xml:space="preserve">
+    <value>Ключ, яким ви входите в хаб</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Мова</value>
+  </data>
+  <data name="LanguageSystem" xml:space="preserve">
+    <value>Як у системі</value>
+  </data>
+  <data name="Loading" xml:space="preserve">
+    <value>Завантаження...</value>
+  </data>
+  <data name="NoCameras" xml:space="preserve">
+    <value>Немає камер</value>
+  </data>
+  <data name="NoDevices" xml:space="preserve">
+    <value>Немає пристроїв</value>
+  </data>
+  <data name="NoWorkflows" xml:space="preserve">
+    <value>Немає сценаріїв</value>
+  </data>
+  <data name="Ok" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="OpenSettings" xml:space="preserve">
+    <value>Відкрити налаштування</value>
+  </data>
+  <data name="QualityHigh" xml:space="preserve">
+    <value>Висока · 1080p</value>
+  </data>
+  <data name="QualityLow" xml:space="preserve">
+    <value>Низька · 360p</value>
+  </data>
+  <data name="QualityMedium" xml:space="preserve">
+    <value>Середня · 720p</value>
+  </data>
+  <data name="Reconnecting" xml:space="preserve">
+    <value>Повторне підключення...</value>
+  </data>
+  <data name="Run" xml:space="preserve">
+    <value>Запустити</value>
+  </data>
+  <data name="RunNow" xml:space="preserve">
+    <value>Запустити зараз</value>
+  </data>
+  <data name="RunWorkflowMessage" xml:space="preserve">
+    <value>Запустити «{0}» зараз, незалежно від тригера?</value>
+  </data>
+  <data name="RunWorkflowTitle" xml:space="preserve">
+    <value>Запуск сценарію</value>
+  </data>
+  <data name="SaveAndConnect" xml:space="preserve">
+    <value>Зберегти й підключитися</value>
+  </data>
+  <data name="SearchDevices" xml:space="preserve">
+    <value>Пошук пристроїв</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>Налаштування</value>
+  </data>
+  <data name="SnapshotTime" xml:space="preserve">
+    <value>Знімок {0:HH:mm:ss}</value>
+  </data>
+  <data name="SnapshotUnavailable" xml:space="preserve">
+    <value>Недоступно</value>
+  </data>
+  <data name="StreamEnded" xml:space="preserve">
+    <value>Трансляцію завершено.</value>
+  </data>
+  <data name="System" xml:space="preserve">
+    <value>Система</value>
+  </data>
+  <data name="Temperature" xml:space="preserve">
+    <value>Температура</value>
+  </data>
+  <data name="Uptime" xml:space="preserve">
+    <value>Час роботи</value>
+  </data>
+  <data name="WidgetUpdated" xml:space="preserve">
+    <value>Оновлено {0}</value>
+  </data>
+  <data name="WorkflowLastRun" xml:space="preserve">
+    <value>останній запуск: {0}</value>
+  </data>
+  <data name="WorkflowRepeats" xml:space="preserve">
+    <value>повторюється, поки умова виконується</value>
+  </data>
+  <data name="Workflows" xml:space="preserve">
+    <value>Сценарії</value>
+  </data>
+  <data name="WorkflowsEnabledOf" xml:space="preserve">
+    <value>з {0} увімкнено</value>
+  </data>
+  <data name="WorkflowsSummary" xml:space="preserve">
+    <value>Увімкнено: {0} з {1}</value>
+  </data>
+  <data name="WorkflowStepsMany" xml:space="preserve">
+    <value>Кроків: {0}</value>
+  </data>
+  <data name="WorkflowStepsOne" xml:space="preserve">
+    <value>Кроків: 1</value>
+  </data>
+  <data name="WorkflowWhen" xml:space="preserve">
+    <value>Коли</value>
+  </data>
+</root>

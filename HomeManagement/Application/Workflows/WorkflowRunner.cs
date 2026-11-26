@@ -125,7 +125,7 @@ public partial class WorkflowRunner(
 
         return result.IsSuccess
             ? new StepSucceeded(values)
-            : new StepFailed($"Notify failed: {result.Message}", values);
+            : new StepFailed(string.Format(Strings.Workflow_NotifyFailed, result.Message), values);
     }
 
     /// <summary>

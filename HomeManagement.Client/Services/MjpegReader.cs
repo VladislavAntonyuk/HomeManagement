@@ -29,7 +29,7 @@ public static class MjpegReader
 
                 if (buffer.Length > MaxFrameSize)
                 {
-                    throw new InvalidDataException("MJPEG frame is too large.");
+                    throw new InvalidDataException(AppResources.ErrorFrameTooLarge);
                 }
 
                 reader.AdvanceTo(buffer.Start, buffer.End);

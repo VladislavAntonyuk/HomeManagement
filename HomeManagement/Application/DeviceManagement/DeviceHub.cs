@@ -40,7 +40,7 @@ public sealed class DeviceHub(
         }
         catch (TimeoutException)
         {
-            return new CommandResponse(false, $"Device '{deviceId}' did not respond within {CommandTimeout.TotalSeconds} seconds.");
+            return new CommandResponse(false, string.Format(Strings.Device_NoResponse, deviceId, CommandTimeout.TotalSeconds));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -111,7 +111,7 @@ public sealed class DeviceHub(
 
         if (isOnline != true)
         {
-            FailPendingCommands(deviceId, $"Device '{deviceId}' went offline.");
+            FailPendingCommands(deviceId, string.Format(Strings.Device_WentOffline, deviceId));
         }
     }
 
@@ -139,7 +139,7 @@ public sealed class DeviceHub(
         if (envelope.GetMqttCorrelationDataAsString() is { Length: > 0 } requestId
             && _pendingCommands.TryGetValue(requestId, out var pending))
         {
-            pending.Completion.TrySetResult(envelope.Message ?? new CommandResponse(false, "Empty response."));
+            pending.Completion.TrySetResult(envelope.Message ?? new CommandResponse(false, Strings.Device_EmptyResponse));
         }
     }
 

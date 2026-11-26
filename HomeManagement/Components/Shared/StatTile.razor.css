@@ -1,3 +1,9 @@
+/* The tile stacks its icon above the text when it is narrow, so values such as an address keep their size. */
+.stat-tile-container {
+    height: 100%;
+    container-type: inline-size;
+}
+
 .stat-tile {
     height: 100%;
     display: flex;
@@ -33,4 +39,11 @@
     margin-top: 0.25rem;
     font-size: 0.8125rem;
     color: var(--mud-palette-text-secondary);
+}
+
+@container (max-width: 260px) {
+    .stat-tile {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
 }

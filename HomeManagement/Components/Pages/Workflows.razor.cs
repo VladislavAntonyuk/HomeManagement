@@ -45,8 +45,8 @@ public partial class Workflows(
     }
 
     private string Summary() => _workflows is null
-        ? "Loading..."
-        : $"{_workflows.Count(x => x.IsEnabled)} of {_workflows.Count} enabled";
+        ? Strings.Common_Loading
+        : string.Format(Strings.Workflows_Summary, _workflows.Count(x => x.IsEnabled), _workflows.Count);
 
     private static string TriggerIcon(WorkflowTrigger trigger) => trigger switch
     {
@@ -66,8 +66,8 @@ public partial class Workflows(
     private static string FormatStep(WorkflowStep step) => step switch
     {
         DeviceActionStep action => $"{action.DeviceAction.Device.Name}: {action.DeviceAction.Action}",
-        DelayStep delay => $"Wait {DisplayFormatter.FormatDuration(delay.Delay)}",
-        NotifyStep notify => $"Notify \"{notify.Title}\""
+        DelayStep delay => string.Format(Strings.Workflows_StepWait, DisplayFormatter.FormatDuration(delay.Delay)),
+        NotifyStep notify => string.Format(Strings.Workflows_StepNotify, notify.Title)
     };
 
     private async Task SetEnabledAsync(Workflow workflow, bool enabled)
@@ -82,7 +82,7 @@ public partial class Workflows(
             { x => x.Model, workflow is null ? new WorkflowEditModel() : WorkflowEditModel.From(workflow) },
             { x => x.Devices, await GetDeviceOptionsAsync() }
         };
-        var dialog = await dialogService.ShowAsync<WorkflowEditDialog>(workflow is null ? "Add workflow" : $"Edit {workflow.Name}", parameters, EditorOptions);
+        var dialog = await dialogService.ShowAsync<WorkflowEditDialog>(workflow is null ? Strings.Workflows_AddWorkflow : string.Format(Strings.Common_EditTitle, workflow.Name), parameters, EditorOptions);
         if (await dialog.Result is not { Canceled: false, Data: WorkflowEditModel model })
         {
             return;
@@ -114,7 +114,7 @@ public partial class Workflows(
 
     private async Task DeleteAsync(Workflow workflow)
     {
-        if (await dialogService.ConfirmAsync("Delete workflow", $"Are you sure you want to delete workflow '{workflow.Name}'?"))
+        if (await dialogService.ConfirmAsync(Strings.Workflows_DeleteTitle, string.Format(Strings.Workflows_DeleteConfirm, workflow.Name)))
         {
             await SaveAsync(() => workflowService.DeleteAsync(workflow.Id));
         }

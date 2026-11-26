@@ -53,6 +53,7 @@ public static class CamerasServiceCollectionExtensions
         services.ConfigureSilverback()
             .AddBrokerClientsConfigurator<FrigateBrokerClientsConfigurator>()
             .AddDelegateSubscriber((FrigateEventMessage message, FrigateDeviceHandler handler) => handler.OnEventAsync(message))
+            .AddDelegateSubscriber((FrigateStatsMessage message, FrigateDeviceHandler handler) => handler.OnStats(message))
             .AddDelegateSubscriber((StringMessage<FrigateAvailabilityPayload> message, FrigateDeviceHandler handler) => handler.OnAvailabilityAsync(message))
             .AddDelegateSubscriber((StringMessage<FrigateAvailabilityPayload> message, FrigateConfigProvider config) => config.OnFrigateAvailability(message))
             .AddDelegateSubscriber((FrigateConfigLoaded message, FrigateDeviceHandler handler) => handler.OnConfigLoaded(message.Config))

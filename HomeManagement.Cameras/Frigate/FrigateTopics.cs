@@ -16,6 +16,11 @@ public static class FrigateTopics
 
     public const string Events = "frigate/events";
 
+    /// <summary>
+    /// Same JSON as <c>/api/stats</c>, published every <c>mqtt.stats_interval</c> seconds (60 by default) and not retained.
+    /// </summary>
+    public const string Stats = "frigate/stats";
+
     public const string ProfileSet = "frigate/profile/set";
 
     /// <summary>

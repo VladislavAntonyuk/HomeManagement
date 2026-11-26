@@ -19,4 +19,4 @@ public sealed class HubConnectionHandler(HubSettings settings) : DelegatingHandl
     }
 }
 
-public sealed class HubNotConfiguredException() : InvalidOperationException("Set the hub address and key in Settings.");
+public sealed class HubNotConfiguredException() : InvalidOperationException(AppResources.ErrorNotConfigured);

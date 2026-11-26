@@ -7,6 +7,7 @@ public class HomeManagementDbContext(DbContextOptions<HomeManagementDbContext> o
 {
     public DbSet<Device> Devices => Set<Device>();
     public DbSet<Workflow> Workflows => Set<Workflow>();
+    public DbSet<DashboardWidget> DashboardWidgets => Set<DashboardWidget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

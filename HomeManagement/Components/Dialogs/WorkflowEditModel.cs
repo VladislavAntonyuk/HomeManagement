@@ -180,16 +180,16 @@ public sealed class TriggerEditModel
     /// <returns>What is missing, or null when the trigger is complete.</returns>
     public string? Validate() => Kind switch
     {
-        TriggerKind.Date when Date is null => "Select a date.",
-        TriggerKind.Date when IsRange && DateTo is null => "Select the end date.",
-        TriggerKind.Date when IsRange && DateTo < Date => "The end date must not be before the start date.",
-        TriggerKind.Time when FromReference is WorkflowTimeReference.Fixed && FromTime is null => "Select a time.",
-        TriggerKind.Time when IsRange && ToReference is WorkflowTimeReference.Fixed && ToTime is null => "Select the end time.",
-        TriggerKind.DeviceStatus when DeviceId is null => "Select a device.",
-        TriggerKind.DeviceResult when ActionId is null => "Select a device and an action.",
-        TriggerKind.DeviceResult when string.IsNullOrWhiteSpace(PropertyPath) || ValueType is null => "Preview the response and select a property.",
-        TriggerKind.DeviceResult when string.IsNullOrWhiteSpace(ExpectedValue) => "Enter the expected value.",
-        TriggerKind.DeviceResult when ValueType is WorkflowTriggerValueType.Number && ExpectedNumber is null => "The expected value must be a number.",
+        TriggerKind.Date when Date is null => Strings.Validation_SelectDate,
+        TriggerKind.Date when IsRange && DateTo is null => Strings.Validation_SelectEndDate,
+        TriggerKind.Date when IsRange && DateTo < Date => Strings.Validation_EndBeforeStart,
+        TriggerKind.Time when FromReference is WorkflowTimeReference.Fixed && FromTime is null => Strings.Validation_SelectTime,
+        TriggerKind.Time when IsRange && ToReference is WorkflowTimeReference.Fixed && ToTime is null => Strings.Validation_SelectEndTime,
+        TriggerKind.DeviceStatus when DeviceId is null => Strings.Validation_SelectDevice,
+        TriggerKind.DeviceResult when ActionId is null => Strings.Validation_SelectDeviceAndAction,
+        TriggerKind.DeviceResult when string.IsNullOrWhiteSpace(PropertyPath) || ValueType is null => Strings.Validation_PreviewAndSelect,
+        TriggerKind.DeviceResult when string.IsNullOrWhiteSpace(ExpectedValue) => Strings.Validation_EnterExpectedValue,
+        TriggerKind.DeviceResult when ValueType is WorkflowTriggerValueType.Number && ExpectedNumber is null => Strings.Validation_ExpectedNumber,
         _ => null
     };
 
@@ -284,10 +284,10 @@ public sealed class StepEditModel
     /// <returns>What is missing, or null when the step is complete.</returns>
     public string? Validate() => Kind switch
     {
-        StepKind.DeviceAction when ActionId is null => "Select a device and an action.",
-        StepKind.Delay when DelaySeconds is null or <= 0 => "The delay must be longer than 0 seconds.",
-        StepKind.Notify when string.IsNullOrWhiteSpace(Title) => "Enter a title.",
-        StepKind.Notify when string.IsNullOrWhiteSpace(MessageTemplate) => "Enter a message.",
+        StepKind.DeviceAction when ActionId is null => Strings.Validation_SelectDeviceAndAction,
+        StepKind.Delay when DelaySeconds is null or <= 0 => Strings.Validation_DelayPositive,
+        StepKind.Notify when string.IsNullOrWhiteSpace(Title) => Strings.Validation_EnterTitle,
+        StepKind.Notify when string.IsNullOrWhiteSpace(MessageTemplate) => Strings.Validation_EnterMessage,
         _ => null
     };
 

@@ -365,6 +365,7 @@ FodyWeavers.xsd
 
 home_management.db*
 /HomeManagement/appsettings.Development.json
+/Devices/HomeManagement.Devices.TuyaPlug/appsettings.Development.json
 
 # ESP8266 and ESP32 sketch secrets (WiFi credentials, etc.) - keep Config.h.example tracked instead
 Devices/ESP8266/**/Config.h

@@ -1,28 +1,28 @@
 @page "/Account/Login"
 
-<PageTitle>Sign in</PageTitle>
+<PageTitle>@Strings.Login_PageTitle</PageTitle>
 
-<AuthCard Title="Welcome back" Subtitle="Sign in to Home Management">
+<AuthCard Title="@Strings.Login_Welcome" Subtitle="@Strings.Login_Subtitle">
     <form method="post" action="api/account/login" class="login-form">
         <input type="hidden" name="returnUrl" value="@ReturnUrl" />
         <input type="hidden" name="remember" value="@RememberMe.ToString()" />
         <AntiforgeryToken />
         @if (HasError)
         {
-            <MudAlert Severity="Severity.Error" Dense="true" Variant="Variant.Outlined">Invalid key. Check it and try again.</MudAlert>
+            <MudAlert Severity="Severity.Error" Dense="true" Variant="Variant.Outlined">@Strings.Login_InvalidKey</MudAlert>
         }
-        <MudTextField T="string" @bind-Value="Username" Label="Username" Required="true" name="username"
+        <MudTextField T="string" @bind-Value="Username" Label="@Strings.Login_Username" Required="true" name="username"
                       Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Rounded.Person"
                       autocomplete="username" />
-        <MudTextField T="string" @bind-Value="Key" Label="Key" Required="true" name="key"
+        <MudTextField T="string" @bind-Value="Key" Label="@Strings.Login_Key" Required="true" name="key"
                       InputType="@(_showKey ? InputType.Text : InputType.Password)"
                       Variant="Variant.Outlined" Adornment="Adornment.End"
                       AdornmentIcon="@(_showKey ? Icons.Material.Rounded.VisibilityOff : Icons.Material.Rounded.Visibility)"
-                      AdornmentAriaLabel="@(_showKey ? "Hide key" : "Show key")"
+                      AdornmentAriaLabel="@(_showKey ? Strings.Login_HideKey : Strings.Login_ShowKey)"
                       OnAdornmentClick="() => _showKey = !_showKey"
                       autocomplete="current-password" />
-        <MudCheckBox T="bool" @bind-Value="RememberMe" Label="Remember me" Color="Color.Primary" Class="login-remember" />
+        <MudCheckBox T="bool" @bind-Value="RememberMe" Label="@Strings.Login_RememberMe" Color="Color.Primary" Class="login-remember" />
         <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large"
-                   FullWidth="true" StartIcon="@Icons.Material.Rounded.Login">Sign in</MudButton>
+                   FullWidth="true" StartIcon="@Icons.Material.Rounded.Login">@Strings.Login_SignIn</MudButton>
     </form>
 </AuthCard>

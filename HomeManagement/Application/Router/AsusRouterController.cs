@@ -27,12 +27,12 @@ public class AsusRouterController(HttpClient httpClient, IOptions<RouterOptions>
     {
         if (httpClient.BaseAddress is null)
         {
-            return OperationResult.Failure("The router address is not configured (Router:IpAddress).");
+            return OperationResult.Failure(Strings.Router_NotConfigured);
         }
 
         if (await AuthenticateAsync(token) is not { Length: > 0 } asusToken)
         {
-            return OperationResult.Failure("Authentication failed");
+            return OperationResult.Failure(Strings.Router_AuthFailed);
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "/apply.cgi");

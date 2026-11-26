@@ -23,7 +23,7 @@
             <HorizontalStackLayout Spacing="8" VerticalOptions="Center">
                 <Ellipse WidthRequest="10" HeightRequest="10" Fill="{StaticResource StatusOffline}" VerticalOptions="Center"
                          IsVisible="{Status == null}" />
-                <Label Text="LIVE" TextColor="White" FontFamily="OpenSansSemibold" VerticalOptions="Center"
+                <Label Text="{x:Static AppResources.CameraLive}" TextColor="White" FontFamily="OpenSansSemibold" VerticalOptions="Center"
                        IsVisible="{Status == null}" />
                 <Label Text="{Binding Fps}" TextColor="{StaticResource Gray300}" VerticalOptions="Center" />
             </HorizontalStackLayout>

@@ -3,7 +3,7 @@
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:DataType="DevicesViewModel"
              Shell.NavBarIsVisible="False"
-             Title="Devices">
+             Title="{x:Static AppResources.Devices}">
 
     <ContentPage.Behaviors>
         <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Appearing" Command="{Binding AppearingCommand}" />
@@ -13,11 +13,11 @@
     <Grid>
         <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16,16,16,0" RowSpacing="12" IsVisible="{Binding IsConfigured}">
             <Grid ColumnDefinitions="*,Auto">
-                <Label Text="Devices" Style="{StaticResource PageTitle}" />
+                <Label Text="{x:Static AppResources.Devices}" Style="{StaticResource PageTitle}" />
                 <Label Grid.Column="1" Text="{Binding Summary}" Style="{StaticResource Caption}" VerticalOptions="Center" />
             </Grid>
 
-            <SearchBar Grid.Row="1" Placeholder="Search devices" Text="{Binding SearchText}" />
+            <SearchBar Grid.Row="1" Placeholder="{x:Static AppResources.SearchDevices}" Text="{Binding SearchText}" />
 
             <Border Grid.Row="2" Style="{StaticResource ErrorBanner}" IsVisible="{ErrorMessage != null}">
                 <Label Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" />
@@ -32,7 +32,7 @@
                     <CollectionView.EmptyView>
                         <Grid>
                             <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" HorizontalOptions="Center" VerticalOptions="Center" />
-                            <Label Text="No devices" Style="{StaticResource Caption}" HorizontalOptions="Center" VerticalOptions="Center" IsVisible="{!IsLoading}" />
+                            <Label Text="{x:Static AppResources.NoDevices}" Style="{StaticResource Caption}" HorizontalOptions="Center" VerticalOptions="Center" IsVisible="{!IsLoading}" />
                         </Grid>
                     </CollectionView.EmptyView>
 

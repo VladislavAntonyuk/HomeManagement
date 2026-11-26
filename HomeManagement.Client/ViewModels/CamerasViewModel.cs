@@ -1,3 +1,4 @@
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HomeManagement.Client.Services;
@@ -68,8 +69,8 @@ public sealed partial class CameraItemViewModel(string name) : ObservableObject
 
     public string UpdatedText => (UpdatedAt, SnapshotError) switch
     {
-        (_, not null) => "Unavailable",
-        ({ } value, _) => $"Snapshot {value:HH:mm:ss}",
-        _ => "Loading..."
+        (_, not null) => AppResources.SnapshotUnavailable,
+        ({ } value, _) => string.Format(CultureInfo.CurrentCulture, AppResources.SnapshotTime, value),
+        _ => AppResources.Loading
     };
 }

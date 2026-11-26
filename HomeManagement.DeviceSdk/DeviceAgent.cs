@@ -223,7 +223,7 @@ public sealed class DeviceAgent(
             await PublishAsync(new DeviceTwin
             {
                 Name = options.Value.DeviceName,
-                Actions = [new("INFO", CommandType.Get, DeviceTopics.InfoKey), .. handler.GetActions()],
+                Actions = handler.GetActions(),
                 HeartbeatIntervalSeconds = (int)TelemetryInterval.TotalSeconds
             });
         }
@@ -292,7 +292,7 @@ public sealed class DeviceAgent(
     private DeviceInfo GetDeviceInfo() => new()
     {
         Name = options.Value.DeviceName,
-        Address = HostInfo.LocalIpAddress,
+        Address = handler.GetAddress(),
         Metrics = handler.GetMetrics()
     };
 }

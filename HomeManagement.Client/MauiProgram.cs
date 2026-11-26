@@ -40,6 +40,7 @@ public static class MauiProgram
         builder.Services.AddSingleton(Preferences.Default);
         builder.Services.AddSingleton(SecureStorage.Default);
 #endif
+        builder.Services.AddSingleton<AppLanguage>();
         builder.Services.AddSingleton<HubSettings>();
         builder.Services.AddSingleton<UserNotifier>();
         builder.Services.AddHubApi();
@@ -67,13 +68,15 @@ public static class MauiProgram
         var placeholderAddress = new Uri("http://home-management.local");
 
         services.AddTransient<HubConnectionHandler>();
+        services.AddTransient<AcceptLanguageHandler>();
         services.AddRefitGeneratedClient<IHomeManagementApi>(refitSettings)
             .ConfigureHttpClient(client =>
             {
                 client.BaseAddress = placeholderAddress;
                 client.Timeout = TimeSpan.FromSeconds(30);
             })
-            .AddHttpMessageHandler<HubConnectionHandler>();
+            .AddHttpMessageHandler<HubConnectionHandler>()
+            .AddHttpMessageHandler<AcceptLanguageHandler>();
 
         services.AddRefitGeneratedClient<ICameraStreamApi>(refitSettings)
             .ConfigureHttpClient(client =>
@@ -81,6 +84,7 @@ public static class MauiProgram
                 client.BaseAddress = placeholderAddress;
                 client.Timeout = Timeout.InfiniteTimeSpan;
             })
-            .AddHttpMessageHandler<HubConnectionHandler>();
+            .AddHttpMessageHandler<HubConnectionHandler>()
+            .AddHttpMessageHandler<AcceptLanguageHandler>();
     }
 }

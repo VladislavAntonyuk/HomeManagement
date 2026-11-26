@@ -3,7 +3,7 @@
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:DataType="CamerasViewModel"
              Shell.NavBarIsVisible="False"
-             Title="Cameras">
+             Title="{x:Static AppResources.Cameras}">
 
     <ContentPage.Behaviors>
         <toolkit:EventToCommandBehavior BindingContext="{Binding BindingContext, Source={x:Reference Page}, x:DataType=ContentPage}" EventName="Appearing" Command="{Binding AppearingCommand}" />
@@ -13,8 +13,8 @@
     <Grid>
         <Grid RowDefinitions="Auto,Auto,*" Padding="16,16,16,0" RowSpacing="12" IsVisible="{Binding IsConfigured}">
             <Grid ColumnDefinitions="*,Auto">
-                <Label Text="Cameras" Style="{StaticResource PageTitle}" />
-                <Label Grid.Column="1" Text="Tap a camera for live view" Style="{StaticResource Caption}" VerticalOptions="Center" />
+                <Label Text="{x:Static AppResources.Cameras}" Style="{StaticResource PageTitle}" />
+                <Label Grid.Column="1" Text="{x:Static AppResources.CamerasHint}" Style="{StaticResource Caption}" VerticalOptions="Center" />
             </Grid>
 
             <Border Grid.Row="1" Style="{StaticResource ErrorBanner}" IsVisible="{ErrorMessage != null}">
@@ -59,7 +59,7 @@
                     <CollectionView.EmptyView>
                         <Grid>
                             <ActivityIndicator IsRunning="{Binding IsLoading}" IsVisible="{Binding IsLoading}" HorizontalOptions="Center" VerticalOptions="Center" />
-                            <Label Text="No cameras" Style="{StaticResource Caption}" HorizontalOptions="Center" VerticalOptions="Center" IsVisible="{!IsLoading}" />
+                            <Label Text="{x:Static AppResources.NoCameras}" Style="{StaticResource Caption}" HorizontalOptions="Center" VerticalOptions="Center" IsVisible="{!IsLoading}" />
                         </Grid>
                     </CollectionView.EmptyView>
 

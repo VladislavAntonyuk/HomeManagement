@@ -16,12 +16,51 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261120163036_WorkflowHierarchies";
+    public override string LastMigrationId => "20261125090753_DashboardWidgetProperties";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
         modelBuilder.HasAnnotation("ProductVersion", "11.0.0");
+
+        modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.DashboardWidget", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("INTEGER");
+
+                b.Property<int>("DeviceActionId")
+                    .HasColumnType("INTEGER");
+
+                b.Property<int>("Order")
+                    .HasColumnType("INTEGER");
+
+                b.Property<string>("Title")
+                    .HasMaxLength(100)
+                    .HasColumnType("TEXT");
+
+                b.ComplexCollection(typeof(List<Dictionary<string, object>>), "Properties", "HomeManagement.Infrastructure.Database.Entities.DashboardWidget.Properties#DashboardWidgetProperty", b1 =>
+                    {
+                        b1.IsRequired();
+
+                        b1.Property<string>("Label");
+
+                        b1.Property<string>("Path")
+                            .IsRequired();
+
+                        b1.Property<string>("Unit");
+
+                        b1
+                            .ToJson("Properties")
+                            .HasColumnType("TEXT");
+                    });
+
+                b.HasKey("Id");
+
+                b.HasIndex("DeviceActionId");
+
+                b.ToTable("DashboardWidgets");
+            });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.Device", b =>
             {
@@ -325,6 +364,17 @@ partial class HomeManagementDbContextModelSnapshot : ModelSnapshot
                     });
 
                 b.HasDiscriminator().HasValue(2);
+            });
+
+        modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.DashboardWidget", b =>
+            {
+                b.HasOne("HomeManagement.Infrastructure.Database.Entities.DeviceAction", "DeviceAction")
+                    .WithMany()
+                    .HasForeignKey("DeviceActionId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+
+                b.Navigation("DeviceAction");
             });
 
         modelBuilder.Entity("HomeManagement.Infrastructure.Database.Entities.DeviceAction", b =>

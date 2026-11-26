@@ -66,10 +66,10 @@ public sealed class DeviceService(
     }
 
     public Task<OperationResult> RunActionAsync(int deviceId, int actionId, CancellationToken token = default)
-        => RunActionAsync(x => x.Id == deviceId, x => x.Id == actionId, "Device not found.", "Action not found", token);
+        => RunActionAsync(x => x.Id == deviceId, x => x.Id == actionId, Strings.Device_NotFound, Strings.Action_NotFound, token);
 
     public Task<OperationResult> RunActionAsync(string deviceName, string actionName, CancellationToken token = default)
-        => RunActionAsync(x => x.Name == deviceName, x => x.Action == actionName, $"Device '{deviceName}' not found.", $"Action '{actionName}' not found", token);
+        => RunActionAsync(x => x.Name == deviceName, x => x.Action == actionName, string.Format(Strings.Device_NotFoundNamed, deviceName), string.Format(Strings.Action_NotFoundNamed, actionName), token);
 
     public async Task<OperationResult> UpdateAsync(int id, string name, string? description, CancellationToken token = default)
     {
@@ -77,19 +77,19 @@ public sealed class DeviceService(
         var device = await db.Devices.AsTracking().FirstOrDefaultAsync(x => x.Id == id, token);
         if (device is null)
         {
-            return OperationResult.NotFound("Device not found.");
+            return OperationResult.NotFound(Strings.Device_NotFound);
         }
 
         name = name.Trim();
         if (await db.Devices.AnyAsync(x => x.Id != id && x.Name == name, token))
         {
-            return OperationResult.Failure($"Another device is already called '{name}'.");
+            return OperationResult.Failure(string.Format(Strings.Device_NameTaken, name));
         }
 
         device.Name = name;
         device.Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         await db.SaveChangesAsync(token);
-        return OperationResult.Success($"'{device.Name}' updated.");
+        return OperationResult.Success(string.Format(Strings.Device_Updated, device.Name));
     }
 
     public async Task<OperationResult> DeleteAsync(int id, CancellationToken token = default)
@@ -98,19 +98,21 @@ public sealed class DeviceService(
         var device = await db.Devices.AsTracking().Include(x => x.Actions).FirstOrDefaultAsync(x => x.Id == id, token);
         if (device is null)
         {
-            return OperationResult.NotFound("Device not found.");
+            return OperationResult.NotFound(Strings.Device_NotFound);
         }
 
         var usages = await GetWorkflowUsagesAsync(db, device, token);
         if (usages.Count > 0)
         {
-            return OperationResult.Failure($"'{device.Name}' is used by workflows: {string.Join(", ", usages)}. Remove it from those workflows first.");
+            return OperationResult.Failure(string.Format(Strings.Device_UsedByWorkflows, device.Name, string.Join(", ", usages)));
         }
 
         db.Devices.Remove(device);
         await db.SaveChangesAsync(token);
         await deviceHub.ForgetDeviceAsync(device.DeviceId, token);
-        return OperationResult.Success($"Deleted '{device.Name}'.");
+        // Its dashboard widgets were removed with it.
+        stateStore.NotifyDevicesChanged();
+        return OperationResult.Success(string.Format(Strings.Device_Deleted, device.Name));
     }
 
     public async Task<List<string>> GetWorkflowUsagesAsync(int id, CancellationToken token = default)

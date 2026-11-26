@@ -119,17 +119,10 @@ public partial class Home(
         _ => Color.Success
     };
 
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 => $"{bytes} B",
-        < 1024L * 1024 => $"{bytes / 1024.0:0.#} KB",
-        < 1024L * 1024 * 1024 => $"{bytes / 1024.0 / 1024:0.#} MB",
-        < 1024L * 1024 * 1024 * 1024 => $"{bytes / 1024.0 / 1024 / 1024:0.#} GB",
-        _ => $"{bytes / 1024.0 / 1024 / 1024 / 1024:0.##} TB"
-    };
+    private static string FormatSize(long bytes) => DisplayFormatter.FormatBytes(bytes);
 
     private static string FormatCpuModel(CpuModel model) => model.Clusters.Count == 0
-        ? $"{model.LogicalCpus} cores"
+        ? string.Format(Strings.Home_Cores, model.LogicalCpus)
         : string.Join(" + ", model.Clusters.Select(x => x.Cores is { } cores ? $"{cores}× {x.Name}" : x.Name));
 
     private static string NetworkIcon(NetworkKind kind) => kind switch
@@ -145,7 +138,7 @@ public partial class Home(
         NetworkKind.Ethernet => "Ethernet",
         NetworkKind.WiFi => "Wi-Fi",
         NetworkKind.Vpn => "VPN",
-        _ => "Network"
+        _ => Strings.Home_Network
     };
 
     // A command that never ends, e.g. "top", must not block the page.
@@ -168,7 +161,7 @@ public partial class Home(
         }
         catch (OperationCanceledException)
         {
-            return (false, $"The command did not finish within {CommandTimeout.TotalSeconds} seconds.");
+            return (false, string.Format(Strings.Home_CommandTimeout, CommandTimeout.TotalSeconds));
         }
         catch (Exception e)
         {
@@ -178,24 +171,24 @@ public partial class Home(
 
     private async Task Reboot()
     {
-        if (!await dialogService.ConfirmAsync("Reboot server", "Reboot the Home Management server?", "Reboot"))
+        if (!await dialogService.ConfirmAsync(Strings.Home_RebootServerTitle, Strings.Home_RebootServerMessage, Strings.Home_Reboot))
         {
             return;
         }
 
         Process.StartAndForget("reboot");
-        snackbar.Add("Rebooting...", Severity.Success);
+        snackbar.Add(Strings.Home_Rebooting, Severity.Success);
     }
 
     private async Task Shutdown()
     {
-        if (!await dialogService.ConfirmAsync("Shut down server", "Shut down the Home Management server? It has to be powered on manually.", "Shut down"))
+        if (!await dialogService.ConfirmAsync(Strings.Home_ShutDownTitle, Strings.Home_ShutDownMessage, Strings.Home_ShutDown))
         {
             return;
         }
 
         Process.StartAndForget("poweroff");
-        snackbar.Add("Shutting down...", Severity.Success);
+        snackbar.Add(Strings.Home_ShuttingDown, Severity.Success);
     }
 
     private string _terminalCommand = string.Empty;
@@ -211,7 +204,7 @@ public partial class Home(
 
         var command = _terminalCommand;
         _terminalRunning = true;
-        _terminalOutput = $"$ {command}{Environment.NewLine}Running...";
+        _terminalOutput = $"$ {command}{Environment.NewLine}{Strings.Common_Running}";
         try
         {
             var (_, output) = await RunCommandAsync("/bin/bash", "-lc", command);
@@ -234,29 +227,29 @@ public partial class Home(
 
     private async Task RebootRouter()
     {
-        if (!await dialogService.ConfirmAsync("Reboot router", "Reboot the router? The network will be unavailable for a few minutes.", "Reboot"))
+        if (!await dialogService.ConfirmAsync(Strings.Home_RebootRouter, Strings.Home_RebootRouterMessage, Strings.Home_Reboot))
         {
             return;
         }
 
         var result = await routerController.RebootAsync();
-        snackbar.Add(result.IsSuccess ? "Router rebooted successfully." : $"Error rebooting router: {result.Message}", result.IsSuccess ? Severity.Success : Severity.Error);
+        snackbar.Add(result.IsSuccess ? Strings.Home_RouterRebooted : string.Format(Strings.Home_RouterRebootFailed, result.Message), result.IsSuccess ? Severity.Success : Severity.Error);
     }
 
     private async Task RebootRouterModem()
     {
-        if (!await dialogService.ConfirmAsync("Reboot modem", "Reboot the modem? The internet will be unavailable for a few minutes.", "Reboot"))
+        if (!await dialogService.ConfirmAsync(Strings.Home_RebootModem, Strings.Home_RebootModemMessage, Strings.Home_Reboot))
         {
             return;
         }
 
         var result = await routerController.RebootModemAsync();
-        snackbar.Add(result.IsSuccess ? "Router Modem rebooted successfully." : $"Error rebooting router modem: {result.Message}", result.IsSuccess ? Severity.Success : Severity.Error);
+        snackbar.Add(result.IsSuccess ? Strings.Home_ModemRebooted : string.Format(Strings.Home_ModemRebootFailed, result.Message), result.IsSuccess ? Severity.Success : Severity.Error);
     }
 
     private async Task TurnOffRouterLeds()
     {
         var result = await routerController.SetLedsAsync(false);
-        snackbar.Add(result.IsSuccess ? "Router LEDs turned off successfully." : $"Error turning off router LEDs: {result.Message}", result.IsSuccess ? Severity.Success : Severity.Error);
+        snackbar.Add(result.IsSuccess ? Strings.Home_LedsOff : string.Format(Strings.Home_LedsOffFailed, result.Message), result.IsSuccess ? Severity.Success : Severity.Error);
     }
 }
