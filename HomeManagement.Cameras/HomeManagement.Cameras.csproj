@@ -13,7 +13,7 @@
 	<ItemGroup>
 		<PackageReference Include="LiveStreamingServerNet" Version="0.33.1" />
 		<PackageReference Include="LiveStreamingServerNet.Flv" Version="0.33.1" />
-		<PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="11.0.0" />
+		<PackageReference Include="Microsoft.Extensions.ServiceDiscovery" Version="11.0.1" />
 		<ProjectReference Include="..\HomeManagement.DeviceSdk\HomeManagement.DeviceSdk.csproj" />
 	</ItemGroup>
 

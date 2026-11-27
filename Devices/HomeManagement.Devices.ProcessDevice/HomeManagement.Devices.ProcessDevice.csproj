@@ -13,7 +13,7 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Hosting" Version="11.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="11.0.0" />
-		<PackageReference Include="Silverback.Integration.MQTT" Version="5.9.0" />
+		<PackageReference Include="Silverback.Integration.MQTT" Version="5.10.0" />
 		<ProjectReference Include="..\..\HomeManagement.DeviceSdk\HomeManagement.DeviceSdk.csproj" />
 		<ProjectReference Include="..\..\HomeManagement.ServiceDefaults\HomeManagement.ServiceDefaults.csproj" />
 		<Content Update="appsettings.*.json">

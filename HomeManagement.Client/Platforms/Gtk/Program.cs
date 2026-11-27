@@ -4,7 +4,7 @@ using Microsoft.Maui.Platforms.Linux.Gtk4.Platform;
 
 namespace HomeManagement.Client;
 
-public class Program : GtkMauiApplication
+public partial class Program : GtkMauiApplication
 {
     protected override MauiApp CreateMauiApp() => MauiProgram.CreateMauiApp();
 
@@ -21,7 +21,7 @@ public class Program : GtkMauiApplication
 
     private static void UseWindowsGtk()
     {
-        var gtkDirectory = Environment.GetEnvironmentVariable("GTK4_BIN") ?? @"C:\msys64\ucrt64\bin";
+        var gtkDirectory = Environment.GetEnvironmentVariable("GTK4_BIN") ?? throw new InvalidOperationException("Set GTK4_BIN to the GTK4 bin folder");
         SetEnvironmentVariable("PATH", $"{gtkDirectory};{Environment.GetEnvironmentVariable("PATH")}");
         SetEnvironmentVariable("PANGOCAIRO_BACKEND", "fc");
 
@@ -48,6 +48,6 @@ public class Program : GtkMauiApplication
         }
     }
 
-    [DllImport("ucrtbase", EntryPoint = "_wputenv_s", CharSet = CharSet.Unicode)]
-    private static extern int PutEnvironmentVariable(string name, string value);
+    [LibraryImport("ucrtbase", EntryPoint = "_wputenv_s", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int PutEnvironmentVariable(string name, string value);
 }

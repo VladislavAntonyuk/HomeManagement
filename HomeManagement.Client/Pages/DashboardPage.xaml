@@ -122,10 +122,10 @@
                                 <Border Style="{StaticResource Card}">
                                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="8">
                                         <VerticalStackLayout Spacing="2" VerticalOptions="Center">
-                                            <Label Text="{Binding Title}" Style="{StaticResource CardTitle}" />
+                                            <Label Text="{Binding Device}" Style="{StaticResource CardTitle}" />
                                             <HorizontalStackLayout Spacing="6">
                                                 <Ellipse WidthRequest="8" HeightRequest="8" Fill="{Status.Color}" VerticalOptions="Center" />
-                                                <Label Text="{Binding Device}" Style="{StaticResource Caption}" LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding ActionName}" Style="{StaticResource Caption}" LineBreakMode="TailTruncation" />
                                             </HorizontalStackLayout>
                                         </VerticalStackLayout>
 

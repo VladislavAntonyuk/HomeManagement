@@ -70,22 +70,22 @@
     overflow-wrap: anywhere;
 }
 
-.widget-heading ::deep .widget-device {
+.widget-heading ::deep .widget-subtitle {
     display: flex;
     align-items: center;
     gap: 0.375rem;
     color: var(--mud-palette-text-secondary);
 }
 
-.widget-device-name {
+.widget-action-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-/* The status stays readable; only the device name is shortened. */
-.widget-device-status {
+/* The status stays readable; only the action name is shortened. */
+.widget-status-text {
     flex: 0 0 auto;
     white-space: nowrap;
 }

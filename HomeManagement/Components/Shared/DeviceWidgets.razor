@@ -41,13 +41,13 @@
                     <div class="widget-header">
                         <IconBadge Icon="@CommandTypeIcon(action.CommandType)" Accent="@CommandTypeAccent(action.CommandType)" />
                         <div class="widget-heading">
-                            <MudText Typo="Typo.subtitle2" Class="widget-title" title="@title">@title</MudText>
-                            <MudText Typo="Typo.caption" Class="widget-device">
+                            <MudText Typo="Typo.subtitle2" Class="widget-title" title="@action.Device.Name">@action.Device.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="widget-subtitle">
                                 <span class="widget-status-dot" title="@value.Presence.Status.DisplayName"></span>
-                                <span class="widget-device-name">@action.Device.Name</span>
+                                <span class="widget-action-name" title="@title">@title</span>
                                 @if (!value.Presence.IsOnline)
                                 {
-                                    <span class="widget-device-status">· @value.Presence.Status.DisplayName.ToLower(System.Globalization.CultureInfo.CurrentCulture)</span>
+                                    <span class="widget-status-text">· @value.Presence.Status.DisplayName.ToLower(System.Globalization.CultureInfo.CurrentCulture)</span>
                                 }
                             </MudText>
                         </div>

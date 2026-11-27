@@ -40,7 +40,14 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 
-		<MauiActiveBackend Condition="'$(TargetFramework)' == 'net11.0'">gtk</MauiActiveBackend>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net11.0'">
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<MauiActiveBackend>gtk</MauiActiveBackend>
+		<!-- The GTK4 package globs Resources\Images|Fonts|Raw by default; the explicit items below already cover them -->
+		<EnableDefaultMauiResourceItems>false</EnableDefaultMauiResourceItems>
+		<OutDir>bin\$(Configuration)\net11.0-gtk</OutDir>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -63,8 +70,8 @@
 	<ItemGroup Condition="'$(TargetFramework)' == 'net11.0'">
 		<!-- Map the 'Platforms/Gtk' directory to the GTK backend -->
 		<MauiPlatformSpecificFolder Include="Platforms\Gtk" TargetPlatformIdentifiers="" BackendIdentity="gtk" ActivationProperty="MauiActiveBackend" ActivationValue="gtk" />
-		<PackageReference Include="Microsoft.Maui.Platforms.Linux.Gtk4" Version="0.1.0-preview.14.26567.2" />
-		<PackageReference Include="Microsoft.Maui.Platforms.Linux.Gtk4.Essentials" Version="0.1.0-preview.14.26567.2" />
+		<PackageReference Include="Microsoft.Maui.Platforms.Linux.Gtk4" Version="0.1.0-preview.16.26575.3" />
+		<PackageReference Include="Microsoft.Maui.Platforms.Linux.Gtk4.Essentials" Version="0.1.0-preview.16.26575.3" />
 		<AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
 			<_Parameter1>linux</_Parameter1>
 		</AssemblyAttribute>

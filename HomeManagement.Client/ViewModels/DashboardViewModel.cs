@@ -108,10 +108,13 @@ public sealed partial class DashboardWidgetItemViewModel : ObservableObject
     public int Id => _widget.Id;
 
     [ObservableProperty]
-    public partial string Title { get; private set; } = string.Empty;
-
-    [ObservableProperty]
     public partial string Device { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// The widget title (the action), followed by the device status when it is not online.
+    /// </summary>
+    [ObservableProperty]
+    public partial string ActionName { get; private set; } = string.Empty;
 
     [ObservableProperty]
     public partial DevicePresenceStatus Status { get; private set; }
@@ -148,9 +151,9 @@ public sealed partial class DashboardWidgetItemViewModel : ObservableObject
     public void Update(DashboardWidgetDto widget)
     {
         _widget = widget;
-        Title = widget.Title;
         Status = widget.Status;
-        Device = widget.Status == DevicePresenceStatus.Online ? widget.DeviceName : $"{widget.DeviceName} · {widget.Status.DisplayName.ToLower(CultureInfo.CurrentCulture)}";
+        Device = widget.DeviceName;
+        ActionName = widget.Status == DevicePresenceStatus.Online ? widget.Title : $"{widget.Title} · {widget.Status.DisplayName.ToLower(CultureInfo.CurrentCulture)}";
         HasValue = widget.Message is null;
         Text = widget switch
         {

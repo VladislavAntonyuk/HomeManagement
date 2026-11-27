@@ -3,7 +3,7 @@
 @inject NavigationManager NavigationManager
 
 <MudRTLProvider RightToLeft="_rightToLeft">
-    <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" />
+    <MudThemeProvider @ref="_themeProvider" @bind-IsDarkMode="_isDarkMode" />
     <MudPopoverProvider />
     <MudDialogProvider CloseButton="true"
                        CloseOnEscapeKey="true"
@@ -76,36 +76,6 @@
         </MudMainContent>
     </MudLayout>
 </MudRTLProvider>
-
-@code {
-    private bool _drawerOpen = true;
-    private bool _isDarkMode = true;
-    private bool _rightToLeft;
-    private ErrorBoundary? _errorBoundary;
-
-    protected override void OnInitialized()
-    {
-        NavigationManager.LocationChanged += OnLocationChanged;
-    }
-
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => _errorBoundary?.Recover();
-
-    public void Dispose() => NavigationManager.LocationChanged -= OnLocationChanged;
-
-    // The language is read once per connection, so the page reloads to show the new one.
-    private void SetCulture(AppCulture culture)
-    {
-        var page = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-        NavigationManager.NavigateTo(
-            $"culture/set?culture={Uri.EscapeDataString(culture.Culture.Name)}&redirectUri={Uri.EscapeDataString(page)}",
-            forceLoad: true);
-    }
-
-    void DrawerToggle()
-    {
-        _drawerOpen = !_drawerOpen;
-    }
-}
 
 <div id="blazor-error-ui" data-nosnippet>
     @Strings.Layout_UnhandledError

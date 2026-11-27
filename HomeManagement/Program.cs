@@ -33,7 +33,7 @@ builder.AddWorkflow();
 
 builder.Services.AddHttpClient();
 
-builder.Services.AddMcpServer()
+builder.Services.AddMcpServer(options => options.ServerInstructions = McpServerInstructions.Text)
     .WithHttpTransport()
     .AddAuthorizationFilters()
     .WithTools<HomeManagementMcpTools>()
